@@ -67,18 +67,13 @@ internal static class Program
                 return HelpText.DefaultParsingErrorsHandler(result, h);
             }
         );
-        MessageBox.Show(
-            helpText,
-            AssemblyTitle + " " + AssemblyVersion,
-            MessageBoxButtons.OK,
-            MessageBoxIcon.Information
-        );
+        Console.WriteLine(helpText);
     }
 
     [STAThread]
     private static void Main(string[] args)
     {
-        var parser = new Parser(with => with.HelpWriter = Console.Out);
+        var parser = new Parser(with => with.HelpWriter = null);
         var parserResult = parser.ParseArguments<CommandLineOptions>(args);
 
         bool isHeadless = false;
@@ -92,7 +87,8 @@ internal static class Program
             .WithNotParsed(errs =>
             {
                 DisplayHelp(parserResult);
-                Environment.Exit(1);
+                var isHelp = errs.Any(e => e.Tag == ErrorType.HelpRequestedError || e.Tag == ErrorType.VersionRequestedError);
+                Environment.Exit(isHelp ? 0 : 1);
             });
 
         //CultureInfo.CurrentCulture = CultureInfo.InvariantCulture;
@@ -125,17 +121,18 @@ internal static class Program
     }
     private static void RunHeadless()
     {
-        //Main mainForm = new Main();
-        EventManager.SubscribeEvent("OnAddLog", (string message, LogLevel level) => Console.WriteLine($"[{level}] {message}"));
-        EventManager.SubscribeEvent("OnChangeStatusText", (string status) => Console.WriteLine($"[Status] {status}"));
+        EventManager.SubscribeEvent("OnAddLog", (string message, LogLevel level) => Terminal.WriteLog($"[{level}] {message}"));
+        EventManager.SubscribeEvent("OnChangeStatusText", (string status) => Terminal.WriteLog($"[Status] {status}"));
 
         BotCL.Initialize(ProfileManager.SelectedProfile);
 
         bool running = true;
         while (running)
         {
-            Console.Write("> ");
-            var input = Console.ReadLine()?.Split(',');
+            var inputLine = Terminal.ReadLine();
+            if (string.IsNullOrWhiteSpace(inputLine)) continue;
+
+            var input = inputLine.Split(',');
             if (input == null || input.Length == 0) continue;
 
             var command = input[0].ToLowerInvariant();

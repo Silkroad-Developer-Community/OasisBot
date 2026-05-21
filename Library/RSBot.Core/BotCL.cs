@@ -1,4 +1,5 @@
-﻿using RSBot.Core.Components;
+using System.Linq;
+using RSBot.Core.Components;
 
 namespace RSBot.Core
 {
@@ -14,6 +15,20 @@ namespace RSBot.Core
             Game.ReferenceManager.Load();
             Kernel.PluginManager.LoadAssemblies(true);
             Kernel.BotbaseManager.LoadAssemblies(true);
+
+            var botName = GlobalConfig.Get("RSBot.BotName", "RSBot.Training");
+            var selectedBotbase = Kernel.BotbaseManager.Bots.FirstOrDefault(bot => bot.Value.Name == botName);
+            if (selectedBotbase.Value != null)
+            {
+                Kernel.Bot.SetBotbase(selectedBotbase.Value);
+            }
+            else
+            {
+                var fallback = Kernel.BotbaseManager.Bots.FirstOrDefault();
+                if (fallback.Value != null)
+                    Kernel.Bot.SetBotbase(fallback.Value);
+            }
+
             LoadExtensions();
         }
         public static void LoadExtensions()

@@ -1,4 +1,4 @@
-﻿using System;
+using System;
 using System.Collections.Generic;
 using System.Linq;
 using RSBot.Core;
@@ -62,7 +62,7 @@ internal class AutoPartyBundle
             AcceptIfBotIsStopped = PlayerConfig.Get<bool>("RSBot.Party.AcceptIfBotStopped"),
             LeaveIfMasterNot = PlayerConfig.Get<bool>("RSBot.Party.LeaveIfMasterNot"),
             LeaveIfMasterNotName = PlayerConfig.Get<string>("RSBot.Party.LeaveIfMasterNotName"),
-            CenterPosition = Kernel.Bot.Botbase.Area.Position,
+            CenterPosition = (Kernel.Bot?.Botbase != null) ? Kernel.Bot.Botbase.Area.Position : (Game.Player?.Position ?? new RSBot.Core.Objects.Position(0, 0, 0)),
             AutoJoinByName = PlayerConfig.Get("RSBot.Party.AutoJoin.ByName", false),
             AutoJoinByTitle = PlayerConfig.Get("RSBot.Party.AutoJoin.ByTitle", false),
             AutoJoinByNameContent = PlayerConfig.Get("RSBot.Party.AutoJoin.Name", string.Empty),
@@ -163,7 +163,7 @@ internal class AutoPartyBundle
             if (Config.LeaveIfMasterNotName != Game.Party.Leader.Name)
                 Game.Party.Leave();
 
-        if (!Game.Party.CanInvite)
+        if (!Game.Party.CanInvite || Game.Party.Settings == null)
             return;
 
         var limit = 8;

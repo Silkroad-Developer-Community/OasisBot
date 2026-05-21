@@ -1,4 +1,4 @@
-﻿using System.Collections.Generic;
+using System.Collections.Generic;
 using System.Linq;
 using RSBot.Core.Network;
 
@@ -12,7 +12,7 @@ public class Party
     /// <value>
     ///     <c>true</c> Indicating whether other party members can invite; otherwise, <c>false</c>.
     /// </value>
-    public bool CanInvite => Settings.AllowInvitation || IsLeader || !IsInParty;
+    public bool CanInvite => Settings != null && (Settings.AllowInvitation || IsLeader || !IsInParty);
 
     /// <summary>
     ///     Gets a value indicating whether this instance has pending request.
@@ -62,7 +62,7 @@ public class Party
     /// <value>
     ///     The settings.
     /// </value>
-    public PartySettings Settings { get; set; }
+    public PartySettings Settings { get; set; } = new();
 
     /// <summary>
     ///     Gets the member by identifier.
@@ -122,5 +122,6 @@ public class Party
     {
         Members = null;
         Leader = null;
+        Settings = new();
     }
 }

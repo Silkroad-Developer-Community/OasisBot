@@ -113,7 +113,7 @@ public class Log
     {
         Warn(obj.Message);
 
-        var filePath = Path.Combine(Kernel.BasePath, "Data", "Logs", "Exceptions", $"{DateTime.Now:dd-MM-yyyy}.txt");
+        var filePath = Path.Combine(Kernel.BasePath, "User", "Logs", "Exceptions", $"{DateTime.Now:dd-MM-yyyy}.txt");
         var directory = Path.GetDirectoryName(filePath);
 
         if (!Directory.Exists(directory))
