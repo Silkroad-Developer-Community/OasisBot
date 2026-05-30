@@ -19,13 +19,8 @@ namespace RSBot;
 internal static class Program
 {
     [DllImport("kernel32.dll")]
-    static extern IntPtr GetConsoleWindow();
+    private static extern bool FreeConsole();
 
-    [DllImport("user32.dll")]
-    static extern bool ShowWindow(IntPtr hWnd, int nCmdShow);
-
-    private const int SW_HIDE = 0;
-    private const int SW_SHOW = 5;
     public static string AssemblyTitle = Assembly
         .GetExecutingAssembly()
         .GetCustomAttribute<AssemblyProductAttribute>()
@@ -105,15 +100,14 @@ internal static class Program
         }
         else
         {
-            var handle = GetConsoleWindow();
-            ShowWindow(handle, SW_HIDE);
+            FreeConsole();
 
             Application.EnableVisualStyles();
             Application.SetCompatibleTextRenderingDefault(false);
             Application.SetHighDpiMode(HighDpiMode.PerMonitorV2);
 
             Main mainForm = new Main();
-            SplashScreen splashScreen = new SplashScreen(mainForm);            
+            SplashScreen splashScreen = new SplashScreen(mainForm);
             splashScreen.ShowDialog();
 
             Application.Run(mainForm);

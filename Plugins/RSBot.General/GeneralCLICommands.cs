@@ -2,6 +2,7 @@ using RSBot.Core;
 using RSBot.Core.Components;
 using RSBot.Core.Components.Command;
 using System;
+using System.Threading.Tasks;
 
 namespace RSBot.General;
 
@@ -12,12 +13,17 @@ public class StartClientCommand : ICLICommand
 
     public void Execute(string[] args)
     {
-        GeneralPlugin.Instance.Manager.StartClientAsync().ContinueWith(task =>
+        _ = Task.Run(async () =>
         {
-            if (task.IsFaulted)
-                Log.Error($"Failed to start client: {task.Exception?.InnerException?.Message ?? task.Exception?.Message}");
-            else
+            try
+            {
+                await GeneralPlugin.Instance.Manager.StartClientAsync().ConfigureAwait(false);
                 Log.Notify("Client started");
+            }
+            catch (Exception ex)
+            {
+                Log.Error($"Failed to start client: {ex.Message}");
+            }
         });
     }
 }

@@ -48,7 +48,7 @@ namespace RSBot.Views
             pictureBox.Location = new System.Drawing.Point(0, 0);
             pictureBox.Margin = new System.Windows.Forms.Padding(4, 5, 4, 5);
             pictureBox.Name = "pictureBox";
-            pictureBox.Size = new System.Drawing.Size(533, 91);
+            pictureBox.Size = new System.Drawing.Size(640, 91);
             pictureBox.SizeMode = System.Windows.Forms.PictureBoxSizeMode.Zoom;
             pictureBox.TabIndex = 0;
             pictureBox.TabStop = false;
@@ -74,7 +74,7 @@ namespace RSBot.Views
             logoLabel.GradientAnimation = true;
             logoLabel.Location = new System.Drawing.Point(0, 91);
             logoLabel.Name = "logoLabel";
-            logoLabel.Size = new System.Drawing.Size(533, 100);
+            logoLabel.Size = new System.Drawing.Size(640, 100);
             logoLabel.TabIndex = 3;
             logoLabel.Text = "RSBOT";
             logoLabel.TextAlign = System.Drawing.ContentAlignment.MiddleCenter;
@@ -94,7 +94,7 @@ namespace RSBot.Views
     System.Drawing.Color.FromArgb(182, 159, 119)
     };
             labelVersion.GradientAnimation = false;
-            labelVersion.Location = new System.Drawing.Point(443, 129);
+            labelVersion.Location = new System.Drawing.Point(550, 129);
             labelVersion.Name = "labelVersion";
             labelVersion.Size = new System.Drawing.Size(63, 28);
             labelVersion.TabIndex = 4;
@@ -117,7 +117,7 @@ namespace RSBot.Views
             label2.GradientAnimation = false;
             label2.Location = new System.Drawing.Point(0, 232);
             label2.Name = "label2";
-            label2.Size = new System.Drawing.Size(533, 32);
+            label2.Size = new System.Drawing.Size(640, 32);
             label2.TabIndex = 5;
             label2.Text = "Free powerful bot for Silkroad Online servers";
             label2.TextAlign = System.Drawing.ContentAlignment.MiddleCenter;
@@ -138,7 +138,7 @@ namespace RSBot.Views
             label3.GradientAnimation = false;
             label3.Location = new System.Drawing.Point(0, 264);
             label3.Name = "label3";
-            label3.Size = new System.Drawing.Size(533, 26);
+            label3.Size = new System.Drawing.Size(640, 26);
             label3.TabIndex = 5;
             label3.Text = "Created with contributions from the community";
             label3.TextAlign = System.Drawing.ContentAlignment.MiddleCenter;
@@ -158,7 +158,7 @@ namespace RSBot.Views
             lblLoading.GradientAnimation = false;
             lblLoading.Location = new System.Drawing.Point(0, 191);
             lblLoading.Name = "lblLoading";
-            lblLoading.Size = new System.Drawing.Size(533, 21);
+            lblLoading.Size = new System.Drawing.Size(640, 21);
             lblLoading.TabIndex = 6;
             lblLoading.Text = "Loading";
             lblLoading.TextAlign = System.Drawing.ContentAlignment.MiddleCenter;
@@ -182,7 +182,7 @@ namespace RSBot.Views
             progressLoading.Radius = 4;
             progressLoading.ShowAsPercent = true;
             progressLoading.ShowValue = true;
-            progressLoading.Size = new System.Drawing.Size(533, 290);
+            progressLoading.Size = new System.Drawing.Size(640, 290);
             progressLoading.TabIndex = 7;
             progressLoading.Text = "0,0%";
             progressLoading.Value = 0L;
@@ -194,7 +194,7 @@ namespace RSBot.Views
             BackColor = System.Drawing.SystemColors.Control;
             BackgroundImageLayout = System.Windows.Forms.ImageLayout.None;
             BorderColor = System.Drawing.Color.Empty;
-            ClientSize = new System.Drawing.Size(533, 290);
+            ClientSize = new System.Drawing.Size(640, 290);
             ControlBox = false;
             Controls.Add(labelVersion);
             Controls.Add(label2);
