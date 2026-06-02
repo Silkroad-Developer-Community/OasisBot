@@ -43,6 +43,16 @@ internal class AutoPartyBundle
     /// </value>
     public AutoPartyConfig Config { get; set; }
 
+    private void ApplyPartySettingsFromConfig()
+    {
+        if (!Game.Party.IsInParty)
+            Game.Party.Settings = new PartySettings(
+                Config.ExperienceAutoShare,
+                Config.ItemAutoShare,
+                Config.AllowInvitations
+            );
+    }
+
     /// <summary>
     ///     Refreshes this instance.
     /// </summary>
@@ -70,12 +80,7 @@ internal class AutoPartyBundle
             AlwaysFollowThePartyMaster = PlayerConfig.Get("RSBot.Party.AlwaysFollowPartyMaster", false),
         };
 
-        if (!Game.Party.IsInParty)
-            Game.Party.Settings = new PartySettings(
-                Config.ExperienceAutoShare,
-                Config.ItemAutoShare,
-                Config.AllowInvitations
-            );
+        ApplyPartySettingsFromConfig();
     }
 
     public void OnTick()
@@ -154,6 +159,9 @@ internal class AutoPartyBundle
     /// </summary>
     public void CheckForPlayers()
     {
+        if (Config == null)
+            return;
+
         if (
             Game.Party.IsInParty
             && !Game.Party.IsLeader
@@ -163,12 +171,7 @@ internal class AutoPartyBundle
             if (Config.LeaveIfMasterNotName != Game.Party.Leader.Name)
                 Game.Party.Leave();
 
-        if (!Game.Party.IsInParty)
-            Game.Party.Settings = new PartySettings(
-                Config.ExperienceAutoShare,
-                Config.ItemAutoShare,
-                Config.AllowInvitations
-            );
+        ApplyPartySettingsFromConfig();
 
         if (!Game.Party.CanInvite || Game.Party.Settings == null)
             return;
