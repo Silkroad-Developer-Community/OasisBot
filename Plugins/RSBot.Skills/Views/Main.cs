@@ -519,7 +519,7 @@ public partial class Main : DoubleBufferedControl
                 var itemBuffInfo = listItem.Tag as SkillInfo;
                 if (
                     itemBuffInfo != null
-                    && itemBuffInfo.Id == removingBuff.Id
+                    /*&& itemBuffInfo.Id == removingBuff.Id*/
                     && itemBuffInfo.Token == removingBuff.Token
                 )
                 {

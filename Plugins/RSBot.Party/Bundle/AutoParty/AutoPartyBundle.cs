@@ -163,6 +163,13 @@ internal class AutoPartyBundle
             if (Config.LeaveIfMasterNotName != Game.Party.Leader.Name)
                 Game.Party.Leave();
 
+        if (!Game.Party.IsInParty)
+            Game.Party.Settings = new PartySettings(
+                Config.ExperienceAutoShare,
+                Config.ItemAutoShare,
+                Config.AllowInvitations
+            );
+
         if (!Game.Party.CanInvite || Game.Party.Settings == null)
             return;
 

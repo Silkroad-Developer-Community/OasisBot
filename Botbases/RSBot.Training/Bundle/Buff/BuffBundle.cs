@@ -51,9 +51,9 @@ internal class BuffBundle : IBundle
                     //#377 bug detected!
                     Log.Notify($"[#377] The buff [{buff.Token}-{buff.Record?.GetRealName()}] expired");
 
-                    EventManager.FireEvent("OnRemoveBuff", buff);
+                    EventManager.FireEvent("OnRemoveBuff", info);
 
-                    var playerSkill = Game.Player.Skills.GetSkillInfoById(buff.Id);
+                    var playerSkill = Game.Player.Skills.GetSkillInfoById(info.Id);
                     playerSkill?.Reset();
                     Game.Player.State.TryRemoveActiveBuff(info.Token, out _);
                 }

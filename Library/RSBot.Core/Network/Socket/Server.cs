@@ -1,14 +1,17 @@
-﻿using System;
-using System.Net;
-using System.Net.Sockets;
-using RSBot.Core.Event;
+﻿using RSBot.Core.Event;
 using RSBot.Core.Extensions;
 using RSBot.Core.Network.Protocol;
+using System;
+using System.Net;
+using System.Net.Sockets;
 
 namespace RSBot.Core.Network;
 
 public class Server : NetBase
 {
+    private bool _receivedInitialHandshake;
+    private bool _receivedPostInitialHandshakePacket;
+
     /// <summary>
     ///     Gets or sets the ip.
     /// </summary>
@@ -42,6 +45,8 @@ public class Server : NetBase
         {
             _protocol = new SecurityProtocol();
             _socket = new Socket(AddressFamily.InterNetwork, SocketType.Stream, ProtocolType.Tcp);
+            _receivedInitialHandshake = false;
+            _receivedPostInitialHandshakePacket = false;
 
             try
             {
@@ -62,7 +67,7 @@ public class Server : NetBase
                 {
                     _socket.Connect(ip, port, 3000);
                 }
-            }
+                }
             catch (AggregateException s)
             {
                 Log.Error(s.Message);
@@ -111,26 +116,26 @@ public class Server : NetBase
         try
         {
             receivedSize = _socket.EndReceive(ar, out var error);
+            var rawOpcode = receivedSize >= 4 ? $"0x{BitConverter.ToUInt16(_buffer, 2):X4}" : "n/a";
+
             if (receivedSize == 0 || error != SocketError.Success)
             {
-                Log.Debug($"Socket closed: receivedSize={receivedSize}, error={error}");
-                if (_socket != null)
-                {
-                    try
-                    {
-                        Log.Debug($"Socket.Connected={_socket.Connected}, LocalEndPoint={_socket.LocalEndPoint}, RemoteEndPoint={_socket.RemoteEndPoint}");
-                    }
-                    catch { }
-                }
+                if (!IsClosing && EnablePacketDispatcher && _receivedInitialHandshake && !_receivedPostInitialHandshakePacket)
+                    Log.Notify("Gateway closed immediately after initial 0x5000 before handshake completed. Possible IP/session limit");
+
                 OnDisconnected();
                 return;
             }
+
+            if (!_receivedInitialHandshake && rawOpcode == "0x5000")
+                _receivedInitialHandshake = true;
+            else if (_receivedInitialHandshake)
+                _receivedPostInitialHandshakePacket = true;
 
             _protocol.Recv(_buffer, 0, receivedSize);
         }
         catch (SocketException se)
         {
-            Log.Debug($"SocketException: Code={se.SocketErrorCode}, NativeErrorCode={se.NativeErrorCode}, Message={se.Message}");
             if (se.SocketErrorCode == SocketError.ConnectionReset) //Client OnDisconnected > Mostly occurs during GW->AS switch
                 OnDisconnected();
         }
@@ -146,9 +151,8 @@ public class Server : NetBase
                 if (receivedSize != 0 && _socket != null && _socket.Connected)
                     _socket.BeginReceive(_buffer, 0, _buffer.Length, SocketFlags.None, OnBeginReceiveCallback, null);
             }
-            catch (Exception ex)
+            catch
             {
-                Log.Debug($"Exception in BeginReceive: {ex.Message}");
                 OnDisconnected();
             }
         }

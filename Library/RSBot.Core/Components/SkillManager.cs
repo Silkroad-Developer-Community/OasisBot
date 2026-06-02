@@ -439,42 +439,64 @@ public static class SkillManager
             packet.WriteByte(ActionTarget.None);
         }
 
-        var asyncCallback = new AwaitCallback(
+        var castCallback = new AwaitCallback(
             response =>
             {
-                var targetId = response.ReadUInt();
-                var castedSkillId = response.ReadUInt();
+                var result = response.ReadByte();
 
-                if (targetId == (target == 0 ? Game.Player.UniqueId : target) && castedSkillId == skill.Id)
-                    return AwaitCallbackResult.Success;
+                if (result != 0x01)
+                    return AwaitCallbackResult.Fail;
 
-                return AwaitCallbackResult.ConditionFailed;
-            },
-            0xB0BD
-        );
+                var action = Objects.Action.DeserializeBegin(response);
 
-        var callback = new AwaitCallback(
-            response =>
-            {
-                return response.ReadByte() == 0x02 && response.ReadByte() == 0x00
+                return action.PlayerIsExecutor && action.SkillId == skill.Id
                     ? AwaitCallbackResult.Success
                     : AwaitCallbackResult.ConditionFailed;
+            },
+            0xB070
+        );
+
+        var actionStateCallback = new AwaitCallback(
+            response =>
+            {
+                var state = response.ReadByte();
+                var recurring = response.ReadByte();
+
+                if (state == 0x02 && recurring == 0x00)
+                    return AwaitCallbackResult.Success;
+
+                if (state == 0x03)
+                    return AwaitCallbackResult.Fail;
+
+                return AwaitCallbackResult.ConditionFailed;
             },
             0xB074
         );
 
-        PacketManager.SendPacket(packet, PacketDestination.Server, asyncCallback, callback);
+        if (!awaitBuffResponse)
+        {
+            PacketManager.SendPacket(packet, PacketDestination.Server);
+            return;
+        }
 
-        if (awaitBuffResponse)
-            asyncCallback.AwaitResponse(
-                skill.Record.Action_CastingTime
-                    + skill.Record.Action_ActionDuration
-                    + skill.Record.Action_PreparingTime
-                    + 1500
-            );
+        if (skill.Record.Basic_Activity != 1)
+            PacketManager.SendPacket(packet, PacketDestination.Server, castCallback, actionStateCallback);
+        else
+            PacketManager.SendPacket(packet, PacketDestination.Server, castCallback);
 
-        if (skill.Record.Basic_Activity != 1 && awaitBuffResponse)
-            callback.AwaitResponse();
+        var timeout =
+            skill.Record.Action_CastingTime
+            + skill.Record.Action_ActionDuration
+            + skill.Record.Action_PreparingTime
+            + 1500;
+
+        castCallback.AwaitResponse(timeout);
+
+        if (!castCallback.IsCompleted)
+            return;
+
+        if (skill.Record.Basic_Activity != 1)
+            actionStateCallback.AwaitResponse(timeout);
     }
 
     /// <summary>
