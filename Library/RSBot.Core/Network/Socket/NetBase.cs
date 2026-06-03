@@ -128,15 +128,30 @@ public class NetBase(bool isClient = false)
 
     protected void StartNetWorker()
     {
-        if (_dispatcherThread == null)
+        if (_dispatcherThread != null && _dispatcherThread.IsAlive)
+            return;
+
+        _dispatcherThread = new Thread(ProcessPacketsThreaded)
         {
-            _dispatcherThread = new Thread(ProcessPacketsThreaded)
-            {
-                Name = "Network.PacketProcessor",
-                IsBackground = true,
-            };
-            _dispatcherThread.Start();
-        }
+            Name = "Network.PacketProcessor",
+            IsBackground = true,
+        };
+        _dispatcherThread.Start();
+    }
+
+    protected void StopNetWorker(int joinTimeout = 1000)
+    {
+        EnablePacketDispatcher = false;
+        IsClosing = true;
+
+        var dispatcherThread = _dispatcherThread;
+        var stopped = dispatcherThread == null || !dispatcherThread.IsAlive || dispatcherThread == Thread.CurrentThread;
+
+        if (dispatcherThread != null && dispatcherThread.IsAlive && dispatcherThread != Thread.CurrentThread)
+            stopped = dispatcherThread.Join(joinTimeout);
+
+        if (stopped)
+            _dispatcherThread = null;
     }
 
     /// <summary>

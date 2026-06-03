@@ -175,15 +175,11 @@ public class Server : NetBase
     /// </summary>
     public void Disconnect()
     {
-        EnablePacketDispatcher = false;
-        IsClosing = true;
+        StopNetWorker();
 
         try
         {
-            if (_socket == null)
-                return;
-
-            if (_socket.Connected)
+            if (_socket != null && _socket.Connected)
             {
                 _socket.Shutdown(SocketShutdown.Both);
                 _socket.Close();
@@ -194,8 +190,7 @@ public class Server : NetBase
         {
             _socket = null;
             OnDisconnected();
+            IsClosing = false;
         }
-
-        IsClosing = false;
     }
 }

@@ -636,12 +636,6 @@ public static class SkillManager
         var packet = new Packet(0x7074);
         packet.WriteByte(0x02); //Cancel
 
-        if (timeout <= 0)
-        {
-            PacketManager.SendPacket(packet, PacketDestination.Server);
-            return true;
-        }
-
         var callback = new AwaitCallback(
             response =>
             {

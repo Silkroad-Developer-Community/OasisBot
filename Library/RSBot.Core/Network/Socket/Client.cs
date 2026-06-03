@@ -58,10 +58,7 @@ public class Client() : NetBase(isClient: true)
     {
         try
         {
-            EnablePacketDispatcher = false;
-            IsClosing = true;
-
-            _dispatcherThread?.Join();
+            StopNetWorker();
 
             //Close Socket
             if (_socket != null)
@@ -81,7 +78,6 @@ public class Client() : NetBase(isClient: true)
             }
 
             _protocol = null;
-            _dispatcherThread = null;
         }
         catch { }
     }
