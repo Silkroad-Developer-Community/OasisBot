@@ -119,6 +119,8 @@ public class Bot
         EventManager.FireEvent("OnStopBot");
         Log.Notify($"Stopping bot {Botbase.Name}");
 
+        CancelActionOnStop();
+
         Game.SelectedEntity = null;
 
         ScriptManager.Stop();
@@ -128,5 +130,23 @@ public class Bot
 
         Log.Notify($"Stopped bot {Botbase.Name}");
         Log.Status("Bot stopped");
+    }
+
+    private void CancelActionOnStop()
+    {
+        SkillManager.CancelAction(0);
+
+        _ = Task.Run(async () =>
+        {
+            for (var i = 1; i < 5; i++)
+            {
+                await Task.Delay(100);
+
+                if (Running || !Game.Player.InAction)
+                    return;
+
+                SkillManager.CancelAction(0);
+            }
+        });
     }
 }
