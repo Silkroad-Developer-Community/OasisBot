@@ -134,6 +134,10 @@ public class Bot
 
     private void CancelActionOnStop()
     {
+        var player = Game.Player;
+        if (player == null)
+            return;
+
         SkillManager.CancelAction(0);
 
         _ = Task.Run(async () =>
@@ -142,7 +146,7 @@ public class Bot
             {
                 await Task.Delay(100);
 
-                if (Running || !Game.Player.InAction)
+                if (Running || !Game.Ready || !ReferenceEquals(Game.Player, player) || !player.InAction)
                     return;
 
                 SkillManager.CancelAction(0);
