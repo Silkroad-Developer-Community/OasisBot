@@ -631,10 +631,16 @@ public static class SkillManager
     ///     Cancels the action.
     /// </summary>
     /// <returns></returns>
-    public static bool CancelAction()
+    public static bool CancelAction(int timeout = 500)
     {
         var packet = new Packet(0x7074);
         packet.WriteByte(0x02); //Cancel
+
+        if (timeout <= 0)
+        {
+            PacketManager.SendPacket(packet, PacketDestination.Server);
+            return true;
+        }
 
         var callback = new AwaitCallback(
             response =>
@@ -647,7 +653,7 @@ public static class SkillManager
         );
 
         PacketManager.SendPacket(packet, PacketDestination.Server, callback);
-        callback.AwaitResponse();
+        callback.AwaitResponse(timeout);
 
         return callback.IsCompleted;
     }

@@ -31,13 +31,25 @@ public class NetBase(bool isClient = false)
     /// </value>
     private bool _isClient { get; set; } = isClient;
 
+    private readonly AutoResetEvent _packetSignal = new(false);
+    private volatile bool _enablePacketDispatcher;
+    private volatile bool _isClosing;
+
     /// <summary>
     ///     Gets or sets a value indicating whether this instance is closing.
     /// </summary>
     /// <value>
     ///     <c>true</c> if this instance is closing; otherwise, <c>false</c>.
     /// </value>
-    public bool IsClosing { get; set; }
+    public bool IsClosing
+    {
+        get => _isClosing;
+        set
+        {
+            _isClosing = value;
+            _packetSignal.Set();
+        }
+    }
 
     /// <summary>
     ///     Gets or sets a value indicating whether [enable packet processor].
@@ -45,7 +57,15 @@ public class NetBase(bool isClient = false)
     /// <value>
     ///     <c>true</c> if [enable packet processor]; otherwise, <c>false</c>.
     /// </value>
-    public bool EnablePacketDispatcher { get; set; }
+    public bool EnablePacketDispatcher
+    {
+        get => _enablePacketDispatcher;
+        set
+        {
+            _enablePacketDispatcher = value;
+            _packetSignal.Set();
+        }
+    }
 
     /// <summary>
     ///     Gets or sets the security protocol.
@@ -126,19 +146,17 @@ public class NetBase(bool isClient = false)
     {
         try
         {
-            while (!EnablePacketDispatcher && !IsClosing)
-                Thread.Sleep(1);
-
-            while (EnablePacketDispatcher && !IsClosing)
+            while (!IsClosing)
             {
-                ProcessQueuedPackets();
-                Thread.Sleep(1);
+                if (!EnablePacketDispatcher)
+                {
+                    _packetSignal.WaitOne(100);
+                    continue;
+                }
+
+                if (!ProcessQueuedPackets())
+                    _packetSignal.WaitOne(15);
             }
-
-            if (IsClosing)
-                return;
-
-            ProcessPacketsThreaded();
         }
         catch { }
     }
@@ -146,18 +164,22 @@ public class NetBase(bool isClient = false)
     /// <summary>
     ///     Processes the packets.
     /// </summary>
-    private void ProcessQueuedPackets()
+    private bool ProcessQueuedPackets()
     {
         try
         {
             if (IsClosing || !EnablePacketDispatcher)
-                return;
+                return false;
 
-            var packets = _protocol.TransferIncoming();
+            var packets = _protocol?.TransferIncoming();
+            var processed = false;
+
             if (packets != null)
             {
                 foreach (var packet in packets)
                 {
+                    processed = true;
+
                     if (packet.Opcode == 0x5000 || packet.Opcode == 0x9000)
                         continue;
 
@@ -174,17 +196,23 @@ public class NetBase(bool isClient = false)
 
             var buffers = _protocol?.TransferOutgoing();
             if (buffers == null)
-                return;
+                return processed;
 
             foreach (var buffer in buffers)
             {
                 if (_socket == null || IsClosing || !EnablePacketDispatcher || !_socket.Connected)
-                    return;
+                    return processed;
 
                 _socket.Send(buffer);
+                processed = true;
             }
+
+            return processed;
         }
-        catch { }
+        catch
+        {
+            return false;
+        }
     }
 
     /// <summary>
@@ -196,5 +224,11 @@ public class NetBase(bool isClient = false)
         OnPacketSent(packet);
 
         _protocol?.Send(packet);
+        _packetSignal.Set();
+    }
+
+    protected void SignalPacketDispatcher()
+    {
+        _packetSignal.Set();
     }
 }

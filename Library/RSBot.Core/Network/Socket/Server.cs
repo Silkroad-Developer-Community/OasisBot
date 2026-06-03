@@ -133,6 +133,7 @@ public class Server : NetBase
                 _receivedPostInitialHandshakePacket = true;
 
             _protocol.Recv(_buffer, 0, receivedSize);
+            SignalPacketDispatcher();
         }
         catch (SocketException se)
         {
@@ -166,6 +167,7 @@ public class Server : NetBase
     {
         OnPacketSent(packet);
         _protocol.Send(packet);
+        SignalPacketDispatcher();
     }
 
     /// <summary>
