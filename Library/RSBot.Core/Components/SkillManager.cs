@@ -651,4 +651,12 @@ public static class SkillManager
 
         return callback.IsCompleted;
     }
+
+    public static void CancelActionNoWait()
+    {
+        var packet = new Packet(0x7074);
+        packet.WriteByte(0x02); //Cancel
+
+        PacketManager.SendPacket(packet, PacketDestination.Server);
+    }
 }

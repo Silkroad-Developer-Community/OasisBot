@@ -80,7 +80,7 @@ namespace RSBot.Training
             lock (Container.Lock)
             {
                 if (Game.Player.InAction)
-                    SkillManager.CancelAction(50);
+                    SkillManager.CancelActionNoWait();
 
                 Bundles.Stop();
             }
