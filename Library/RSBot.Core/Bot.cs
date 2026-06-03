@@ -135,22 +135,28 @@ public class Bot
     private void CancelActionOnStop()
     {
         var player = Game.Player;
-        if (player == null)
+        if (player == null || !player.InAction)
             return;
 
-        SkillManager.CancelAction(0);
+        _ = CancelActionOnStopAsync();
 
-        _ = Task.Run(async () =>
+        async Task CancelActionOnStopAsync()
         {
-            for (var i = 1; i < 5; i++)
-            {
-                await Task.Delay(100);
+            const int attempts = 5;
+            const int retryDelay = 1000;
 
+            for (var i = 0; i < attempts; i++)
+            {
                 if (Running || !Game.Ready || !ReferenceEquals(Game.Player, player) || !player.InAction)
                     return;
 
                 SkillManager.CancelAction(0);
+
+                if (i == attempts - 1)
+                    return;
+
+                await Task.Delay(retryDelay).ConfigureAwait(false);
             }
-        });
+        }
     }
 }
