@@ -126,7 +126,7 @@ internal static class RuSroAuthService
             !string.IsNullOrEmpty(refreshToken)
             && !string.IsNullOrEmpty(accessToken)
             && ExtractUsernameEmailFromToken(accessToken).Contains(username.ToLower())
-            )
+        )
         {
             parameters.Add(new KeyValuePair<string, string>("grant_type", "refresh_token"));
             parameters.Add(new KeyValuePair<string, string>("refresh_token", refreshToken));
