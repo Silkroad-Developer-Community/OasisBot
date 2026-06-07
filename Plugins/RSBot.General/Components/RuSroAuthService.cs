@@ -143,10 +143,7 @@ internal static class RuSroAuthService
         var hwid = GlobalConfig.Get<string>("RSBot.RuSro.hwid", randomHwid);
         var launcherId = GlobalConfig.Get<string>("RSBot.RuSro.launcherid", randomLauncherId);
 
-        if (!string.IsNullOrEmpty(sessionId)
-            && string.IsNullOrEmpty(refreshToken)
-            && string.IsNullOrEmpty(accessToken)
-            )
+        if (!string.IsNullOrEmpty(sessionId) && string.IsNullOrEmpty(refreshToken) && string.IsNullOrEmpty(accessToken))
         {
             //Instead of POST application/json with sessionId to https://launcherbff.ru.4game.com/api/guard/accesscodes/resend
             hwid = randomHwid;
