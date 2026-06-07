@@ -38,8 +38,6 @@ internal static class RuSroAuthService
             return false;
         }
 
-        Log.Debug(selectedAccount?.Username);
-
         string username = selectedAccount.Username;
         string password = selectedAccount.Password;
 
@@ -119,11 +117,16 @@ internal static class RuSroAuthService
         var parameters = new List<KeyValuePair<string, string>>();
         string refreshToken = GlobalConfig.Get<string>("RSBot.RuSro.refreshToken");
         string accessToken = GlobalConfig.Get<string>("RSBot.RuSro.accessToken");
+        string sessionId = GlobalConfig.Get<string>("RSBot.RuSro.sessionId");
+        string endpoint = "https://launcherbff.ru.4game.com/connect/token";
+
+        HttpContent tokenRequestContent = null;
+
         if (
             !string.IsNullOrEmpty(refreshToken)
             && !string.IsNullOrEmpty(accessToken)
             && ExtractUsernameEmailFromToken(accessToken).Contains(username.ToLower())
-        )
+            )
         {
             parameters.Add(new KeyValuePair<string, string>("grant_type", "refresh_token"));
             parameters.Add(new KeyValuePair<string, string>("refresh_token", refreshToken));
@@ -135,10 +138,20 @@ internal static class RuSroAuthService
             parameters.Add(new KeyValuePair<string, string>("secure", "true"));
             parameters.Add(new KeyValuePair<string, string>("grant_type", "password"));
         }
-        var tokenRequestContent = new FormUrlEncodedContent(parameters);
+        tokenRequestContent = new FormUrlEncodedContent(parameters);
 
         var hwid = GlobalConfig.Get<string>("RSBot.RuSro.hwid", randomHwid);
         var launcherId = GlobalConfig.Get<string>("RSBot.RuSro.launcherid", randomLauncherId);
+
+        if (!string.IsNullOrEmpty(sessionId)
+            && string.IsNullOrEmpty(refreshToken)
+            && string.IsNullOrEmpty(accessToken)
+            )
+        {
+            //Instead of POST application/json with sessionId to https://launcherbff.ru.4game.com/api/guard/accesscodes/resend
+            hwid = randomHwid;
+            launcherId = randomLauncherId;
+        }
 
         GlobalConfig.Set("RSBot.RuSro.hwid", hwid);
         GlobalConfig.Set("RSBot.RuSro.launcherid", launcherId);
@@ -147,15 +160,17 @@ internal static class RuSroAuthService
         Log.Debug($"HWID: {hwid}");
         Log.Debug($"Launcher ID: {launcherId}");
 
+        client.DefaultRequestHeaders.Remove("Hardware-Id");
+        client.DefaultRequestHeaders.Remove("Launcher-Id");
         client.DefaultRequestHeaders.Add("Hardware-Id", hwid);
         client.DefaultRequestHeaders.Add("Launcher-Id", launcherId);
 
-        var tokenResponse = await client.PostAsync(
-            "https://launcherbff.ru.4game.com/connect/token",
-            tokenRequestContent
-        );
-        var tokenResponseContent = await tokenResponse.Content.ReadAsStringAsync();
-        return tokenResponseContent;
+        using (tokenRequestContent)
+        {
+            var tokenResponse = await client.PostAsync(endpoint, tokenRequestContent);
+            var tokenResponseContent = await tokenResponse.Content.ReadAsStringAsync();
+            return tokenResponseContent;
+        }
     }
 
     private static async Task<string> GetAccessTokenAsync(string username, string password)
