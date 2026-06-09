@@ -91,6 +91,10 @@ public class ClientManager
                     true
                 );
             }
+            catch (UnauthorizedAccessException)
+            {
+                Log.Error("Run as administrator!");
+            }
             catch (IOException)
             {
                 Log.Debug("DLL is using, can't replace");
@@ -98,17 +102,20 @@ public class ClientManager
 
             Process sroProcess = Process.GetProcessById((int)pi.dwProcessId);
 
-            ResumeThread(pi.hThread);
-            Thread.Sleep(150);
-            SuspendThread(pi.hThread);
-
             if (
                 Game.ClientType == GameClientType.VTC_Game
                 || Game.ClientType == GameClientType.Turkey
                 || Game.ClientType == GameClientType.Taiwan
             )
             {
+                WaitForXigncodeUnpack(sroProcess, pi.hThread);
                 ApplyXigncodePatch(sroProcess, pi);
+            }
+            else
+            {
+                ResumeThread(pi.hThread);
+                Thread.Sleep(150);
+                SuspendThread(pi.hThread);
             }
 
             BypassLauncherCheck(sroProcess, pi);
@@ -198,6 +205,81 @@ public class ClientManager
         VirtualProtectEx(pi.hProcess, address, (UIntPtr)patch.Length, 0x40, out uint oldProtect);
         WriteProcessMemory(pi.hProcess, address, patch, (uint)patch.Length, out _);
         VirtualProtectEx(pi.hProcess, address, (UIntPtr)patch.Length, oldProtect, out oldProtect);
+    }
+
+    /// <summary>
+    /// Runs the suspended client in small time slices and stops the instant the packed
+    /// executable has unpacked far enough for the "XIGNCODE" string to appear in the main
+    /// module. This replaces a fixed Thread.Sleep so the patch is applied just before
+    /// XIGNCODE initializes, independent of disk/CPU speed. On return the primary thread is
+    /// left suspended (suspend count 1) so the caller can patch memory and resume normally.
+    /// </summary>
+    private static void WaitForXigncodeUnpack(Process process, IntPtr hThread)
+    {
+        const int sliceMs = 8;
+        const int maxWaitMs = 5000;
+
+        byte[] needle = Encoding.Unicode.GetBytes("XIGNCODE\0");
+        var sw = Stopwatch.StartNew();
+
+        while (true)
+        {
+            ResumeThread(hThread);
+            Thread.Sleep(sliceMs);
+            SuspendThread(hThread);
+
+            if (process.HasExited)
+                return;
+
+            if (ModuleContains(process, needle))
+                return;
+
+            if (sw.ElapsedMilliseconds >= maxWaitMs)
+            {
+                Log.Warn("XIGNCODE: unpack timeout");
+                return;
+            }
+        }
+    }
+
+    /// <summary>
+    /// Reads the process main module and reports whether the given byte sequence is present.
+    /// Returns false (instead of throwing) while the module is not yet readable.
+    /// </summary>
+    private static bool ModuleContains(Process process, byte[] needle)
+    {
+        try
+        {
+            process.Refresh();
+            int size = process.MainModule.ModuleMemorySize;
+            var buffer = new byte[size];
+
+            if (
+                !ReadProcessMemory(process.Handle, process.MainModule.BaseAddress, buffer, size, out var read)
+                || read == IntPtr.Zero
+            )
+                return false;
+
+            int limit = (int)read - needle.Length;
+            for (int i = 0; i <= limit; i++)
+            {
+                int j = 0;
+                for (; j < needle.Length; j++)
+                {
+                    if (buffer[i + j] != needle[j])
+                        break;
+                }
+
+                if (j == needle.Length)
+                    return true;
+            }
+
+            return false;
+        }
+        catch
+        {
+            return false;
+        }
     }
 
     /// <summary>
