@@ -191,7 +191,15 @@ internal static class AutoLogin
 
         loginPacket.WriteUShort(server.Id);
 
-        if (opcode == 0x610A)
+        if (Game.ClientType == GameClientType.Chinese)
+        {
+            if (!ChineseGatewayLogin.TryWriteVerificationAndTicket(loginPacket, account.Username))
+            {
+                _busy = false;
+                return;
+            }
+        }
+        else if (opcode == 0x610A)
             loginPacket.WriteByte(account.Channel);
 
         PacketManager.SendPacket(loginPacket, PacketDestination.Server);

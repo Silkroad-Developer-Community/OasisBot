@@ -14,6 +14,19 @@ namespace RSBot.Core.Components;
 
 public class ClientManager
 {
+    private const int SroClientImageBase = 0x00400000;
+    private static readonly (int Address, byte[] Expected, byte[] Patch)[] ChineseClientPatches =
+    {
+        (0x0060C6DB, new byte[] { 0x75, 0x2E }, new byte[] { 0xEB, 0x2E }),
+        (0x0060C6A1, new byte[] { 0x75, 0x26 }, new byte[] { 0xEB, 0x26 }),
+        (0x0067BF56, new byte[] { 0x75, 0x2C }, new byte[] { 0xEB, 0x2C }),
+        (
+            0x00AD449E,
+            new byte[] { 0x68, 0x5C, 0x54, 0xE1, 0x00 },
+            new byte[] { 0xEB, 0x2D, 0x90, 0x90, 0x90 }
+        ),
+    };
+
     /// <summary>
     ///     The client process
     /// </summary>
@@ -153,6 +166,13 @@ public class ClientManager
 
             WaitForSingleObject(remoteThread, uint.MaxValue);
 
+            if (Game.ClientType == GameClientType.Chinese)
+            {
+                var sroProcess = System.Diagnostics.Process.GetProcessById((int)pi.dwProcessId);
+                WaitForChineseClientPatchTargets(sroProcess, pi.hThread);
+                ApplyChineseClientPatch(sroProcess, pi);
+            }
+
             VirtualFreeEx(handle, remotePath, 0, MEM_RELEASE);
 
             CloseHandle(remoteThread);
@@ -189,10 +209,6 @@ public class ClientManager
             process.MainModule.ModuleMemorySize,
             out _
         );
-
-        var patchNop = new byte[] { 0x90, 0x90 };
-        var patchNop2 = new byte[] { 0x90, 0x90, 0x90, 0x90, 0x90 };
-        var patchJmp = new byte[] { 0xEB };
 
         string signature =
             "55 8B EC 83 EC ?? 8B 45 ?? 50 E8 ?? ?? ?? ?? 83 C4 04 89 45 ?? 8B 4D ?? 89 4D ?? 68 ?? ?? ?? ?? 6A 00 6A 00";
@@ -365,6 +381,130 @@ public class ClientManager
         }
 
         GC.Collect();
+    }
+
+    /// <summary>
+    /// Runs the suspended Chinese client until the target bytes are unpacked and readable.
+    /// On return the primary thread is left suspended so the caller can patch and resume.
+    /// </summary>
+    private static void WaitForChineseClientPatchTargets(Process process, IntPtr hThread)
+    {
+        const int sliceMs = 8;
+        const int maxWaitMs = 5000;
+
+        var sw = Stopwatch.StartNew();
+
+        while (true)
+        {
+            ResumeThread(hThread);
+            Thread.Sleep(sliceMs);
+            SuspendThread(hThread);
+
+            if (process.HasExited)
+                return;
+
+            process.Refresh();
+
+            if (ChineseClientPatchTargetsReady(process.Handle, process.MainModule.BaseAddress.ToInt32()))
+                return;
+
+            if (sw.ElapsedMilliseconds >= maxWaitMs)
+            {
+                Log.Warn("Chinese client patch: unpack timeout.");
+                return;
+            }
+        }
+    }
+
+    private static bool ChineseClientPatchTargetsReady(IntPtr processHandle, int moduleBaseAddress)
+    {
+        foreach (var patch in ChineseClientPatches)
+        {
+            if (
+                !TryReadClientBytes(
+                    processHandle,
+                    moduleBaseAddress,
+                    patch.Address,
+                    patch.Expected.Length,
+                    out var current
+                )
+            )
+                return false;
+
+            if (!current.SequenceEqual(patch.Expected) && !current.SequenceEqual(patch.Patch))
+                return false;
+        }
+
+        return true;
+    }
+
+    /// <summary>
+    /// Applies fixed in-memory patches for the Chinese sro_client.exe.
+    /// </summary>
+    private static void ApplyChineseClientPatch(Process process, PROCESS_INFORMATION pi)
+    {
+        int moduleBaseAddress = process.MainModule.BaseAddress.ToInt32();
+
+        foreach (var patch in ChineseClientPatches)
+            PatchKnownClientBytes(pi.hProcess, moduleBaseAddress, patch.Address, patch.Expected, patch.Patch);
+    }
+
+    private static void PatchKnownClientBytes(
+        IntPtr processHandle,
+        int moduleBaseAddress,
+        int clientAddress,
+        byte[] expected,
+        byte[] patch
+    )
+    {
+        if (!TryReadClientBytes(processHandle, moduleBaseAddress, clientAddress, expected.Length, out var current))
+        {
+            Log.Warn($"Chinese client patch: could not read 0x{clientAddress:X8}.");
+            return;
+        }
+
+        if (current.SequenceEqual(patch))
+            return;
+
+        if (!current.SequenceEqual(expected))
+        {
+            Log.Warn(
+                $"Chinese client patch: unexpected bytes at 0x{clientAddress:X8}. Expected {FormatBytes(expected)}, got {FormatBytes(current)}."
+            );
+            return;
+        }
+
+        PatchProcessMemory(processHandle, GetClientAddress(moduleBaseAddress, clientAddress), patch);
+    }
+
+    private static bool TryReadClientBytes(
+        IntPtr processHandle,
+        int moduleBaseAddress,
+        int clientAddress,
+        int length,
+        out byte[] bytes
+    )
+    {
+        bytes = new byte[length];
+
+        return ReadProcessMemory(
+                processHandle,
+                GetClientAddress(moduleBaseAddress, clientAddress),
+                bytes,
+                bytes.Length,
+                out var read
+            )
+            && read.ToInt32() == bytes.Length;
+    }
+
+    private static IntPtr GetClientAddress(int moduleBaseAddress, int clientAddress)
+    {
+        return (IntPtr)(moduleBaseAddress + clientAddress - SroClientImageBase);
+    }
+
+    private static string FormatBytes(byte[] bytes)
+    {
+        return BitConverter.ToString(bytes).Replace("-", " ");
     }
 
     /// <summary>

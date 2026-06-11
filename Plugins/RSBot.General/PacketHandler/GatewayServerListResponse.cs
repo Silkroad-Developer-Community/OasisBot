@@ -58,7 +58,7 @@ internal class GatewayServerListResponse : IPacketHandler
 
             byte status;
 
-            if (Game.ClientType < GameClientType.Global)
+            if (Game.ClientType < GameClientType.Chinese)
             {
                 currentCapacity = packet.ReadUShort();
                 maxCapacity = packet.ReadUShort();
@@ -73,6 +73,9 @@ internal class GatewayServerListResponse : IPacketHandler
             // fix server names
             if (Game.ClientType == GameClientType.Global)
                 serverName = serverName.Remove(0, 1);
+
+            if (Game.ClientType == GameClientType.Chinese && serverName.EndsWith("#$C"))
+                serverName = serverName.Remove(serverName.Length - 3);
 
             if (Game.ClientType == GameClientType.VTC_Game)
                 if (serverName.EndsWith("Thien_Kim"))
