@@ -109,7 +109,7 @@ internal class InventoryUpdateItemResponse : IPacketHandler
         if (item == null)
             return;
 
-        ApplyModernClientsItemUpdate(packet, item, itemUpdateFlags, updateType);
+        ApplyModernClientsItemUpdate(packet, item, sourceSlot, itemUpdateFlags, updateType);
         EventManager.FireEvent("OnUpdateInventoryItem", sourceSlot);
     }
 
@@ -133,6 +133,7 @@ internal class InventoryUpdateItemResponse : IPacketHandler
     private static void ApplyModernClientsItemUpdate(
         Packet packet,
         InventoryItem item,
+        byte sourceSlot,
         ModernItemUpdateFlag updateFlags,
         byte updateType
     )
@@ -162,7 +163,12 @@ internal class InventoryUpdateItemResponse : IPacketHandler
             packet.ReadUInt();
 
         if (updateFlags.HasFlag(ModernItemUpdateFlag.ItemState))
-            packet.ReadByte();
+        {
+            var itemState = (InventoryItemState)packet.ReadByte();
+
+            if (sourceSlot >= 0x11)
+                item.State = itemState;
+        }
     }
 
     private static void ReadMagicOptions(Packet packet, InventoryItem item)
