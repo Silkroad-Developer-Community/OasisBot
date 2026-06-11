@@ -130,9 +130,7 @@ internal static class ChineseGatewayLogin
             guid = Guid.NewGuid();
 
         var bytes = guid.ToByteArray();
-        return BitConverter.ToUInt32(bytes, 0)
-            + BitConverter.ToUInt16(bytes, 4)
-            + BitConverter.ToUInt16(bytes, 6);
+        return BitConverter.ToUInt32(bytes, 0) + BitConverter.ToUInt16(bytes, 4) + BitConverter.ToUInt16(bytes, 6);
     }
 
     private static void Rc4Xor(byte[] buffer, byte[] key)
