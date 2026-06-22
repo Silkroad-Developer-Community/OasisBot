@@ -14,7 +14,7 @@ namespace RSBot.Training.Bot;
 internal static class NavigationManager
 {
     private const string LinkageUrl =
-        "https://raw.githubusercontent.com/Silkroad-Developer-Community/Silkroad-NavLink/main/navigation_linkage.json";
+        "https://github.com/Silkroad-Developer-Community/Silkroad-NavLink/releases/latest/download/navigation_linkage.json.gz";
     private static readonly string LinkagePath = Path.Combine(Kernel.BasePath, "Data", "navigation_linkage.json");
     private static readonly object _linkageLock = new();
     private static NavigationLinkage _linkage;
@@ -44,7 +44,7 @@ internal static class NavigationManager
         {
             if (!File.Exists(LinkagePath))
             {
-                Log.Warn($"Navigation linkage file not found at {LinkagePath}");
+                Log.Warn($"navigation linkage file not found at {LinkagePath}");
                 return false;
             }
 
@@ -117,7 +117,16 @@ internal static class NavigationManager
         {
             Log.Notify("Fetching navigation linkage data from GitHub...");
             using var client = new HttpClient();
-            var json = await client.GetStringAsync(LinkageUrl);
+            using var response = await client.GetAsync(LinkageUrl);
+            response.EnsureSuccessStatusCode();
+
+            using var responseStream = await response.Content.ReadAsStreamAsync();
+            using var decompressedStream = new System.IO.Compression.GZipStream(
+                responseStream,
+                System.IO.Compression.CompressionMode.Decompress
+            );
+            using var reader = new StreamReader(decompressedStream);
+            var json = await reader.ReadToEndAsync();
 
             if (string.IsNullOrWhiteSpace(json))
             {

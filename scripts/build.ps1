@@ -37,28 +37,6 @@ if ($Clean) {
 }
 
 if ($buildExitCode -eq 0) {
-    # TODO: move linkage logic to msbuild for vs devs
-    Write-Output "Fetching navigation linkage data..."
-    $linkageUrl = "https://raw.githubusercontent.com/Silkroad-Developer-Community/Silkroad-NavLink/main/navigation_linkage.json"
-    $linkagePath = ".\Build\Data\navigation_linkage.json"
-    if (-not (Test-Path ".\Build\Data")) {
-        New-Item -ItemType Directory ".\Build\Data" -Force | Out-Null
-    }
-    $linkageTempPath = "$linkagePath.tmp"
-    try {
-        Invoke-WebRequest -Uri $linkageUrl -OutFile $linkageTempPath -UseBasicParsing -ErrorAction Stop
-        $jsonContent = Get-Content -Path $linkageTempPath -Raw
-        $null = $jsonContent | ConvertFrom-Json -ErrorAction Stop
-        Move-Item -Path $linkageTempPath -Destination $linkagePath -Force
-        Write-Output "Successfully updated navigation linkage data."
-    }
-    catch {
-        Write-Warning "Failed to update navigation linkage data: $($_.Exception.Message). Keeping existing file if it exists."
-        if (Test-Path $linkageTempPath) {
-            Remove-Item $linkageTempPath -Force
-        }
-    }
-
     if (!$DoNotStart) {
         Write-Output "Starting OasisBot..."
         & ".\Build\OasisBot.exe"

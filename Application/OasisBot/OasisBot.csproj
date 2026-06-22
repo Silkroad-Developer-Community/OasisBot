@@ -46,4 +46,21 @@
     </ItemGroup>
     <Copy SourceFiles="@(DependencyFiles)" DestinationFolder="..\..\Build\Data\%(RecursiveDir)" />
   </Target>
+  <Target
+    Name="DownloadNavigationLinkage"
+    AfterTargets="Build"
+    Condition="!Exists('..\..\Build\Data\navigation_linkage.json')"
+  >
+    <PropertyGroup>
+      <LinkageGzPath>..\..\Build\Data\navigation_linkage.json.gz</LinkageGzPath>
+      <LinkageJsonPath>..\..\Build\Data\navigation_linkage.json</LinkageJsonPath>
+    </PropertyGroup>
+    <DownloadFile
+      SourceUrl="https://github.com/Silkroad-Developer-Community/Silkroad-NavLink/releases/latest/download/navigation_linkage.json.gz"
+      DestinationFolder="..\..\Build\Data"
+      DestinationFileName="navigation_linkage.json.gz"
+      SkipUnchangedFiles="true"
+    />
+    <Exec Command="powershell -Command &quot;Add-Type -AssemblyName System.IO.Compression; $i=[System.IO.File]::OpenRead('$(LinkageGzPath)'); $o=[System.IO.File]::Create('$(LinkageJsonPath)'); $g=[System.IO.Compression.GZipStream]::new($i, [System.IO.Compression.CompressionMode]::Decompress); $g.CopyTo($o); $g.Dispose(); $o.Dispose(); $i.Dispose(); Remove-Item '$(LinkageGzPath)' -Force&quot;" />
+  </Target>
 </Project>
