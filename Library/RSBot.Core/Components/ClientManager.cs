@@ -615,7 +615,7 @@ public class ClientManager
     /// <param name="divisionIndex"></param>
     private static void PrepareTempConfigFile(uint processId, int divisionIndex)
     {
-        var tmpConfigFile = $"RSBot_{processId}.tmp";
+        var tmpConfigFile = $"OasisBot_{processId}.tmp";
 
         var division = Game.ReferenceManager.DivisionInfo.Divisions[divisionIndex];
         var gatewayPort = Game.ReferenceManager.GatewayInfo.Port;

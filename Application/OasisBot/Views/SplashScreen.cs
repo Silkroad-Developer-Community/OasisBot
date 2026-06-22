@@ -29,7 +29,6 @@ public partial class SplashScreen : UIWindow
 
         _mainForm = mainForm;
 
-        logoLabel.Text = "OASISBOT";
         labelVersion.Text = Program.AssemblyVersion;
         referenceDataLoader.RunWorkerCompleted += ReferenceDataLoaderCompleted;
     }

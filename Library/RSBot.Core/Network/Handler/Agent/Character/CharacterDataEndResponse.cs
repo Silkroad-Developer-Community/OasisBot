@@ -204,7 +204,7 @@ internal class CharacterDataEndResponse : IPacketHandler
 
         EventManager.FireEvent("OnLoadCharacter");
 
-        ClientManager.SetTitle($"{character.Name} - RSBot");
+        ClientManager.SetTitle($"{character.Name} - OasisBot");
 
         if (!Game.Clientless)
             return;

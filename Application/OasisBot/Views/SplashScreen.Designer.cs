@@ -76,7 +76,7 @@ namespace RSBot.Views
             logoLabel.Name = "logoLabel";
             logoLabel.Size = new System.Drawing.Size(640, 100);
             logoLabel.TabIndex = 3;
-            logoLabel.Text = "RSBOT";
+            logoLabel.Text = "OASISBOT";
             logoLabel.TextAlign = System.Drawing.ContentAlignment.MiddleCenter;
             // 
             // labelVersion

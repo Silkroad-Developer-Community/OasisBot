@@ -203,7 +203,7 @@ void LoadConfig()
 	if (!tempFolder) return;
 
 	stringstream payloadPath;
-	payloadPath << tempFolder << "\\RSBot_" << GetCurrentProcessId() << ".tmp";
+	payloadPath << tempFolder << "\\OasisBot_" << GetCurrentProcessId() << ".tmp";
 
 	for (int i = 0; i < 30; i++) {
 		ifstream stream(payloadPath.str(), ifstream::binary);
