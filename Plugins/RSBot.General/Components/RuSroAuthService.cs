@@ -5,12 +5,14 @@ using System.Linq;
 using System.Net;
 using System.Net.Http;
 using System.Net.WebSockets;
+using System.Security.Cryptography;
 using System.Text;
 using System.Text.Json;
 using System.Threading;
 using System.Threading.Tasks;
 using System.Windows.Forms;
 using Newtonsoft.Json;
+using Newtonsoft.Json.Linq;
 using RSBot.Core;
 using RSBot.Core.Components;
 using SDUI.Controls;
@@ -19,12 +21,28 @@ namespace RSBot.General.Components;
 
 internal static class RuSroAuthService
 {
-    private static readonly HttpClient client = new();
-    private static readonly Random _random = new();
-    private static readonly string _chars = "ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789";
+    private const string ClientId = "api.4game.com";
+    private const string Scope = "offline_access inn.auth";
+    private const string RedirectUri = "https://launcher.ru.4game.com/silent-auth";
+    private const string BackUri = "https://launcher.ru.4game.com";
+    private const string AuthPageEndpoint = "https://id.4game.ru/";
+    private const string AuthApiEndpoint = "https://webbff.ru.4game.ru/api/auth";
+    private const string AuthorizeEndpoint = "https://webbff.ru.4game.ru/oauth/authorize";
+    private const string TokenEndpoint = "https://launcherbff.ru.4game.com/connect/token";
 
-    private static string randomHwid = GenerateRandomString();
-    private static string randomLauncherId = GenerateLauncherId();
+    private const string HardwareIdConfigKey = "RSBot.RuSro.hwid";
+    private const string LauncherIdConfigKey = "RSBot.RuSro.launcherid";
+    private const string AccessTokenConfigKey = "RSBot.RuSro.accessToken";
+    private const string RefreshTokenConfigKey = "RSBot.RuSro.refreshToken";
+    private const string TokenOwnerConfigKey = "RSBot.RuSro.tokenOwner";
+    private const string EmailCodePendingConfigKey = "RSBot.RuSro.emailCodePending";
+    private const string EmailCodeAddressConfigKey = "RSBot.RuSro.emailCodeAddress";
+    private const string EmailSignInTokenConfigKey = "RSBot.RuSro.emailSignInToken";
+    private const string EmailRequestGroupIdConfigKey = "RSBot.RuSro.emailRequestGroupId";
+    private const string EmailCodeRequestedAtConfigKey = "RSBot.RuSro.emailCodeRequestedAt";
+    private const int EmailCodeResendDelaySeconds = 30;
+
+    private const string Chars = "ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789";
 
     public static async Task<bool> Auth()
     {
@@ -38,13 +56,23 @@ internal static class RuSroAuthService
             return false;
         }
 
-        string username = selectedAccount.Username;
-        string password = selectedAccount.Password;
+        string email = selectedAccount.Username?.Trim();
+
+        if (string.IsNullOrWhiteSpace(email))
+        {
+            MessageBox.Show(
+                "The selected account has no email address",
+                "Error",
+                MessageBoxButtons.OK,
+                MessageBoxIcon.Error
+            );
+            return false;
+        }
 
         try
         {
-            string accessToken = await GetAccessTokenAsync(username, password);
-            Log.Debug("Access Token: " + accessToken);
+            GetOrCreateDeviceIdentity();
+            string accessToken = await GetAccessTokenAsync(email);
             if (!string.IsNullOrEmpty(accessToken))
             {
                 await ConnectToWSAndSend();
@@ -53,287 +81,600 @@ internal static class RuSroAuthService
         }
         catch (Exception ex)
         {
-            Log.Debug("Error: " + ex.Message);
+            Log.Error("[RuSroAuthService]: " + ex.Message);
+            MessageBox.Show(ex.Message, "4game authorization error", MessageBoxButtons.OK, MessageBoxIcon.Error);
         }
 
         return false;
     }
 
-    private static async Task<SESSION_STATE> Activate(string confirmationCode)
+    private static async Task<string> GetAccessTokenAsync(string email)
     {
-        var sessionId = GlobalConfig.Get<string>("RSBot.RuSro.sessionId", "").Trim();
-        Log.Debug($"Sessions ID: {sessionId}");
-        Log.Debug($"PIN: {confirmationCode}");
+        string savedAccessToken = GlobalConfig.Get<string>(AccessTokenConfigKey, "");
+        if (TokenBelongsToAccount(email, savedAccessToken) && IsAccessTokenValid(savedAccessToken))
+            return savedAccessToken;
 
-        if (string.IsNullOrEmpty(sessionId))
-        {
-            var msgBoxTitle = LanguageManager.GetLang("RuSroUpdatePinMsgTitle");
-            var msgBoxContent = LanguageManager.GetLang("RuSroUpdatePinMsgContent");
-            MessageBox.Show("No Session ID Found", "Error", MessageBoxButtons.OK, MessageBoxIcon.Error);
-            return SESSION_STATE.NO_SESSION_ID;
-        }
+        OAuthTokenResponse tokenResponse = await TryRefreshTokenAsync(email);
+        if (tokenResponse == null)
+            tokenResponse = await AuthorizeWithEmailCodeAsync(email);
 
-        if (string.IsNullOrEmpty(confirmationCode))
-        {
-            var msgBoxTitle = LanguageManager.GetLang("RuSroUpdatePinMsgTitle");
-            var msgBoxContent = LanguageManager.GetLang("RuSroUpdatePinMsgContent");
-            MessageBox.Show("PIN is empty", "Error", MessageBoxButtons.OK, MessageBoxIcon.Error);
-            return SESSION_STATE.NO_PIN;
-        }
+        if (tokenResponse == null)
+            return string.Empty;
 
-        var confirmationRequestContent = new StringContent(
-            JsonConvert.SerializeObject(new { sessionId, code = confirmationCode }),
-            Encoding.UTF8,
-            "application/json"
-        );
+        if (string.IsNullOrWhiteSpace(tokenResponse.AccessToken))
+            throw new InvalidOperationException("4game returned an empty access token.");
 
-        var confirmationResponse = await client.PostAsync(
-            "https://launcherbff.ru.4game.com/api/guard/accesscodes/activate",
-            confirmationRequestContent
-        );
-        var confirmationResponseContent = await confirmationResponse.Content.ReadAsStringAsync();
-
-        Log.Debug("Activation Response:");
-        Log.Debug(confirmationResponseContent);
-
-        if (confirmationResponse.IsSuccessStatusCode)
-        {
-            Log.Notify("Successfully activated");
-            return SESSION_STATE.SUCCESSFULLY_ACTIVATED;
-        }
-
-        if (confirmationResponse.StatusCode == HttpStatusCode.Forbidden)
-        {
-            Log.Debug("Session already activated.");
-            return SESSION_STATE.ALREADY_ACTIVATED;
-        }
-
-        MessageBox.Show(confirmationResponseContent, "Error", MessageBoxButtons.OK, MessageBoxIcon.Error);
-        return SESSION_STATE.INVALID_REQUEST;
+        SaveTokens(email, tokenResponse);
+        return tokenResponse.AccessToken;
     }
 
-    public static async Task<string> TokenResponse(string username, string password)
+    private static async Task<OAuthTokenResponse> TryRefreshTokenAsync(string email)
     {
-        var parameters = new List<KeyValuePair<string, string>>();
-        string refreshToken = GlobalConfig.Get<string>("RSBot.RuSro.refreshToken");
-        string accessToken = GlobalConfig.Get<string>("RSBot.RuSro.accessToken");
-        string sessionId = GlobalConfig.Get<string>("RSBot.RuSro.sessionId");
-        string endpoint = "https://launcherbff.ru.4game.com/connect/token";
+        string refreshToken = GlobalConfig.Get<string>(RefreshTokenConfigKey, "");
+        string accessToken = GlobalConfig.Get<string>(AccessTokenConfigKey, "");
 
-        HttpContent tokenRequestContent = null;
+        if (string.IsNullOrWhiteSpace(refreshToken) || !TokenBelongsToAccount(email, accessToken))
+            return null;
 
-        if (
-            !string.IsNullOrEmpty(refreshToken)
-            && !string.IsNullOrEmpty(accessToken)
-            && ExtractUsernameEmailFromToken(accessToken).Contains(username.ToLower())
-        )
+        try
         {
-            parameters.Add(new KeyValuePair<string, string>("grant_type", "refresh_token"));
-            parameters.Add(new KeyValuePair<string, string>("refresh_token", refreshToken));
+            using HttpClient authClient = CreateAuthClient();
+            var parameters = new List<KeyValuePair<string, string>>
+            {
+                new("grant_type", "refresh_token"),
+                new("refresh_token", refreshToken),
+            };
+
+            OAuthTokenResponse response = await SendTokenRequestAsync(authClient, parameters);
+            if (string.IsNullOrWhiteSpace(response.RefreshToken))
+                response.RefreshToken = refreshToken;
+
+            return response;
+        }
+        catch (Exception ex)
+        {
+            Log.Debug("[RuSroAuthService]: Refresh token rejected, starting email authorization. " + ex.Message);
+            return null;
+        }
+    }
+
+    private static async Task<OAuthTokenResponse> AuthorizeWithEmailCodeAsync(string email)
+    {
+        bool resumePendingCode = TryGetPendingEmailCode(
+            email,
+            out string signInToken,
+            out string requestGroupId,
+            out DateTimeOffset codeRequestedAt
+        );
+
+        RotateDeviceIdentityAfterPendingEmailCode();
+
+        string state = Guid.NewGuid().ToString();
+        if (!resumePendingCode)
+            requestGroupId = Guid.NewGuid().ToString();
+
+        using HttpClient authClient = CreateAuthClient(requestGroupId);
+        await InitializeAuthPageAsync(authClient, state);
+
+        if (resumePendingCode)
+        {
+            await WaitForEmailCodeResendAsync(codeRequestedAt);
+            signInToken = await ResendEmailCodeAsync(authClient, signInToken, requestGroupId);
+            codeRequestedAt = DateTimeOffset.UtcNow;
+            SavePendingEmailCode(email, signInToken, requestGroupId, codeRequestedAt);
         }
         else
         {
-            parameters.Add(new KeyValuePair<string, string>("username", username));
-            parameters.Add(new KeyValuePair<string, string>("password", password));
-            parameters.Add(new KeyValuePair<string, string>("secure", "true"));
-            parameters.Add(new KeyValuePair<string, string>("grant_type", "password"));
+            string signInResponse = await SendAuthJsonRequestAsync(
+                authClient,
+                AuthApiEndpoint + "/signin",
+                new { contact = email, contactType = "email" },
+                requestGroupId
+            );
+
+            ApiResponse<SignInData> signIn = JsonConvert.DeserializeObject<ApiResponse<SignInData>>(signInResponse);
+            signInToken = signIn?.Data?.SignInToken;
+            if (string.IsNullOrWhiteSpace(signInToken))
+                throw new InvalidOperationException("4game did not return a signin token.");
+
+            codeRequestedAt = DateTimeOffset.UtcNow;
+            SavePendingEmailCode(email, signInToken, requestGroupId, codeRequestedAt);
         }
-        tokenRequestContent = new FormUrlEncodedContent(parameters);
 
-        var hwid = GlobalConfig.Get<string>("RSBot.RuSro.hwid", randomHwid);
-        var launcherId = GlobalConfig.Get<string>("RSBot.RuSro.launcherid", randomLauncherId);
+        DateTimeOffset resendAvailableAt = codeRequestedAt.AddSeconds(EmailCodeResendDelaySeconds);
 
-        if (!string.IsNullOrEmpty(sessionId) && string.IsNullOrEmpty(refreshToken) && string.IsNullOrEmpty(accessToken))
+        string emailCode;
+        while (true)
         {
-            //Instead of POST application/json with sessionId to https://launcherbff.ru.4game.com/api/guard/accesscodes/resend
-            hwid = randomHwid;
-            launcherId = randomLauncherId;
+            emailCode = PromptForEmailCode(email);
+            if (emailCode != null)
+                break;
+
+            DialogResult resendResult = MessageBox.Show(
+                "The email code did not arrive? Request a new code?",
+                "4game authorization",
+                MessageBoxButtons.YesNo,
+                MessageBoxIcon.Question
+            );
+            if (resendResult != DialogResult.Yes)
+            {
+                ResetAuthorizationState();
+                return null;
+            }
+
+            TimeSpan resendDelay = resendAvailableAt - DateTimeOffset.UtcNow;
+            if (resendDelay > TimeSpan.Zero)
+            {
+                int seconds = (int)Math.Ceiling(resendDelay.TotalSeconds);
+                Log.Notify($"A new 4game email code will be requested in {seconds} seconds.");
+                await Task.Delay(resendDelay);
+            }
+
+            signInToken = await ResendEmailCodeAsync(authClient, signInToken, requestGroupId);
+            codeRequestedAt = DateTimeOffset.UtcNow;
+            resendAvailableAt = codeRequestedAt.AddSeconds(EmailCodeResendDelaySeconds);
+            SavePendingEmailCode(email, signInToken, requestGroupId, codeRequestedAt);
         }
 
-        GlobalConfig.Set("RSBot.RuSro.hwid", hwid);
-        GlobalConfig.Set("RSBot.RuSro.launcherid", launcherId);
+        await SendAuthJsonRequestAsync(
+            authClient,
+            AuthApiEndpoint + "/signin/confirm",
+            new
+            {
+                signinToken = signInToken,
+                code = emailCode,
+                clientId = ClientId,
+            },
+            requestGroupId
+        );
+
+        string authorizationCode = await RequestAuthorizationCodeAsync(authClient, state);
+        var tokenParameters = new List<KeyValuePair<string, string>>
+        {
+            new("code", authorizationCode),
+            new("grant_type", "authorization_code"),
+        };
+
+        return await SendTokenRequestAsync(authClient, tokenParameters);
+    }
+
+    private static HttpClient CreateAuthClient(string trackingId = null)
+    {
+        var cookies = new CookieContainer();
+        if (!string.IsNullOrWhiteSpace(trackingId))
+            cookies.Add(new Cookie("trk", trackingId, "/", ".4game.ru"));
+
+        var handler = new HttpClientHandler
+        {
+            CookieContainer = cookies,
+            UseCookies = true,
+            AllowAutoRedirect = false,
+            AutomaticDecompression = DecompressionMethods.All,
+        };
+
+        var authClient = new HttpClient(handler);
+        authClient.DefaultRequestHeaders.TryAddWithoutValidation("Accept", "application/json, text/plain, */*");
+        authClient.DefaultRequestHeaders.TryAddWithoutValidation("Accept-Language", "ru");
+        return authClient;
+    }
+
+    private static async Task InitializeAuthPageAsync(HttpClient authClient, string state)
+    {
+        string url =
+            $"{AuthPageEndpoint}?scope={Uri.EscapeDataString(Scope)}"
+            + $"&client_id={Uri.EscapeDataString(ClientId)}"
+            + "&response_type=code"
+            + $"&state={Uri.EscapeDataString(state)}"
+            + $"&redirect_uri={Uri.EscapeDataString(RedirectUri)}"
+            + $"&back={Uri.EscapeDataString(BackUri)}";
+
+        using HttpResponseMessage response = await authClient.GetAsync(url);
+        if (!response.IsSuccessStatusCode)
+        {
+            string content = await response.Content.ReadAsStringAsync();
+            throw CreateRequestException("Opening the 4game authorization page", response.StatusCode, content);
+        }
+    }
+
+    private static async Task<string> SendAuthJsonRequestAsync(
+        HttpClient authClient,
+        string endpoint,
+        object body,
+        string requestGroupId
+    )
+    {
+        using var request = new HttpRequestMessage(HttpMethod.Post, endpoint);
+        request.Headers.TryAddWithoutValidation("X-Client-Id", ClientId);
+        request.Headers.TryAddWithoutValidation("X-Requests-Group-Id", requestGroupId);
+        request.Headers.TryAddWithoutValidation("X-Sign-In-App", "launcher");
+        request.Headers.TryAddWithoutValidation("X-Request-Id", Guid.NewGuid().ToString());
+        request.Content = new StringContent(JsonConvert.SerializeObject(body), Encoding.UTF8, "application/json");
+
+        using HttpResponseMessage response = await authClient.SendAsync(request);
+        string content = await response.Content.ReadAsStringAsync();
+        if (!response.IsSuccessStatusCode)
+            throw CreateRequestException("4game sign-in request", response.StatusCode, content);
+
+        return content;
+    }
+
+    private static string PromptForEmailCode(string email)
+    {
+        string dialogFormTitle = LanguageManager.GetLangBySpecificKey(
+            "RSBot.General",
+            "RuSroConfirmationCodeFormTitle",
+            "Confirmation code"
+        );
+        string dialogTitle = LanguageManager.GetLangBySpecificKey(
+            "RSBot.General",
+            "RuSroConfirmationCodeTitle",
+            "You have got an email with PIN"
+        );
+        string dialogContent = LanguageManager.GetLangBySpecificKey(
+            "RSBot.General",
+            "RuSroConfirmationCodeContent",
+            "Enter it and press OK"
+        );
+
+        var inputDialog = new InputDialog(dialogFormTitle, dialogTitle, $"{dialogContent}\n{email}");
+        if (inputDialog.ShowDialog() != DialogResult.OK)
+            return null;
+
+        string code = inputDialog.Value?.ToString()?.Trim();
+        if (string.IsNullOrWhiteSpace(code))
+            throw new InvalidOperationException("The email confirmation code is empty.");
+
+        return code;
+    }
+
+    private static async Task<string> ResendEmailCodeAsync(
+        HttpClient authClient,
+        string signInToken,
+        string requestGroupId
+    )
+    {
+        string resendResponse = await SendAuthJsonRequestAsync(
+            authClient,
+            AuthApiEndpoint + "/signin/code/resended",
+            new { signinToken = signInToken },
+            requestGroupId
+        );
+
+        ApiResponse<SignInData> resend = JsonConvert.DeserializeObject<ApiResponse<SignInData>>(resendResponse);
+        string newSignInToken = resend?.Data?.SignInToken;
+        if (string.IsNullOrWhiteSpace(newSignInToken))
+            throw new InvalidOperationException("4game did not return a signin token after resending the code.");
+
+        return newSignInToken;
+    }
+
+    private static async Task WaitForEmailCodeResendAsync(DateTimeOffset codeRequestedAt)
+    {
+        DateTimeOffset resendAvailableAt = codeRequestedAt.AddSeconds(EmailCodeResendDelaySeconds);
+        TimeSpan resendDelay = resendAvailableAt - DateTimeOffset.UtcNow;
+        if (resendDelay <= TimeSpan.Zero)
+            return;
+
+        int seconds = (int)Math.Ceiling(resendDelay.TotalSeconds);
+        Log.Notify($"A new 4game email code will be requested in {seconds} seconds.");
+        await Task.Delay(resendDelay);
+    }
+
+    private static async Task<string> RequestAuthorizationCodeAsync(HttpClient authClient, string state)
+    {
+        string url =
+            $"{AuthorizeEndpoint}?redirect_uri={Uri.EscapeDataString(RedirectUri)}"
+            + $"&scope={Uri.EscapeDataString(Scope)}"
+            + $"&client_id={Uri.EscapeDataString(ClientId)}"
+            + "&response_type=code"
+            + $"&state={Uri.EscapeDataString(state)}"
+            + "&notMyComputer=false";
+
+        using HttpResponseMessage response = await authClient.GetAsync(url);
+        if (!IsRedirect(response.StatusCode) || response.Headers.Location == null)
+        {
+            string content = await response.Content.ReadAsStringAsync();
+            throw CreateRequestException("Getting the 4game authorization code", response.StatusCode, content);
+        }
+
+        Uri location = response.Headers.Location.IsAbsoluteUri
+            ? response.Headers.Location
+            : new Uri(new Uri(url), response.Headers.Location);
+
+        string returnedState = GetQueryParameter(location, "state");
+        if (!string.Equals(state, returnedState, StringComparison.Ordinal))
+            throw new InvalidOperationException("4game returned an OAuth state that does not match the request.");
+
+        string authorizationCode = GetQueryParameter(location, "code");
+        if (string.IsNullOrWhiteSpace(authorizationCode))
+            throw new InvalidOperationException("4game redirect does not contain an authorization code.");
+
+        return authorizationCode;
+    }
+
+    private static async Task<OAuthTokenResponse> SendTokenRequestAsync(
+        HttpClient authClient,
+        IEnumerable<KeyValuePair<string, string>> parameters
+    )
+    {
+        var identity = GetOrCreateDeviceIdentity();
+
+        using var request = new HttpRequestMessage(HttpMethod.Post, TokenEndpoint);
+        request.Headers.TryAddWithoutValidation("X-User-Origin", "Forgame");
+        request.Headers.TryAddWithoutValidation("Computer-Name", identity.HardwareId);
+        request.Headers.TryAddWithoutValidation("Hardware-Id", identity.HardwareId);
+        request.Headers.TryAddWithoutValidation("X-Request-Id", Guid.NewGuid().ToString());
+        request.Content = new FormUrlEncodedContent(parameters);
+
+        using HttpResponseMessage response = await authClient.SendAsync(request);
+        string content = await response.Content.ReadAsStringAsync();
+        if (!response.IsSuccessStatusCode)
+            throw CreateRequestException("Exchanging the 4game token", response.StatusCode, content);
+
+        OAuthTokenResponse tokenResponse = JsonConvert.DeserializeObject<OAuthTokenResponse>(content);
+        if (string.IsNullOrWhiteSpace(tokenResponse?.AccessToken))
+            throw new InvalidOperationException("4game returned an invalid token response.");
+
+        return tokenResponse;
+    }
+
+    private static void SaveTokens(string email, OAuthTokenResponse tokenResponse)
+    {
+        string refreshToken = tokenResponse.RefreshToken;
+        if (string.IsNullOrWhiteSpace(refreshToken))
+            refreshToken = GlobalConfig.Get<string>(RefreshTokenConfigKey, "");
+
+        GlobalConfig.Set(AccessTokenConfigKey, tokenResponse.AccessToken);
+        GlobalConfig.Set(RefreshTokenConfigKey, refreshToken);
+        GlobalConfig.Set(TokenOwnerConfigKey, email);
+        GlobalConfig.Set(EmailCodePendingConfigKey, false);
+        GlobalConfig.Set(EmailCodeAddressConfigKey, "");
+        GlobalConfig.Set(EmailSignInTokenConfigKey, "");
+        GlobalConfig.Set(EmailRequestGroupIdConfigKey, "");
+        GlobalConfig.Set(EmailCodeRequestedAtConfigKey, "");
+        GlobalConfig.Save();
+    }
+
+    private static void ResetAuthorizationState()
+    {
+        GlobalConfig.Set(AccessTokenConfigKey, "");
+        GlobalConfig.Set(RefreshTokenConfigKey, "");
+        GlobalConfig.Set(TokenOwnerConfigKey, "");
+        GlobalConfig.Set(EmailCodePendingConfigKey, false);
+        GlobalConfig.Set(EmailCodeAddressConfigKey, "");
+        GlobalConfig.Set(EmailSignInTokenConfigKey, "");
+        GlobalConfig.Set(EmailRequestGroupIdConfigKey, "");
+        GlobalConfig.Set(EmailCodeRequestedAtConfigKey, "");
+        GlobalConfig.Set(HardwareIdConfigKey, "");
+        GlobalConfig.Set(LauncherIdConfigKey, "");
+        GlobalConfig.Set("RSBot.RuSro.sessionId", "");
         GlobalConfig.Save();
 
-        Log.Debug($"HWID: {hwid}");
-        Log.Debug($"Launcher ID: {launcherId}");
+        Log.Debug(
+            "[RuSroAuthService]: Authorization state reset. " + "The next login will use new cookies and identifiers."
+        );
+    }
 
-        client.DefaultRequestHeaders.Remove("Hardware-Id");
-        client.DefaultRequestHeaders.Remove("Launcher-Id");
-        client.DefaultRequestHeaders.Add("Hardware-Id", hwid);
-        client.DefaultRequestHeaders.Add("Launcher-Id", launcherId);
+    private static bool TryGetPendingEmailCode(
+        string email,
+        out string signInToken,
+        out string requestGroupId,
+        out DateTimeOffset codeRequestedAt
+    )
+    {
+        signInToken = GlobalConfig.Get<string>(EmailSignInTokenConfigKey, "");
+        requestGroupId = GlobalConfig.Get<string>(EmailRequestGroupIdConfigKey, "");
+        string pendingEmail = GlobalConfig.Get<string>(EmailCodeAddressConfigKey, "");
+        string requestedAt = GlobalConfig.Get<string>(EmailCodeRequestedAtConfigKey, "");
 
-        using (tokenRequestContent)
+        bool hasPendingCode =
+            GlobalConfig.Get<bool>(EmailCodePendingConfigKey)
+            && string.Equals(pendingEmail, email, StringComparison.OrdinalIgnoreCase)
+            && !string.IsNullOrWhiteSpace(signInToken)
+            && !string.IsNullOrWhiteSpace(requestGroupId);
+
+        if (!DateTimeOffset.TryParse(requestedAt, out codeRequestedAt))
+            codeRequestedAt = DateTimeOffset.MinValue;
+
+        return hasPendingCode;
+    }
+
+    private static void SavePendingEmailCode(
+        string email,
+        string signInToken,
+        string requestGroupId,
+        DateTimeOffset codeRequestedAt
+    )
+    {
+        GlobalConfig.Set(EmailCodePendingConfigKey, true);
+        GlobalConfig.Set(EmailCodeAddressConfigKey, email);
+        GlobalConfig.Set(EmailSignInTokenConfigKey, signInToken);
+        GlobalConfig.Set(EmailRequestGroupIdConfigKey, requestGroupId);
+        GlobalConfig.Set(EmailCodeRequestedAtConfigKey, codeRequestedAt.ToString("O"));
+        GlobalConfig.Save();
+    }
+
+    private static bool TokenBelongsToAccount(string email, string accessToken)
+    {
+        string tokenOwner = GlobalConfig.Get<string>(TokenOwnerConfigKey, "");
+        if (!string.IsNullOrWhiteSpace(tokenOwner))
+            return string.Equals(tokenOwner, email, StringComparison.OrdinalIgnoreCase);
+
+        if (string.IsNullOrWhiteSpace(accessToken))
+            return false;
+
+        try
         {
-            var tokenResponse = await client.PostAsync(endpoint, tokenRequestContent);
-            var tokenResponseContent = await tokenResponse.Content.ReadAsStringAsync();
-            return tokenResponseContent;
+            var jwtToken = new JwtSecurityTokenHandler().ReadJwtToken(accessToken);
+            return jwtToken
+                .Claims.Where(claim => claim.Type == "username" || claim.Type == "email")
+                .Any(claim => string.Equals(claim.Value, email, StringComparison.OrdinalIgnoreCase));
+        }
+        catch
+        {
+            return false;
         }
     }
 
-    private static async Task<string> GetAccessTokenAsync(string username, string password)
+    private static bool IsAccessTokenValid(string accessToken)
     {
-        string tokenResponseContent = await TokenResponse(username, password);
+        if (string.IsNullOrWhiteSpace(accessToken))
+            return false;
 
-        if (tokenResponseContent.Contains("guard.emailcoderequired"))
+        try
         {
-            GlobalConfig.Set("RSBot.RuSro.sessionId", ExtractSessionId(tokenResponseContent));
+            var jwtToken = new JwtSecurityTokenHandler().ReadJwtToken(accessToken);
+            return jwtToken.ValidTo > DateTime.UtcNow.AddMinutes(1);
+        }
+        catch
+        {
+            return false;
+        }
+    }
 
-            string dialogFormTitle = LanguageManager.GetLangBySpecificKey(
-                "RSBot.General",
-                "RuSroConfirmationCodeFormTitle",
-                "Confirmation code"
-            );
-            string dialogTitle = LanguageManager.GetLangBySpecificKey(
-                "RSBot.General",
-                "RuSroConfirmationCodeTitle",
-                "You have got an email with PIN"
-            );
-            string dialogContent = LanguageManager.GetLangBySpecificKey(
-                "RSBot.General",
-                "RuSroConfirmationCodeContent",
-                "Enter it and press OK"
-            );
+    private static (string HardwareId, string LauncherId) GetOrCreateDeviceIdentity()
+    {
+        bool changed = false;
+        string hardwareId = GlobalConfig.Get<string>(HardwareIdConfigKey, "");
+        string launcherId = GlobalConfig.Get<string>(LauncherIdConfigKey, "");
 
-            var inputDialog = new InputDialog(dialogFormTitle, dialogTitle, dialogContent);
-            if (inputDialog.ShowDialog() != DialogResult.OK)
-                return string.Empty;
-
-            string confirmationCode = (string)inputDialog.Value;
-            SESSION_STATE sessionState = await Activate(confirmationCode);
-            Log.Debug("Sessions State: " + sessionState);
-
-            if (sessionState == SESSION_STATE.SUCCESSFULLY_ACTIVATED)
-                tokenResponseContent = await TokenResponse(username, password);
-            else
-                return string.Empty;
+        if (hardwareId?.Length != 12 || hardwareId.Any(character => !Chars.Contains(character)))
+        {
+            hardwareId = GenerateRandomString(12);
+            GlobalConfig.Set(HardwareIdConfigKey, hardwareId);
+            changed = true;
         }
 
-        string accessToken = ExtractAccessToken(tokenResponseContent);
-        string refreshToken = ExtractRefreshToken(tokenResponseContent);
-        GlobalConfig.Set("RSBot.RuSro.accessToken", accessToken);
-        GlobalConfig.Set("RSBot.RuSro.refreshToken", refreshToken);
+        if (!Guid.TryParse(launcherId, out _))
+        {
+            launcherId = GenerateLauncherId();
+            GlobalConfig.Set(LauncherIdConfigKey, launcherId);
+            changed = true;
+        }
+
+        if (changed)
+            GlobalConfig.Save();
+
+        return (hardwareId, launcherId);
+    }
+
+    private static void RotateDeviceIdentityAfterPendingEmailCode()
+    {
+        if (!GlobalConfig.Get<bool>(EmailCodePendingConfigKey))
+            return;
+
+        string hardwareId = GenerateRandomString(12);
+        string launcherId = GenerateLauncherId();
+
+        GlobalConfig.Set(HardwareIdConfigKey, hardwareId);
+        GlobalConfig.Set(LauncherIdConfigKey, launcherId);
         GlobalConfig.Save();
 
-        if (tokenResponseContent.Contains("unauthorized"))
-        {
-            MessageBox.Show(
-                $"Session is expired, try again!\n4game error: {ExtractErrorDescription(tokenResponseContent)}",
-                "Error",
-                MessageBoxButtons.OK,
-                MessageBoxIcon.Error
-            );
-            return string.Empty;
-        }
-
-        if (tokenResponseContent.Contains("auth.datanotfound"))
-        {
-            MessageBox.Show(
-                $"Check your login and password!\n4game error: {ExtractErrorDescription(tokenResponseContent)}",
-                "Error",
-                MessageBoxButtons.OK,
-                MessageBoxIcon.Error
-            );
-            return string.Empty;
-        }
-
-        if (string.IsNullOrEmpty(accessToken))
-        {
-            MessageBox.Show(tokenResponseContent, "Error", MessageBoxButtons.OK, MessageBoxIcon.Error);
-            return string.Empty;
-        }
-
-        return accessToken;
-    }
-
-    private static string ExtractSessionId(string responseContent)
-    {
-        var jsonResponse = JsonConvert.DeserializeObject<ErrorResponse>(responseContent);
-        var sessionId = jsonResponse?.Error?.Data?.SessionId;
-        return sessionId;
-    }
-
-    private static string ExtractErrorDescription(string responseContent)
-    {
-        var jsonResponse = JsonConvert.DeserializeObject<ErrorResponse>(responseContent);
-        var errorDescription = jsonResponse?.Error?.Description;
-        return errorDescription;
-    }
-
-    private static string ExtractAccessToken(string responseContent)
-    {
-        var jsonResponse = JsonConvert.DeserializeObject<dynamic>(responseContent);
-        return jsonResponse.access_token;
-    }
-
-    private static string ExtractRefreshToken(string responseContent)
-    {
-        var jsonResponse = JsonConvert.DeserializeObject<dynamic>(responseContent);
-        return jsonResponse.refresh_token;
-    }
-
-    private static string[] ExtractUsernameEmailFromToken(string accessToken)
-    {
-        var handler = new JwtSecurityTokenHandler();
-        var jwtToken = handler.ReadJwtToken(accessToken);
-
-        string[] result =
-        [
-            jwtToken.Claims.FirstOrDefault(c => c.Type == "username")?.Value.ToLower(),
-            jwtToken.Claims.FirstOrDefault(c => c.Type == "email")?.Value.ToLower(),
-        ];
-        return result;
+        Log.Debug(
+            "[RuSroAuthService]: The previous email code flow was not completed; generated new hardware and launcher IDs."
+        );
     }
 
     private static string GenerateRandomString(int length = 64)
     {
-        var sb = new StringBuilder();
+        byte[] randomBytes = RandomNumberGenerator.GetBytes(length);
+        var result = new StringBuilder(length);
 
         for (int i = 0; i < length; i++)
-        {
-            var index = _random.Next(_chars.Length);
-            sb.Append(_chars[index]);
-        }
+            result.Append(Chars[randomBytes[i] % Chars.Length]);
 
-        return sb.ToString();
+        return result.ToString();
     }
 
     private static string GenerateLauncherId()
     {
-        Guid guid = Guid.NewGuid();
-        return guid.ToString();
+        return Guid.NewGuid().ToString();
     }
 
-    private class ErrorDetails
+    private static bool IsRedirect(HttpStatusCode statusCode)
     {
-        public int Length { get; set; }
-        public string Alphabet { get; set; }
-        public bool IsResend { get; set; }
-        public string Contact { get; set; }
-        public string SessionId { get; set; }
-        public string Requester { get; set; }
-        public string ResendTimeout { get; set; }
-        public string Method { get; set; }
+        return statusCode == HttpStatusCode.MovedPermanently
+            || statusCode == HttpStatusCode.Found
+            || statusCode == HttpStatusCode.SeeOther
+            || statusCode == HttpStatusCode.TemporaryRedirect
+            || statusCode == HttpStatusCode.PermanentRedirect;
     }
 
-    private class ErrorData
+    private static string GetQueryParameter(Uri uri, string name)
     {
-        public ErrorDetails Data { get; set; }
-        public string Description { get; set; }
-        public string Code { get; set; }
+        foreach (string pair in uri.Query.TrimStart('?').Split('&', StringSplitOptions.RemoveEmptyEntries))
+        {
+            int separatorIndex = pair.IndexOf('=');
+            string key = WebUtility.UrlDecode(separatorIndex >= 0 ? pair[..separatorIndex] : pair);
+            if (!string.Equals(key, name, StringComparison.Ordinal))
+                continue;
+
+            string value = separatorIndex >= 0 ? pair[(separatorIndex + 1)..] : string.Empty;
+            return WebUtility.UrlDecode(value);
+        }
+
+        return null;
     }
 
-    private class ErrorResponse
+    private static Exception CreateRequestException(string operation, HttpStatusCode statusCode, string content)
     {
-        public ErrorData Error { get; set; }
+        string detail = ExtractErrorDescription(content);
+        string status = $"{(int)statusCode} {statusCode}";
+        return new InvalidOperationException(
+            string.IsNullOrWhiteSpace(detail)
+                ? $"{operation} failed ({status})."
+                : $"{operation} failed ({status}): {detail}"
+        );
     }
 
-    enum SESSION_STATE
+    private static string ExtractErrorDescription(string content)
     {
-        NO_SESSION_ID,
-        NO_PIN,
-        ALREADY_ACTIVATED,
-        INVALID_REQUEST,
-        SUCCESSFULLY_ACTIVATED,
+        if (string.IsNullOrWhiteSpace(content))
+            return null;
+
+        try
+        {
+            JObject json = JObject.Parse(content);
+            JObject error = json["error"] as JObject;
+            string detail =
+                json.Value<string>("error_description")
+                ?? error?.Value<string>("description")
+                ?? error?.Value<string>("code");
+
+            if (string.IsNullOrWhiteSpace(detail) && json["error"]?.Type == JTokenType.String)
+                detail = json["error"].Value<string>();
+
+            if (!string.IsNullOrWhiteSpace(detail))
+                return detail;
+        }
+        catch (JsonReaderException)
+        {
+            // The response is not JSON; return a short plain-text excerpt below.
+        }
+
+        string trimmedContent = content.Trim();
+        return trimmedContent.Length <= 300 ? trimmedContent : trimmedContent[..300] + "...";
+    }
+
+    private sealed class ApiResponse<T>
+    {
+        [JsonProperty("data")]
+        public T Data { get; set; }
+    }
+
+    private sealed class SignInData
+    {
+        [JsonProperty("signinToken")]
+        public string SignInToken { get; set; }
+    }
+
+    private sealed class OAuthTokenResponse
+    {
+        [JsonProperty("access_token")]
+        public string AccessToken { get; set; }
+
+        [JsonProperty("refresh_token")]
+        public string RefreshToken { get; set; }
     }
 
     private static async Task ConnectToWSAndSend()
@@ -486,7 +827,7 @@ internal static class RuSroAuthService
         string payload =
             $"{{\"jsonrpc\":\"2.0\",\"method\":\"createGameTokenCode\",\"params\":{{\"accessToken\":\"{accessToken}\",\"ignoreLicenseAcceptance\":false,\"login\":\"{login}\",\"masterId\":\"{sub}\",\"toPartnerId\":\"silk-ru\",\"lang\":\"ru\"}},\"id\":\"{Guid.NewGuid()}\"}}";
 
-        Log.Debug($"Sending first payload: {payload}");
+        Log.Debug("Sending createGameTokenCode request.");
         await SendMessage(clientWebSocket, payload);
 
         int attempts = 0;
