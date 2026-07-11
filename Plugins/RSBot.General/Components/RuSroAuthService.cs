@@ -133,9 +133,7 @@ internal static class RuSroAuthService
         }
         catch (Exception ex)
         {
-            Log.Debug(
-                "[RuSroAuthService]: Refresh token rejected, starting email authorization. " + ex.Message
-            );
+            Log.Debug("[RuSroAuthService]: Refresh token rejected, starting email authorization. " + ex.Message);
             return null;
         }
     }
@@ -453,8 +451,7 @@ internal static class RuSroAuthService
         GlobalConfig.Save();
 
         Log.Debug(
-            "[RuSroAuthService]: Authorization state reset. "
-                + "The next login will use new cookies and identifiers."
+            "[RuSroAuthService]: Authorization state reset. " + "The next login will use new cookies and identifiers."
         );
     }
 
@@ -509,8 +506,8 @@ internal static class RuSroAuthService
         try
         {
             var jwtToken = new JwtSecurityTokenHandler().ReadJwtToken(accessToken);
-            return jwtToken.Claims
-                .Where(claim => claim.Type == "username" || claim.Type == "email")
+            return jwtToken
+                .Claims.Where(claim => claim.Type == "username" || claim.Type == "email")
                 .Any(claim => string.Equals(claim.Value, email, StringComparison.OrdinalIgnoreCase));
         }
         catch
