@@ -15,6 +15,8 @@ using Newtonsoft.Json;
 using Newtonsoft.Json.Linq;
 using RSBot.Core;
 using RSBot.Core.Components;
+using RSBot.Core.Extensions;
+using RSBot.General.Views;
 using SDUI.Controls;
 
 namespace RSBot.General.Components;
@@ -41,6 +43,7 @@ internal static class RuSroAuthService
     private const string EmailRequestGroupIdConfigKey = "RSBot.RuSro.emailRequestGroupId";
     private const string EmailCodeRequestedAtConfigKey = "RSBot.RuSro.emailCodeRequestedAt";
     private const int EmailCodeResendDelaySeconds = 30;
+    private const int MaxCaptchaAttempts = 2;
 
     private const string Chars = "ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789";
 
@@ -153,8 +156,9 @@ internal static class RuSroAuthService
         if (!resumePendingCode)
             requestGroupId = Guid.NewGuid().ToString();
 
-        using HttpClient authClient = CreateAuthClient(requestGroupId);
-        await InitializeAuthPageAsync(authClient, state);
+        using HttpClient authClient = CreateAuthClient(requestGroupId, out CookieContainer cookieContainer);
+        if (!await InitializeAuthPageAsync(authClient, cookieContainer, state))
+            return null;
 
         if (resumePendingCode)
         {
@@ -240,17 +244,25 @@ internal static class RuSroAuthService
 
     private static HttpClient CreateAuthClient(string trackingId = null)
     {
-        var cookies = new CookieContainer();
+        return CreateAuthClient(trackingId, out _);
+    }
+
+    private static HttpClient CreateAuthClient(string trackingId, out CookieContainer cookieContainer)
+    {
+        cookieContainer = new CookieContainer();
         if (!string.IsNullOrWhiteSpace(trackingId))
-            cookies.Add(new Cookie("trk", trackingId, "/", ".4game.ru"));
+            cookieContainer.Add(new Cookie("trk", trackingId, "/", ".4game.ru"));
 
         var handler = new HttpClientHandler
         {
-            CookieContainer = cookies,
+            CookieContainer = cookieContainer,
             UseCookies = true,
             AllowAutoRedirect = false,
             AutomaticDecompression = DecompressionMethods.All,
         };
+
+        if (ProxyConfig.TryGetProxy(out ProxyConfig proxyConfig))
+            handler.Proxy = proxyConfig.CreateWebProxy();
 
         var authClient = new HttpClient(handler);
         authClient.DefaultRequestHeaders.TryAddWithoutValidation("Accept", "application/json, text/plain, */*");
@@ -258,7 +270,11 @@ internal static class RuSroAuthService
         return authClient;
     }
 
-    private static async Task InitializeAuthPageAsync(HttpClient authClient, string state)
+    private static async Task<bool> InitializeAuthPageAsync(
+        HttpClient authClient,
+        CookieContainer cookieContainer,
+        string state
+    )
     {
         string url =
             $"{AuthPageEndpoint}?scope={Uri.EscapeDataString(Scope)}"
@@ -268,11 +284,32 @@ internal static class RuSroAuthService
             + $"&redirect_uri={Uri.EscapeDataString(RedirectUri)}"
             + $"&back={Uri.EscapeDataString(BackUri)}";
 
-        using HttpResponseMessage response = await authClient.GetAsync(url);
-        if (!response.IsSuccessStatusCode)
+        var requestUri = new Uri(url);
+        for (int captchaAttempt = 0; ; captchaAttempt++)
         {
-            string content = await response.Content.ReadAsStringAsync();
-            throw CreateRequestException("Opening the 4game authorization page", response.StatusCode, content);
+            Uri captchaUri;
+            using (HttpResponseMessage response = await authClient.GetAsync(requestUri))
+            {
+                if (response.IsSuccessStatusCode)
+                    return true;
+
+                if (!TryGetCaptchaRedirect(response, requestUri, out captchaUri))
+                {
+                    string content = await response.Content.ReadAsStringAsync();
+                    throw CreateRequestException("Opening the 4game authorization page", response.StatusCode, content);
+                }
+            }
+
+            if (captchaAttempt >= MaxCaptchaAttempts)
+            {
+                throw new InvalidOperationException(
+                    $"4game requested verification more than {MaxCaptchaAttempts} times."
+                );
+            }
+
+            Log.Notify("4game requires additional verification. Complete it in the opened window.");
+            if (!await CaptchaWindow.ShowAsync(captchaUri, requestUri, cookieContainer))
+                return false;
         }
     }
 
@@ -600,6 +637,30 @@ internal static class RuSroAuthService
             || statusCode == HttpStatusCode.PermanentRedirect;
     }
 
+    private static bool TryGetCaptchaRedirect(HttpResponseMessage response, Uri requestUri, out Uri captchaUri)
+    {
+        captchaUri = null;
+        if (!IsRedirect(response.StatusCode) || response.Headers.Location == null)
+            return false;
+
+        Uri location = response.Headers.Location;
+        captchaUri = location.IsAbsoluteUri ? location : new Uri(requestUri, location);
+
+        bool isCaptcha =
+            string.Equals(captchaUri.Scheme, Uri.UriSchemeHttps, StringComparison.OrdinalIgnoreCase)
+            && string.Equals(captchaUri.Host, "id.4game.ru", StringComparison.OrdinalIgnoreCase)
+            && string.Equals(
+                captchaUri.AbsolutePath.TrimEnd('/'),
+                "/tmgrdfrend/showcaptcha",
+                StringComparison.OrdinalIgnoreCase
+            );
+
+        if (!isCaptcha)
+            captchaUri = null;
+
+        return isCaptcha;
+    }
+
     private static string GetQueryParameter(Uri uri, string name)
     {
         foreach (string pair in uri.Query.TrimStart('?').Split('&', StringSplitOptions.RemoveEmptyEntries))
@@ -693,6 +754,9 @@ internal static class RuSroAuthService
         {
             try
             {
+                if (ProxyConfig.TryGetProxy(out ProxyConfig proxyConfig))
+                    clientWebSocket.Options.Proxy = proxyConfig.CreateWebProxy();
+
                 await ConnectToWebSocket(clientWebSocket, serverUri);
 
                 string login = await SendGetGameAccountRequest(clientWebSocket, sub);

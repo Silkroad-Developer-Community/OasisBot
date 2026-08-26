@@ -6,6 +6,7 @@ using System.Text.RegularExpressions;
 using System.Threading.Tasks;
 using System.Windows.Forms;
 using RSBot.Core;
+using RSBot.Core.Extensions;
 
 namespace RSBot.General.Components;
 
@@ -21,6 +22,9 @@ internal static class JSROAuthService
             AllowAutoRedirect = true,
             AutomaticDecompression = DecompressionMethods.All,
         };
+
+        if (ProxyConfig.TryGetProxy(out ProxyConfig proxyConfig))
+            handler.Proxy = proxyConfig.CreateWebProxy();
 
         HttpClient client = new(handler);
 

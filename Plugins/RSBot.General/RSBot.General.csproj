@@ -15,6 +15,7 @@
   </PropertyGroup>
 
   <ItemGroup>
+    <PackageReference Include="Microsoft.Web.WebView2" Version="1.0.4129.50" PrivateAssets="all" />
     <PackageReference Include="System.IdentityModel.Tokens.Jwt" Version="8.15.0" />
     <ProjectReference Include="..\..\Library\RSBot.Core\RSBot.Core.csproj" />
     <ProjectReference Include="..\..\SDUI\SDUI\SDUI.csproj" />
@@ -26,4 +27,14 @@
       <SubType>Form</SubType>
     </Compile>
   </ItemGroup>
+
+  <Target Name="RemoveUnusedWebView2WpfReference" BeforeTargets="ResolveAssemblyReferences">
+    <ItemGroup>
+      <_WebView2WpfReference
+        Include="@(Reference)"
+        Condition="'%(Reference.Filename)' == 'Microsoft.Web.WebView2.Wpf'"
+      />
+      <Reference Remove="@(_WebView2WpfReference)" />
+    </ItemGroup>
+  </Target>
 </Project>
