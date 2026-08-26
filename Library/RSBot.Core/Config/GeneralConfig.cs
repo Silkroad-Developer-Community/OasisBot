@@ -1,75 +1,70 @@
 using System;
-using System.IO;
+using System.Collections.Generic;
 
 namespace RSBot.Core;
 
 public static class GeneralConfig
 {
     /// <summary>
-    /// The config
+    /// Checks if the specified key exists in the settings config.
     /// </summary>
-    private static Config _config;
+    public static bool Exists(string key) => Config.Settings != null && Config.Settings.Exists(key);
 
     /// <summary>
-    /// Load config from file
+    /// Gets a value from the settings config.
     /// </summary>
-    public static void Load()
-    {
-        var path = Path.Combine(Kernel.BasePath, "User", "Settings.rs");
-        _config = new Config(path);
-    }
+    public static T Get<T>(string key, T defaultValue = default) =>
+        Config.Settings != null ? Config.Settings.Get(key, defaultValue) : defaultValue;
 
     /// <summary>
-    /// Returns a value indicating if the given config key exists.
+    /// Gets an enum value from the settings config.
     /// </summary>
-    /// <param name="key">The key.</param>
-    /// <returns></returns>
-    public static bool Exists(string key)
-    {
-        if (_config == null)
-            Load();
-        return _config.Exists(key);
-    }
+    public static TEnum GetEnum<TEnum>(string key, TEnum defaultValue = default)
+        where TEnum : struct => Config.Settings != null ? Config.Settings.GetEnum(key, defaultValue) : defaultValue;
 
     /// <summary>
-    /// Gets the specified key.
+    /// Sets a value in the settings config.
     /// </summary>
-    /// <param name="key">The key.</param>
-    /// <param name="defaultValue">The default value.</param>
-    public static T Get<T>(string key, T defaultValue = default)
-    {
-        if (_config == null)
-            Load();
-        return _config.Get(key, defaultValue);
-    }
+    public static void Set<T>(string key, T value) => Config.Settings?.Set(key, value);
 
     /// <summary>
-    /// Sets the specified key inside the config.
+    /// Gets an array from the settings config.
     /// </summary>
-    /// <param name="key">The key.</param>
-    /// <param name="value">The value.</param>
-    public static void Set<T>(string key, T value)
-    {
-        if (_config == null)
-            Load();
-        _config.Set(key, value);
-    }
+    public static T[] GetArray<T>(
+        string key,
+        char delimiter = ',',
+        StringSplitOptions options = StringSplitOptions.RemoveEmptyEntries
+    ) => Config.Settings != null ? Config.Settings.GetArray<T>(key, delimiter, options) : Array.Empty<T>();
 
     /// <summary>
-    /// Saves the specified file.
+    /// Gets enums array from the settings config.
     /// </summary>
-    public static void Save()
-    {
-        if (_config == null)
-            return;
+    public static TEnum[] GetEnums<TEnum>(
+        string key,
+        char delimiter = ',',
+        StringSplitOptions options = StringSplitOptions.RemoveEmptyEntries
+    )
+        where TEnum : struct =>
+        Config.Settings != null ? Config.Settings.GetEnums<TEnum>(key, delimiter, options) : Array.Empty<TEnum>();
 
-        try
-        {
-            _config.Save();
-        }
-        catch (Exception ex)
-        {
-            Log.Debug($"[GeneralConfig] Could not save settings: {ex.Message}");
-        }
-    }
+    /// <summary>
+    /// Sets an array in the settings config.
+    /// </summary>
+    public static void SetArray<T>(string key, IEnumerable<T> values, string delimiter = ",") =>
+        Config.Settings?.SetArray(key, values, delimiter);
+
+    /// <summary>
+    /// Removes a key from the settings config.
+    /// </summary>
+    public static void Remove(string key) => Config.Settings?.Remove(key);
+
+    /// <summary>
+    /// Reloads the settings config.
+    /// </summary>
+    public static void Load() => Config.Settings?.Load();
+
+    /// <summary>
+    /// Saves the settings config.
+    /// </summary>
+    public static void Save() => Config.Settings?.Save();
 }

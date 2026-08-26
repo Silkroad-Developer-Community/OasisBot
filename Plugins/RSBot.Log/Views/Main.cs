@@ -1,4 +1,4 @@
-﻿using System;
+using System;
 using System.ComponentModel;
 using System.IO;
 using System.Windows.Forms;
@@ -50,7 +50,9 @@ public partial class Main : DoubleBufferedControl
             Kernel.BasePath,
             "User",
             "Logs",
-            Game.Player == null ? "Environment" : Game.Player.Name,
+            Game.Player == null
+                ? "Environment"
+                : $"{RSBot.Core.Components.ProfileManager.SelectedProfile}-{Game.Player.Name}",
             $"{DateTime.Now:dd-MM-yyyy}.txt"
         );
 

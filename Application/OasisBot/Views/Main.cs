@@ -2,6 +2,8 @@ using System;
 using System.Collections.Generic;
 using System.Diagnostics;
 using System.Drawing;
+using System.IO;
+using System.IO.Compression;
 using System.Linq;
 using System.Net;
 using System.Threading.Tasks;
@@ -33,6 +35,7 @@ public partial class Main : UIWindow
     private readonly Dictionary<string, UIWindow> _pluginWindows = new(8);
     private bool _isWindowLoaded;
     private SDUI.Controls.Button btnStartSetArea;
+    private SDUI.Controls.Button btnDbgZip;
 
     #endregion Members
 
@@ -561,6 +564,153 @@ public partial class Main : UIWindow
 
         btnStartSetArea.Click += btnStartSetArea_Click;
         bottomPanel.Controls.Add(btnStartSetArea);
+
+        btnDbgZip = new SDUI.Controls.Button
+        {
+            Anchor = AnchorStyles.Top | AnchorStyles.Right,
+            AutoSizeMode = AutoSizeMode.GrowAndShrink,
+            BackColor = Color.FromArgb(90, 75, 215),
+            Color = Color.FromArgb(90, 75, 215),
+            Font = btnSave.Font,
+            ForeColor = Color.White,
+            Size = new Size((int)(btnSave.Width * 1.0), btnSave.Height),
+            TabIndex = 3,
+            TabStop = false,
+            Tag = "private",
+            Text = "DBG ZIP",
+            UseVisualStyleBackColor = false,
+        };
+
+        btnDbgZip.Location = new Point(btnStartSetArea.Left - btnDbgZip.Width - gap, btnStartSetArea.Top);
+        btnDbgZip.Click += btnDbgZip_Click;
+        bottomPanel.Controls.Add(btnDbgZip);
+    }
+
+    /// <summary>
+    ///     Handles the Click event of the btnDbgZip control.
+    /// </summary>
+    private void btnDbgZip_Click(object sender, EventArgs e)
+    {
+        try
+        {
+            var userDirectory = Path.Combine(Kernel.BasePath, "User");
+            var logsDirectory = Path.Combine(userDirectory, "Logs");
+
+            if (!Directory.Exists(logsDirectory))
+                Directory.CreateDirectory(logsDirectory);
+
+            var zipFileName = $"{DateTime.Now:yyyy-MM-dd_HH_mm_ss}.zip";
+            var zipFilePath = Path.Combine(logsDirectory, zipFileName);
+
+            using (var zipStream = new FileStream(zipFilePath, FileMode.Create))
+            using (var archive = new ZipArchive(zipStream, ZipArchiveMode.Create))
+            {
+                var files = Directory.GetFiles(userDirectory, "*", SearchOption.AllDirectories);
+                foreach (var file in files)
+                {
+                    // Ignore any zip files and autologin data files
+                    if (
+                        file.EndsWith(".zip", StringComparison.OrdinalIgnoreCase)
+                        || file.EndsWith("autologin.data", StringComparison.OrdinalIgnoreCase)
+                    )
+                        continue;
+
+                    var relativePath = Path.GetRelativePath(userDirectory, file);
+                    try
+                    {
+                        var entry = archive.CreateEntry(relativePath);
+                        using (var entryStream = entry.Open())
+                        {
+                            if (file.EndsWith(".json", StringComparison.OrdinalIgnoreCase))
+                            {
+                                try
+                                {
+                                    var json = File.ReadAllText(file);
+                                    var options = new System.Text.Json.JsonSerializerOptions { WriteIndented = true };
+                                    var dict = System.Text.Json.JsonSerializer.Deserialize<
+                                        Dictionary<string, System.Text.Json.JsonElement>
+                                    >(json);
+                                    if (dict != null)
+                                    {
+                                        var keysToRemove = dict
+                                            .Keys.Where(k => k.Equals("Accounts", StringComparison.OrdinalIgnoreCase))
+                                            .ToList();
+                                        foreach (var key in keysToRemove)
+                                        {
+                                            dict.Remove(key);
+                                        }
+
+                                        var cleanJson = System.Text.Json.JsonSerializer.Serialize(dict, options);
+                                        var bytes = System.Text.Encoding.UTF8.GetBytes(cleanJson);
+                                        entryStream.Write(bytes, 0, bytes.Length);
+                                    }
+                                    else
+                                    {
+                                        using (
+                                            var fileStream = new FileStream(
+                                                file,
+                                                FileMode.Open,
+                                                FileAccess.Read,
+                                                FileShare.ReadWrite
+                                            )
+                                        )
+                                        {
+                                            fileStream.CopyTo(entryStream);
+                                        }
+                                    }
+                                }
+                                catch
+                                {
+                                    using (
+                                        var fileStream = new FileStream(
+                                            file,
+                                            FileMode.Open,
+                                            FileAccess.Read,
+                                            FileShare.ReadWrite
+                                        )
+                                    )
+                                    {
+                                        fileStream.CopyTo(entryStream);
+                                    }
+                                }
+                            }
+                            else
+                            {
+                                using (
+                                    var fileStream = new FileStream(
+                                        file,
+                                        FileMode.Open,
+                                        FileAccess.Read,
+                                        FileShare.ReadWrite
+                                    )
+                                )
+                                {
+                                    fileStream.CopyTo(entryStream);
+                                }
+                            }
+                        }
+                    }
+                    catch (Exception ex)
+                    {
+                        Log.Debug($"Failed to add file {relativePath} to zip: {ex.Message}");
+                    }
+                }
+            }
+
+            if (File.Exists(zipFilePath))
+            {
+                Process.Start("explorer.exe", $"/select,\"{zipFilePath}\"");
+            }
+        }
+        catch (Exception ex)
+        {
+            MessageBox.Show(
+                $"Failed to create debug ZIP: {ex.Message}",
+                "Error",
+                MessageBoxButtons.OK,
+                MessageBoxIcon.Error
+            );
+        }
     }
 
     /// <summary>
@@ -589,7 +739,7 @@ public partial class Main : UIWindow
         if (!Kernel.Bot.Running)
         {
             var pos = Game.Player.Position;
-            PlayerConfig.Set("RSBot.Area.Region", pos.Region);
+            PlayerConfig.Set("RSBot.Area.Region", pos.Region.Id);
             PlayerConfig.Set("RSBot.Area.X", pos.XOffset);
             PlayerConfig.Set("RSBot.Area.Y", pos.YOffset);
             PlayerConfig.Set("RSBot.Area.Z", pos.ZOffset);
@@ -804,7 +954,7 @@ public partial class Main : UIWindow
         var oldSroPath = GlobalConfig.Get("RSBot.SilkroadDirectory", "");
 
         //We need this to check if the sro directories are different
-        var tempNewConfig = new Config(ProfileManager.GetProfileFile(dialog.SelectedProfile));
+        var tempNewConfig = new RSBot.Core.ConfigContainer(ProfileManager.GetProfileFile(dialog.SelectedProfile));
 
         if (oldSroPath != tempNewConfig.Get("RSBot.SilkroadDirectory", ""))
             if (
@@ -828,7 +978,7 @@ public partial class Main : UIWindow
             return;
 
         //Reload player config
-        PlayerConfig.Load(Game.Player.Name);
+        RSBot.Core.Config.LoadPlayer(Game.Player.Name);
 
         //A little hack to tell all plugins to reload their UI
         EventManager.FireEvent("OnLoadCharacter");

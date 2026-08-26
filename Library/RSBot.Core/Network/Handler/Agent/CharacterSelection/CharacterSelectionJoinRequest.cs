@@ -28,7 +28,7 @@ internal class CharacterSelectionJoinRequest : IPacketHandler
     {
         var characterName = packet.ReadString();
 
-        PlayerConfig.Load(characterName);
+        RSBot.Core.Config.LoadPlayer(characterName);
 
         EventManager.FireEvent("OnEnterGame");
     }
