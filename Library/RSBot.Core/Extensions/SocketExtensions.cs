@@ -25,6 +25,11 @@ public struct ProxyConfig
     public byte Version;
     public int TimeOut;
 
+    public static bool TryGetProxy(out ProxyConfig config)
+    {
+        return TryGetProxy(null, 0, out config);
+    }
+
     public static bool TryGetProxy(string ip, int port, out ProxyConfig config)
     {
         config = new ProxyConfig
@@ -53,6 +58,17 @@ public struct ProxyConfig
 
         return true;
     }
+
+    public readonly WebProxy CreateWebProxy()
+    {
+        string scheme = Version == 5 ? "socks5" : "socks4";
+        var proxy = new WebProxy(new UriBuilder(scheme, ProxyIp, ProxyPort).Uri);
+
+        if (!string.IsNullOrEmpty(UserName) || !string.IsNullOrEmpty(Password))
+            proxy.Credentials = new NetworkCredential(UserName ?? string.Empty, Password ?? string.Empty);
+
+        return proxy;
+    }
 }
 
 public static class SocketExtensions
@@ -72,16 +88,21 @@ public static class SocketExtensions
             throw new SocketException(10060); // Connection timed out.
     }
 
-    public static async Task<bool> ConnectViaProxy(this Socket socket, ProxyConfig config)
+    public static async Task<bool> ConnectViaProxy(this Socket socket, ProxyConfig config, bool logConnection = true)
     {
-        Log.Notify(
-            $"Trying to connect to proxy server [{config.ProxyIp}:{config.ProxyPort} / Version: {config.Version}]..."
-        );
+        if (logConnection)
+        {
+            Log.Notify(
+                $"Trying to connect to proxy server [{config.ProxyIp}:{config.ProxyPort} / Version: {config.Version}]..."
+            );
+        }
+
         await socket.ConnectAsync(config.ProxyIp, config.ProxyPort);
         if (!socket.Connected)
             return false;
 
-        Log.Notify("Successfully connected to proxy server...");
+        if (logConnection)
+            Log.Notify("Successfully connected to proxy server...");
 
         var portBuffer = new byte[2] { Convert.ToByte(config.Port / 256), Convert.ToByte(config.Port % 256) };
 
@@ -179,6 +200,13 @@ public static class SocketExtensions
         // | VN | CD | DSTPORT |      DSTIP        | USERID       |NULL|
         // +----+----+----+----+----+----+----+----+----+----+....+----+
         //    1    1      2              4           variable       1
+
+        if (addressType == 3)
+        {
+            addressBytes = Dns.GetHostAddresses(config.Ip)
+                .First(address => address.AddressFamily == AddressFamily.InterNetwork)
+                .GetAddressBytes();
+        }
 
         var userIdBytes = Encoding.ASCII.GetBytes(config.UserName);
 
