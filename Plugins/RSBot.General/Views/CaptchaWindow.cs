@@ -95,7 +95,7 @@ internal sealed class CaptchaWindow : UIWindowBase
             Enabled = false,
             Margin = new Padding(8, 0, 0, 0),
             Size = new Size(110, 32),
-            Text = "Continue",
+            Text = "Check",
         };
         _continueButton.Click += ContinueButton_Click;
 
@@ -277,6 +277,7 @@ internal sealed class CaptchaWindow : UIWindowBase
 
     private void ConfigureBrowser()
     {
+        _webView.CoreWebView2.Settings.UserAgent = RuSroAuthService.BrowserUserAgent;
         _webView.CoreWebView2.Settings.AreDefaultContextMenusEnabled = false;
         _webView.CoreWebView2.Settings.AreDevToolsEnabled = false;
         _webView.CoreWebView2.Settings.IsStatusBarEnabled = false;
@@ -315,16 +316,25 @@ internal sealed class CaptchaWindow : UIWindowBase
         if (!e.IsSuccess)
         {
             _statusLabel.Text = $"The verification page failed to load ({e.WebErrorStatus}).";
+            _continueButton.Enabled = true;
             return;
         }
 
-        if (IsReturnUri(_webView.Source))
+        if (IsReturnUri(_webView.Source) && e.HttpStatusCode is >= 200 and <= 299)
+        {
             await CompleteAsync();
+            return;
+        }
+
+        _continueButton.Enabled = true;
+        _statusLabel.Text = "Complete the verification. Click Check if the page does not continue automatically.";
     }
 
-    private async void ContinueButton_Click(object sender, EventArgs e)
+    private void ContinueButton_Click(object sender, EventArgs e)
     {
-        await CompleteAsync();
+        _continueButton.Enabled = false;
+        _statusLabel.Text = "Checking the verification result...";
+        _webView.CoreWebView2.Navigate(_returnUri.AbsoluteUri);
     }
 
     private async Task CompleteAsync()

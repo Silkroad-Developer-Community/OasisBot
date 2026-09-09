@@ -32,6 +32,10 @@ internal static class RuSroAuthService
     private const string AuthorizeEndpoint = "https://webbff.ru.4game.ru/oauth/authorize";
     private const string TokenEndpoint = "https://launcherbff.ru.4game.com/connect/token";
 
+    internal const string BrowserUserAgent =
+        "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/141.0.0.0 Safari/537.36";
+    private const string BrowserAcceptLanguage = "ru-RU,ru;q=0.9,en-US;q=0.8,en;q=0.7";
+
     private const string HardwareIdConfigKey = "RSBot.RuSro.hwid";
     private const string LauncherIdConfigKey = "RSBot.RuSro.launcherid";
     private const string AccessTokenConfigKey = "RSBot.RuSro.accessToken";
@@ -43,8 +47,7 @@ internal static class RuSroAuthService
     private const string EmailRequestGroupIdConfigKey = "RSBot.RuSro.emailRequestGroupId";
     private const string EmailCodeRequestedAtConfigKey = "RSBot.RuSro.emailCodeRequestedAt";
     private const int EmailCodeResendDelaySeconds = 30;
-    private const int MaxCaptchaAttempts = 2;
-
+    private const int MaxAuthPageRedirects = 10;
     private const string Chars = "ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789";
 
     public static async Task<bool> Auth()
@@ -265,8 +268,9 @@ internal static class RuSroAuthService
             handler.Proxy = proxyConfig.CreateWebProxy();
 
         var authClient = new HttpClient(handler);
+        authClient.DefaultRequestHeaders.TryAddWithoutValidation("User-Agent", BrowserUserAgent);
         authClient.DefaultRequestHeaders.TryAddWithoutValidation("Accept", "application/json, text/plain, */*");
-        authClient.DefaultRequestHeaders.TryAddWithoutValidation("Accept-Language", "ru");
+        authClient.DefaultRequestHeaders.TryAddWithoutValidation("Accept-Language", BrowserAcceptLanguage);
         return authClient;
     }
 
@@ -285,32 +289,36 @@ internal static class RuSroAuthService
             + $"&back={Uri.EscapeDataString(BackUri)}";
 
         var requestUri = new Uri(url);
-        for (int captchaAttempt = 0; ; captchaAttempt++)
+        Uri currentUri = requestUri;
+        Uri captchaUri;
+        for (int redirectCount = 0; ; redirectCount++)
         {
-            Uri captchaUri;
-            using (HttpResponseMessage response = await authClient.GetAsync(requestUri))
-            {
-                if (response.IsSuccessStatusCode)
-                    return true;
+            using HttpResponseMessage response = await authClient.GetAsync(currentUri);
 
-                if (!TryGetCaptchaRedirect(response, requestUri, out captchaUri))
-                {
-                    string content = await response.Content.ReadAsStringAsync();
-                    throw CreateRequestException("Opening the 4game authorization page", response.StatusCode, content);
-                }
+            if (response.IsSuccessStatusCode)
+                return true;
+
+            if (TryGetCaptchaRedirect(response, currentUri, out captchaUri))
+                break;
+
+            if (!TryGetRedirectUri(response, currentUri, out Uri redirectUri) || !IsSameOrigin(requestUri, redirectUri))
+            {
+                string content = await response.Content.ReadAsStringAsync();
+                throw CreateRequestException("Opening the 4game authorization page", response.StatusCode, content);
             }
 
-            if (captchaAttempt >= MaxCaptchaAttempts)
+            if (redirectCount >= MaxAuthPageRedirects)
             {
                 throw new InvalidOperationException(
-                    $"4game requested verification more than {MaxCaptchaAttempts} times."
+                    $"Opening the 4game authorization page exceeded {MaxAuthPageRedirects} redirects."
                 );
             }
 
-            Log.Notify("4game requires additional verification. Complete it in the opened window.");
-            if (!await CaptchaWindow.ShowAsync(captchaUri, requestUri, cookieContainer))
-                return false;
+            currentUri = redirectUri;
         }
+
+        Log.Notify("4game requires additional verification. Complete it in the opened window.");
+        return await CaptchaWindow.ShowAsync(captchaUri, requestUri, cookieContainer);
     }
 
     private static async Task<string> SendAuthJsonRequestAsync(
@@ -639,12 +647,8 @@ internal static class RuSroAuthService
 
     private static bool TryGetCaptchaRedirect(HttpResponseMessage response, Uri requestUri, out Uri captchaUri)
     {
-        captchaUri = null;
-        if (!IsRedirect(response.StatusCode) || response.Headers.Location == null)
+        if (!TryGetRedirectUri(response, requestUri, out captchaUri))
             return false;
-
-        Uri location = response.Headers.Location;
-        captchaUri = location.IsAbsoluteUri ? location : new Uri(requestUri, location);
 
         bool isCaptcha =
             string.Equals(captchaUri.Scheme, Uri.UriSchemeHttps, StringComparison.OrdinalIgnoreCase)
@@ -659,6 +663,24 @@ internal static class RuSroAuthService
             captchaUri = null;
 
         return isCaptcha;
+    }
+
+    private static bool TryGetRedirectUri(HttpResponseMessage response, Uri requestUri, out Uri redirectUri)
+    {
+        redirectUri = null;
+        if (!IsRedirect(response.StatusCode) || response.Headers.Location == null)
+            return false;
+
+        Uri location = response.Headers.Location;
+        redirectUri = location.IsAbsoluteUri ? location : new Uri(requestUri, location);
+        return true;
+    }
+
+    private static bool IsSameOrigin(Uri expectedOrigin, Uri uri)
+    {
+        return string.Equals(expectedOrigin.Scheme, uri.Scheme, StringComparison.OrdinalIgnoreCase)
+            && string.Equals(expectedOrigin.Host, uri.Host, StringComparison.OrdinalIgnoreCase)
+            && expectedOrigin.Port == uri.Port;
     }
 
     private static string GetQueryParameter(Uri uri, string name)
