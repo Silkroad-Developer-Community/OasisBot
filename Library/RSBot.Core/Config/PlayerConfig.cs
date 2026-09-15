@@ -1,136 +1,70 @@
-﻿using System.Collections.Generic;
-using System.IO;
-using RSBot.Core.Components;
-using RSBot.Core.Event;
+﻿using System;
+using System.Collections.Generic;
 
 namespace RSBot.Core;
 
 public static class PlayerConfig
 {
     /// <summary>
-    ///     The config
+    /// Checks if the specified key exists in the player config.
     /// </summary>
-    private static Config _config;
+    public static bool Exists(string key) => Config.Player != null && Config.Player.Exists(key);
 
     /// <summary>
-    ///     The config directory
+    /// Gets a value from the player config.
     /// </summary>
-    private static string _configDirectory => Path.Combine(Kernel.BasePath, "User", ProfileManager.SelectedProfile);
+    public static T Get<T>(string key, T defaultValue = default) =>
+        Config.Player != null ? Config.Player.Get(key, defaultValue) : defaultValue;
 
     /// <summary>
-    ///     Load config from file
+    /// Gets an enum value from the player config.
     /// </summary>
-    /// <param name="file">The config file path</param>
-    public static void Load(string charName)
-    {
-        _config = new Config(Path.Combine(_configDirectory, charName + ".rs"));
-
-        Log.Notify("[Player] settings have been loaded!");
-    }
-
-    /// <summary>
-    ///     Existses the specified key.
-    /// </summary>
-    /// <param name="key">The key.</param>
-    /// <returns></returns>
-    public static bool Exists(string key)
-    {
-        if (_config == null)
-            return false;
-
-        return _config.Exists(key);
-    }
-
-    /// <summary>
-    ///     Gets the specified key.
-    /// </summary>
-    /// <param name="key">The key.</param>
-    /// <param name="defaultValue">The default value.</param>
-    public static T Get<T>(string key, T defaultValue = default)
-    {
-        if (_config == null)
-            return defaultValue;
-
-        return _config.Get(key, defaultValue);
-    }
-
-    /// <summary>
-    ///     Gets the enum value with specified key.
-    /// </summary>
-    /// <param name="key">The key.</param>
-    /// <param name="defaultValue">The default value.</param>
     public static TEnum GetEnum<TEnum>(string key, TEnum defaultValue = default)
-        where TEnum : struct
-    {
-        if (_config == null)
-            return defaultValue;
-
-        return _config.GetEnum(key, defaultValue);
-    }
+        where TEnum : struct => Config.Player != null ? Config.Player.GetEnum(key, defaultValue) : defaultValue;
 
     /// <summary>
-    ///     Sets the specified key inside the config.
+    /// Sets a value in the player config.
     /// </summary>
-    /// <param name="key">The key.</param>
-    /// <param name="value">The value.</param>
-    public static void Set<T>(string key, T value)
-    {
-        if (_config != null)
-            _config.Set(key, value);
-    }
+    public static void Set<T>(string key, T value) => Config.Player?.Set(key, value);
 
     /// <summary>
-    ///     Gets the array.
+    /// Gets an array from the player config.
     /// </summary>
-    /// <param name="key">The key.</param>
-    /// <param name="delimiter">The delimiter.</param>
-    /// <returns></returns>
-    public static T[] GetArray<T>(string key, char delimiter = ',')
-    {
-        if (_config == null)
-            return new T[] { };
-
-        return _config.GetArray<T>(key, delimiter);
-    }
+    public static T[] GetArray<T>(
+        string key,
+        char delimiter = ',',
+        StringSplitOptions options = StringSplitOptions.RemoveEmptyEntries
+    ) => Config.Player != null ? Config.Player.GetArray<T>(key, delimiter, options) : Array.Empty<T>();
 
     /// <summary>
-    ///     Gets the enum value with specified key.
+    /// Gets enums array from the player config.
     /// </summary>
-    /// <param name="key">The key.</param>
-    /// <param name="defaultValue">The default value.</param>
-    public static TEnum[] GetEnums<TEnum>(string key, char delimiter = ',')
-        where TEnum : struct
-    {
-        if (_config == null)
-            return new TEnum[] { };
-
-        return _config.GetEnums<TEnum>(key, delimiter);
-    }
+    public static TEnum[] GetEnums<TEnum>(
+        string key,
+        char delimiter = ',',
+        StringSplitOptions options = StringSplitOptions.RemoveEmptyEntries
+    )
+        where TEnum : struct =>
+        Config.Player != null ? Config.Player.GetEnums<TEnum>(key, delimiter, options) : Array.Empty<TEnum>();
 
     /// <summary>
-    ///     Sets the array.
+    /// Sets an array in the player config.
     /// </summary>
-    /// <param name="key">The key.</param>
-    /// <param name="values">The values.</param>
-    /// <param name="delimiter">The delimiter.</param>
-    public static void SetArray<T>(string key, IEnumerable<T> values, string delimiter = ",")
-    {
-        if (_config != null)
-            _config.SetArray(key, values, delimiter);
-    }
+    public static void SetArray<T>(string key, IEnumerable<T> values, string delimiter = ",") =>
+        Config.Player?.SetArray(key, values, delimiter);
 
     /// <summary>
-    ///     Saves the specified file.
+    /// Removes a key from the player config.
     /// </summary>
-    /// <param name="file">The file.</param>
-    public static void Save()
-    {
-        if (_config == null)
-            return;
+    public static void Remove(string key) => Config.Player?.Remove(key);
 
-        _config.Save();
+    /// <summary>
+    /// Reloads the player config.
+    /// </summary>
+    public static void Load() => Config.Player?.Load();
 
-        Log.Notify("[Player] have been saved!");
-        EventManager.FireEvent("OnSavePlayerConfig");
-    }
+    /// <summary>
+    /// Saves the player config.
+    /// </summary>
+    public static void Save() => Config.Player?.Save();
 }

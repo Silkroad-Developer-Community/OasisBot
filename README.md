@@ -60,4 +60,8 @@ Run the commands below (You still need MSBuild tooling via Visual Studio):
 
 ## Credits
 
-OasisBot was originally developed by [**ngoedde**](https://github.com/ngoedde) (Niklas Gödde/torstmn/Wimbeam) and [**SDClowen**](https://github.com/myildirimofficial) (Mahmut YILDIRIM). This repository is a community-led fork maintained by the Silkroad Developer Community.
+| Copyright Owners                                                                                     | Year         | Contribution       |
+| ---------------------------------------------------------------------------------------------------- | ------------ | ------------------ |
+| [ngoedde](https://github.com/ngoedde)                                                                | 2017-2021    | Original Developer |
+| RSBot Team ([ngoedde](https://github.com/ngoedde), [SDClowen](https://github.com/myildirimofficial)) | 2021-2026    | Continuation team  |
+| [Silkroad Developer Community](https://silkroad-developer-community.github.io/#governance)           | 2026-current | Community fork     |

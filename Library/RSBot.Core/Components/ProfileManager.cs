@@ -9,11 +9,6 @@ namespace RSBot.Core.Components;
 public class ProfileManager
 {
     /// <summary>
-    ///     The profile config
-    /// </summary>
-    private static readonly Config _config;
-
-    /// <summary>
     ///     Get active profiles
     /// </summary>
     private static readonly ObservableCollection<string> _profiles;
@@ -23,13 +18,29 @@ public class ProfileManager
     /// </summary>
     static ProfileManager()
     {
-        _config = new Config(GetProfileConfigFileName());
-        _profiles = new ObservableCollection<string>(_config.GetArray<string>("RSBot.Profiles", '|'));
+        Config.Initialize();
 
-        if (!_profiles.Contains("Default"))
-            _profiles.Insert(0, "Default");
+        var loadedProfiles = GeneralConfig.GetArray<string>("RSBot.Profiles");
+        string[] reservedNames = { "Settings", "Logs" };
+        var validProfiles = loadedProfiles
+            .Select(p => p.ToLowerInvariant())
+            .Where(p => !reservedNames.Any(n => n.Equals(p, StringComparison.OrdinalIgnoreCase)))
+            .Distinct()
+            .ToList();
+
+        _profiles = new ObservableCollection<string>(validProfiles);
+
+        var isNew = _profiles.Count == 0;
+        if (isNew)
+            _profiles.Insert(0, "default");
 
         _profiles.CollectionChanged += Profiles_CollectionChanged;
+
+        if (isNew || loadedProfiles.Length != validProfiles.Count)
+        {
+            GeneralConfig.SetArray("RSBot.Profiles", _profiles);
+            GeneralConfig.Save();
+        }
     }
 
     /// <summary>
@@ -48,22 +59,14 @@ public class ProfileManager
     public static string SelectedCharacter { get; set; }
 
     /// <summary>
-    ///     The selected profile
+    ///     The selected account
     /// </summary>
-    public static string SelectedProfile => _config.Get("RSBot.SelectedProfile", "Default");
+    public static string SelectedAccount { get; set; }
 
     /// <summary>
-    ///     Show the profile dialog <c>true</c>; otherwise <c>false</c>
+    ///     The selected profile
     /// </summary>
-    public static bool ShowProfileDialog
-    {
-        get => _config.Get("RSBot.ShowProfileDialog", false);
-        set
-        {
-            _config.Set("RSBot.ShowProfileDialog", value);
-            _config.Save();
-        }
-    }
+    public static string SelectedProfile { get; set; } = "default";
 
     /// <summary>
     ///     There have any value in the collection <c>true</c>; otherwise <c>false</c>
@@ -78,8 +81,8 @@ public class ProfileManager
     /// </summary>
     private static void Profiles_CollectionChanged(object? sender, NotifyCollectionChangedEventArgs e)
     {
-        _config.SetArray("RSBot.Profiles", _profiles, "|");
-        _config.Save();
+        GeneralConfig.SetArray("RSBot.Profiles", _profiles);
+        GeneralConfig.Save();
     }
 
     /// <summary>
@@ -88,11 +91,12 @@ public class ProfileManager
     /// <param name="profile">The profile</param>
     public static bool SetSelectedProfile(string profile)
     {
-        if (!_profiles.Any(p => p == profile))
+        var normalized = profile.ToLowerInvariant();
+        if (!_profiles.Any(p => p == normalized))
             return false;
 
-        _config.Set("RSBot.SelectedProfile", profile);
-        _config.Save();
+        SelectedProfile = normalized;
+        Config.LoadProfile(normalized);
 
         return true;
     }
@@ -103,7 +107,7 @@ public class ProfileManager
     /// <param name="profile">The profile</param>
     public static bool ProfileExists(string profile)
     {
-        return _profiles.Any(p => p.Equals(profile, StringComparison.InvariantCultureIgnoreCase));
+        return _profiles.Any(p => p == profile.ToLowerInvariant());
     }
 
     /// <summary>
@@ -114,27 +118,28 @@ public class ProfileManager
     /// <returns>Is created <c>true</c>; otherwise <c>false</c></returns>
     public static bool Add(string profile, bool useAsBase = false)
     {
-        string[] reservedNames = { "Profiles", "Default", "Settings" };
+        var normalized = profile.ToLowerInvariant();
+        string[] reservedNames = { "settings", "logs" };
 
-        if (reservedNames.Any(n => n.Equals(profile, StringComparison.InvariantCultureIgnoreCase)))
+        if (reservedNames.Contains(normalized))
             return false;
 
-        if (ProfileExists(profile))
+        if (ProfileExists(normalized))
         {
-            SetSelectedProfile(profile);
+            SetSelectedProfile(normalized);
             return true;
         }
 
-        _profiles.Add(profile);
+        _profiles.Add(normalized);
 
         if (useAsBase)
-            CopyOldProfileData(profile);
+            MigrationManager.CopyProfileData(SelectedProfile, profile);
 
         var newProfileDirectory = GetProfileDirectory(profile);
         if (!Directory.Exists(newProfileDirectory))
             Directory.CreateDirectory(newProfileDirectory);
 
-        SetSelectedProfile(profile);
+        SetSelectedProfile(normalized);
 
         return true;
     }
@@ -146,46 +151,12 @@ public class ProfileManager
     /// <returns>Is removed <c>true</c>; otherwise <c>false</c></returns>
     public static bool Remove(string profile)
     {
-        return _profiles.Remove(profile);
-    }
-
-    /// <summary>
-    ///     Copies the old profile data to the new profile.
-    /// </summary>
-    /// <param name="profile">Name of the profile.</param>
-    private static void CopyOldProfileData(string profile)
-    {
-        try
-        {
-            var oldProfileFilePath = GetProfileFile(SelectedProfile);
-            var newProfileFilePath = GetProfileFile(profile);
-            var oldAutoLoginFile = Path.Combine(GetProfileDirectory(SelectedProfile), "autologin.data");
-            var newAutoLoginFile = Path.Combine(GetProfileDirectory(profile), "autologin.data");
-
-            if (File.Exists(oldProfileFilePath))
-                File.Copy(oldProfileFilePath, newProfileFilePath);
-
-            if (File.Exists(oldAutoLoginFile))
-                File.Copy(oldAutoLoginFile, newAutoLoginFile);
-        }
-        catch (Exception ex)
-        {
-            Log.Warn($"Could not copy old profile data to the new profile: {ex.Message}");
-        }
-    }
-
-    /// <summary>
-    ///     Get profile config file name
-    /// </summary>
-    /// <returns></returns>
-    public static string GetProfileConfigFileName()
-    {
-        return Path.Combine(Kernel.BasePath, "User", "Profiles.rs");
+        return _profiles.Remove(profile.ToLowerInvariant());
     }
 
     public static string GetProfileFile(string profileName)
     {
-        return Path.Combine(Kernel.BasePath, "User", $"{profileName}.rs");
+        return Path.Combine(Kernel.BasePath, "User", $"{profileName}.json");
     }
 
     public static string GetProfileDirectory(string profileName)

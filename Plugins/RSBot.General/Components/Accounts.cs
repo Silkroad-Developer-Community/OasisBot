@@ -1,4 +1,4 @@
-﻿using System;
+using System;
 using System.Collections.Generic;
 using System.IO;
 using System.Text;
@@ -26,51 +26,16 @@ internal class Accounts
     public static Account Joined { get; set; }
 
     /// <summary>
-    ///     Get the data file path
-    /// </summary>
-    private static string _filePath =>
-        Path.Combine(Kernel.BasePath, "User", ProfileManager.SelectedProfile, "autologin.data");
-
-    /// <summary>
-    ///     Check the saving directory
-    /// </summary>
-    /// <returns></returns>
-    private static void EnsureDirectoryExists()
-    {
-        var directory = Path.GetDirectoryName(_filePath);
-
-        Directory.CreateDirectory(directory);
-    }
-
-    /// <summary>
     ///     Loads this instance.
     /// </summary>
     public static void Load()
     {
         try
         {
-            EnsureDirectoryExists();
-
-            SavedAccounts = new List<Account>();
-
-            if (!File.Exists(_filePath))
-                return;
-
-            var buffer = File.ReadAllBytes(_filePath);
-            if (buffer.Length == 0)
-                return;
-
-            //Decode credentials
-            var blowfish = new Blowfish();
-            buffer = blowfish.Decode(buffer);
-
-            var serialized = Encoding.UTF8.GetString(buffer).Trim('\0');
-
-            SavedAccounts = JsonSerializer.Deserialize<List<Account>>(serialized) ?? new List<Account>(4);
+            SavedAccounts = GlobalConfig.Get<List<Account>>("Accounts") ?? new List<Account>(4);
         }
         catch (Exception ex)
         {
-            Log.NotifyLang("FileNotFound", _filePath);
             Log.Fatal(ex);
         }
     }
@@ -80,25 +45,17 @@ internal class Accounts
     /// </summary>
     public static void Save()
     {
-        EnsureDirectoryExists();
-
         if (SavedAccounts == null)
             return;
 
         try
         {
-            //Encode user credentials
-            var buffer = Encoding.UTF8.GetBytes(JsonSerializer.Serialize(SavedAccounts));
-
-            //Maybe add some password protection and use blowfish.initialize(password)
-            var blowfish = new Blowfish();
-            buffer = blowfish.Encode(buffer);
-
-            File.WriteAllBytes(_filePath, buffer);
+            GlobalConfig.Set("Accounts", SavedAccounts);
+            GlobalConfig.Save();
         }
-        catch
+        catch (Exception ex)
         {
-            Log.NotifyLang("FileNotFound", _filePath);
+            Log.Fatal(ex);
         }
     }
 }

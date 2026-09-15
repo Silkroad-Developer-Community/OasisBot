@@ -15,7 +15,6 @@ public partial class ProfileSelectionDialog : UIWindowBase
         InitializeComponent();
 
         LoadProfiles();
-        checkSaveSelection.Checked = !ProfileManager.ShowProfileDialog;
         BackColor = ColorScheme.BackColor;
     }
 
@@ -70,8 +69,8 @@ public partial class ProfileSelectionDialog : UIWindowBase
             return string.Empty;
         }
 
-        string[] reservedNames = { "Profiles", "Default", "Settings" };
-        if (reservedNames.Any(n => n.Equals(profile, StringComparison.InvariantCultureIgnoreCase)))
+        string[] reservedNames = { "Settings", "Logs" };
+        if (reservedNames.Any(n => n.Equals(profile, StringComparison.OrdinalIgnoreCase)))
         {
             MessageBox.Show(
                 $"The name '{profile}' is reserved and cannot be used!",
@@ -101,26 +100,8 @@ public partial class ProfileSelectionDialog : UIWindowBase
         SelectedProfile = (string)comboProfiles.SelectedItem;
     }
 
-    private void checkSaveSelection_CheckedChanged(object sender, EventArgs e)
-    {
-        ProfileManager.ShowProfileDialog = !checkSaveSelection.Checked;
-    }
-
     private void buttonDeleteProfile_Click(object sender, EventArgs e)
     {
-        var selectedProfile = (string)comboProfiles.SelectedItem;
-        if (selectedProfile == "Default") //Default
-        {
-            MessageBox.Show(
-                "You can not delete the default profile!",
-                "Default profile",
-                MessageBoxButtons.OK,
-                MessageBoxIcon.Error
-            );
-
-            return;
-        }
-
         if (ProfileManager.SelectedProfile == (string)comboProfiles.SelectedItem) //Active profile?
         {
             MessageBox.Show(

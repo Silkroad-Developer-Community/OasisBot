@@ -1,130 +1,70 @@
-﻿using System;
+using System;
 using System.Collections.Generic;
-using System.IO;
-using RSBot.Core.Components;
-using RSBot.Core.Event;
 
 namespace RSBot.Core;
 
 public static class GlobalConfig
 {
     /// <summary>
-    ///     The config
+    /// Checks if the specified key exists in the profile config.
     /// </summary>
-    private static Config _config;
+    public static bool Exists(string key) => Config.Profile != null && Config.Profile.Exists(key);
 
     /// <summary>
-    ///     Load config from file
+    /// Gets a value from the profile config.
     /// </summary>
-    public static void Load()
-    {
-        var path = Path.Combine(Kernel.BasePath, "User", ProfileManager.SelectedProfile + ".rs");
-
-        _config = new Config(path);
-
-        // Migration: PR #934 "RSBot.Default" was moved to "RSBot.Training"
-        if (_config.Exists("RSBot.BotName") && _config.Get<string>("RSBot.BotName") == "RSBot.Default")
-        {
-            _config.Set("RSBot.BotName", "RSBot.Training");
-            _config.Save();
-        }
-
-        Log.Notify("[Global] settings have been loaded!");
-    }
+    public static T Get<T>(string key, T defaultValue = default) =>
+        Config.Profile != null ? Config.Profile.Get(key, defaultValue) : defaultValue;
 
     /// <summary>
-    ///     Returns a value indicating if the given config key exists.
+    /// Gets an enum value from the profile config.
     /// </summary>
-    /// <param name="key">The key.</param>
-    /// <returns></returns>
-    public static bool Exists(string key)
-    {
-        if (_config == null)
-            return false;
-
-        return _config.Exists(key);
-    }
-
-    /// <summary>
-    ///     Gets the specified key.
-    /// </summary>
-    /// <param name="key">The key.</param>
-    /// <param name="defaultValue">The default value.</param>
-    public static T Get<T>(string key, T defaultValue = default)
-    {
-        if (_config == null)
-            return defaultValue;
-
-        return _config.Get(key, defaultValue);
-    }
-
-    /// <summary>
-    ///     Gets the enum value with specified key.
-    /// </summary>
-    /// <param name="key">The key.</param>
-    /// <param name="defaultValue">The default value.</param>
     public static TEnum GetEnum<TEnum>(string key, TEnum defaultValue = default)
-        where TEnum : struct
-    {
-        if (_config == null)
-            return defaultValue;
-
-        return _config.GetEnum(key, defaultValue);
-    }
+        where TEnum : struct => Config.Profile != null ? Config.Profile.GetEnum(key, defaultValue) : defaultValue;
 
     /// <summary>
-    ///     Sets the specified key inside the config.
+    /// Sets a value in the profile config.
     /// </summary>
-    /// <param name="key">The key.</param>
-    /// <param name="value">The value.</param>
-    public static void Set<T>(string key, T value)
-    {
-        if (_config != null)
-            _config.Set(key, value);
-    }
+    public static void Set<T>(string key, T value) => Config.Profile?.Set(key, value);
 
     /// <summary>
-    ///     Gets the array.
+    /// Gets an array from the profile config.
     /// </summary>
-    /// <param name="key">The key.</param>
-    /// <param name="delimiter">The delimiter.</param>
-    /// <returns></returns>
     public static T[] GetArray<T>(
         string key,
         char delimiter = ',',
         StringSplitOptions options = StringSplitOptions.RemoveEmptyEntries
+    ) => Config.Profile != null ? Config.Profile.GetArray<T>(key, delimiter, options) : Array.Empty<T>();
+
+    /// <summary>
+    /// Gets enums array from the profile config.
+    /// </summary>
+    public static TEnum[] GetEnums<TEnum>(
+        string key,
+        char delimiter = ',',
+        StringSplitOptions options = StringSplitOptions.RemoveEmptyEntries
     )
-    {
-        if (_config == null)
-            return new T[] { };
-
-        return _config.GetArray<T>(key, delimiter, options);
-    }
+        where TEnum : struct =>
+        Config.Profile != null ? Config.Profile.GetEnums<TEnum>(key, delimiter, options) : Array.Empty<TEnum>();
 
     /// <summary>
-    ///     Sets the array.
+    /// Sets an array in the profile config.
     /// </summary>
-    /// <param name="key">The key.</param>
-    /// <param name="values">The values.</param>
-    /// <param name="delimiter">The delimiter.</param>
-    public static void SetArray<T>(string key, IEnumerable<T> values, string delimiter = ",")
-    {
-        if (_config != null)
-            _config.SetArray(key, values, delimiter);
-    }
+    public static void SetArray<T>(string key, IEnumerable<T> values, string delimiter = ",") =>
+        Config.Profile?.SetArray(key, values, delimiter);
 
     /// <summary>
-    ///     Saves the specified file.
+    /// Removes a key from the profile config.
     /// </summary>
-    /// <param name="file">The file.</param>
-    public static void Save()
-    {
-        if (_config == null)
-            return;
+    public static void Remove(string key) => Config.Profile?.Remove(key);
 
-        _config.Save();
+    /// <summary>
+    /// Reloads the profile config.
+    /// </summary>
+    public static void Load() => Config.Profile?.Load();
 
-        Log.Notify("[Global] settings have been saved!");
-        EventManager.FireEvent("OnSaveGlobalConfig");
-    }
+    /// <summary>
+    /// Saves the profile config.
+    /// </summary>
+    public static void Save() => Config.Profile?.Save();
 }
