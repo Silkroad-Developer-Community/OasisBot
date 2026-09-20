@@ -18,7 +18,7 @@ internal class SpawnPacketInfo
     /// <value>
     ///     The amount.
     /// </value>
-    public ushort Amount { get; set; }
+    public ulong Amount { get; set; }
 
     /// <summary>
     ///     Gets or sets the packet.

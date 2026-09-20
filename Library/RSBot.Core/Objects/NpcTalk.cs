@@ -21,6 +21,26 @@ public class NpcTalk
     public byte[] Options { get; set; }
 
     /// <summary>
+    ///     Gets or sets the custom talk name.
+    /// </summary>
+    public string CustomName { get; set; }
+
+    /// <summary>
+    ///     Gets or sets the talk option flags used by supported client formats.
+    /// </summary>
+    public ulong OptionFlags { get; set; }
+
+    /// <summary>
+    ///     Gets or sets the custom talk data type.
+    /// </summary>
+    public byte CustomType { get; set; }
+
+    /// <summary>
+    ///     Gets or sets the custom talk data identifier.
+    /// </summary>
+    public uint CustomId { get; set; }
+
+    /// <summary>
     ///     Deserialize from the packet
     /// </summary>
     /// <param name="packet">The packet</param>
@@ -28,29 +48,73 @@ public class NpcTalk
     {
         Flag = packet.ReadByte();
 
-        if ((Flag & 2) > 0)
+        if (Game.ClientType <= GameClientType.Thailand)
         {
-            var count = 4;
-            if (Game.ClientType > GameClientType.Thailand)
-                count = packet.ReadByte();
+            if ((Flag & 1) != 0)
+                CustomName = packet.ReadString();
 
-            if (
-                Game.ClientType == GameClientType.Global
-                || Game.ClientType == GameClientType.Turkey
-                || Game.ClientType == GameClientType.VTC_Game
-                || Game.ClientType == GameClientType.RuSro
-                || Game.ClientType == GameClientType.Korean
-                || Game.ClientType == GameClientType.Japanese
-                || Game.ClientType == GameClientType.Taiwan
-            )
-                count = 7;
+            if ((Flag & 2) != 0)
+                Options = packet.ReadBytes(4);
 
-            Options = packet.ReadBytes(count);
+            return;
         }
 
-        // pandora box, after spawned mobs
-        if (Flag == 6)
-            if (packet.ReadByte() == 1) // maybe
-                packet.ReadUInt();
+        if (Game.ClientType >= GameClientType.Vietnam && Game.ClientType <= GameClientType.Chinese)
+        {
+            if ((Flag & 1) != 0)
+                CustomName = packet.ReadString();
+
+            if ((Flag & 2) != 0)
+            {
+                var count = packet.ReadByte();
+                Options = packet.ReadBytes(count);
+            }
+
+            if ((Flag & 4) != 0)
+            {
+                CustomType = packet.ReadByte();
+                CustomId = packet.ReadUInt();
+            }
+
+            return;
+        }
+
+        if (
+            Game.ClientType == GameClientType.Turkey
+            || Game.ClientType == GameClientType.VTC_Game
+            || Game.ClientType == GameClientType.Taiwan
+            || Game.ClientType == GameClientType.Japanese
+            || Game.ClientType == GameClientType.RuSro
+            || Game.ClientType == GameClientType.Rigid
+        )
+        {
+            if ((Flag & 1) != 0)
+                CustomName = packet.ReadString();
+
+            if ((Flag & 2) != 0)
+                OptionFlags = packet.ReadULong();
+
+            if ((Flag & 4) != 0)
+            {
+                CustomType = packet.ReadByte();
+                CustomId = packet.ReadUInt();
+            }
+
+            return;
+        }
+
+        if (Game.ClientType == GameClientType.Global || Game.ClientType == GameClientType.Korean)
+        {
+            if ((Flag & 1) != 0)
+                OptionFlags = packet.ReadULong();
+
+            if ((Flag & 2) != 0)
+            {
+                CustomType = packet.ReadByte();
+                CustomId = packet.ReadUInt();
+            }
+
+            return;
+        }
     }
 }

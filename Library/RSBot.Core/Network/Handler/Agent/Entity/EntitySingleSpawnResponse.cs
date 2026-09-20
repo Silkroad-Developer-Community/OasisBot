@@ -26,6 +26,7 @@ internal class EntitySingleSpawnResponse : IPacketHandler
     /// <param name="packet">The packet.</param>
     public void Invoke(Packet packet)
     {
-        SpawnManager.Parse(packet);
+        // 0x3015 contains exactly one entity and includes the single-spawn trailer.
+        SpawnManager.Parse(packet, isGroup: false);
     }
 }

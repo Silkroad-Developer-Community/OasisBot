@@ -30,7 +30,7 @@ internal class EntityGroupSpawnBeginResponse : IPacketHandler
         {
             Packet = new Packet(0x3019),
             Type = packet.ReadByte(),
-            Amount = packet.ReadUShort(),
+            Amount = Game.ClientType >= GameClientType.Chinese ? packet.ReadULong() : packet.ReadUShort(),
         };
     }
 }

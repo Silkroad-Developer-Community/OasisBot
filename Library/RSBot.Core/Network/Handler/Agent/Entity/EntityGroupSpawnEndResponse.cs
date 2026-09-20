@@ -31,7 +31,7 @@ internal class EntityGroupSpawnEndResponse : IPacketHandler
         packet = Game.SpawnInfo.Packet;
         packet.Lock();
 
-        for (var i = 0; i < Game.SpawnInfo.Amount; i++)
+        for (var i = 0UL; i < Game.SpawnInfo.Amount; i++)
             try
             {
                 switch (Game.SpawnInfo.Type)
