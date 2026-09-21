@@ -225,12 +225,25 @@ public sealed class SpawnedPlayer : SpawnedBionic
 
             if (itemObj == null)
             {
-                packet.ReadByte();
+                if (Game.ClientType != GameClientType.Global)
+                    packet.ReadByte();
+
                 Log.Debug($"unknown item [{itemId}]");
                 continue;
             }
 
-            //Check if the player wears a job-suit
+            if (Game.ClientType == GameClientType.Global)
+            {
+                if (!itemObj.IsEquip)
+                    continue;
+
+                if (itemObj.IsJobOutfit)
+                    WearsJobSuite = true;
+
+                Inventory.Add(itemObj, packet.ReadByte()); //Item object and the "+" value as value
+                continue;
+            }
+
             if (itemObj.IsJobOutfit)
                 WearsJobSuite = true;
 
@@ -244,18 +257,67 @@ public sealed class SpawnedPlayer : SpawnedBionic
             AvatarInventorySize = packet.ReadByte();
             itemCount = packet.ReadByte();
 
-            for (var i = 0; i < itemCount; i++)
+            if (Game.ClientType == GameClientType.Global)
             {
-                var itemId = packet.ReadUInt();
-                var itemObj = Game.ReferenceManager.GetRefItem(itemId);
-                if (itemObj == null)
+                for (var i = 0; i < itemCount; i++)
                 {
-                    packet.ReadByte();
-                    Log.Debug($"Unknown item [{itemId}]");
-                    continue;
-                }
+                    var itemPosition = packet.SeekRead(0, System.IO.SeekOrigin.Current);
+                    var itemId = packet.ReadUInt();
+                    var itemObj = Game.ReferenceManager.GetRefItem(itemId);
+                    if (itemObj == null)
+                    {
+                        if ((byte)itemId <= 1)
+                        {
+                            packet.SeekRead(itemPosition, System.IO.SeekOrigin.Begin);
+                            break;
+                        }
 
-                Avatars.Add(itemObj, packet.ReadByte()); //Item object and the "+" value as value
+                        Log.Debug($"Unknown item [{itemId}]");
+                        continue;
+                    }
+
+                    if (!itemObj.IsEquip)
+                        continue;
+
+                    var plus = packet.ReadByte();
+                    if (itemObj.IsAvatar)
+                        Avatars.Add(itemObj, plus);
+                }
+            }
+            else if (Game.ClientType == GameClientType.Korean)
+            {
+                for (var i = 0; i < itemCount; i++)
+                {
+                    var itemId = packet.ReadUInt();
+                    var itemObj = Game.ReferenceManager.GetRefItem(itemId);
+                    if (itemObj == null)
+                    {
+                        packet.ReadByte();
+                        Log.Debug($"Unknown item [{itemId}]");
+                        continue;
+                    }
+
+                    if (!itemObj.IsAvatar)
+                        continue;
+
+                    Avatars.Add(itemObj, packet.ReadByte());
+                }
+            }
+            else
+            {
+                for (var i = 0; i < itemCount; i++)
+                {
+                    var itemId = packet.ReadUInt();
+                    var itemObj = Game.ReferenceManager.GetRefItem(itemId);
+                    if (itemObj == null)
+                    {
+                        packet.ReadByte();
+                        Log.Debug($"Unknown item [{itemId}]");
+                        continue;
+                    }
+
+                    Avatars.Add(itemObj, packet.ReadByte()); //Item object and the "+" value as value
+                }
             }
         }
 
@@ -267,10 +329,10 @@ public sealed class SpawnedPlayer : SpawnedBionic
             if (maskObj == null)
             {
                 Log.Debug("Unknown mask item [" + maskId + "]");
-                return;
+                if (Game.ClientType != GameClientType.Global)
+                    return;
             }
-
-            if (maskObj.TypeID1 == Record.TypeID1 || maskObj.TypeID2 == Record.TypeID2)
+            else if (maskObj.TypeID1 == Record.TypeID1 || maskObj.TypeID2 == Record.TypeID2)
             {
                 //duplicated player!
                 var scale = packet.ReadByte();
@@ -330,13 +392,27 @@ public sealed class SpawnedPlayer : SpawnedBionic
             Stall = SpawnedPlayerStall.FromPacket(packet);
 
         if (Game.ClientType >= GameClientType.Chinese)
-            packet.ReadBytes(9);
+        {
+            packet.ReadByte();
 
-        packet.ReadByte(); //Equipment Cooldown
+            var eventClownState = packet.ReadByte();
+            if (eventClownState != 0)
+                packet.ReadUInt();
 
-        PKFlag = packet.ReadByte(); //PKFlag
+            var hwanVisualChangeItemId = packet.ReadUInt();
+            if (hwanVisualChangeItemId != 0)
+                packet.ReadUInt();
 
-        if (Game.ClientType >= GameClientType.Chinese && Game.ClientType < GameClientType.Rigid)
-            packet.ReadByte(); // 0xFF what flag?
+            packet.ReadUInt();
+
+            PKFlag = packet.ReadByte();
+            packet.ReadByte();
+        }
+        else
+        {
+            packet.ReadByte(); //Equipment Cooldown
+
+            PKFlag = packet.ReadByte(); //PKFlag
+        }
     }
 }

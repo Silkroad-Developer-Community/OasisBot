@@ -309,6 +309,9 @@ public class InventoryItem
 
         if (record.IsEquip || record.IsFellowEquip || record.IsJobEquip)
         {
+            if (Game.ClientType == GameClientType.Korean)
+                packet.ReadULong(); // Additional item attribute mask
+
             item.OptLevel = packet.ReadByte();
             item.Attributes = new ItemAttributesInfo(packet.ReadULong());
             item.Durability = packet.ReadUInt();
