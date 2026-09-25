@@ -2,9 +2,7 @@
 
 Free, open source Silkroad Online bot for everyone to use!
 
-Feel free to edit the code, create pull requests for any and all improvements, create issues and request features. [Supported clients](#supported-clients) that are listed below are a result of prolonged community work, do not hesitate to accompany us!
-
-To join the conversation, get recent updates/announcements, join our [Discord server](https://discord.gg/FEmNcz7QwP).
+Join our [Discord server](https://discord.gg/FEmNcz7QwP) for updates, announcements and discussions.
 
 [![GitHub Issues](https://img.shields.io/github/issues/Silkroad-Developer-Community/OasisBot?label=Open%20Issues)](https://github.com/Silkroad-Developer-Community/OasisBot/issues)
 [![downloads](https://img.shields.io/github/downloads/Silkroad-Developer-Community/OasisBot/total?label=Total%20Downloads)](https://github.com/Silkroad-Developer-Community/OasisBot/releases)
@@ -14,25 +12,25 @@ To join the conversation, get recent updates/announcements, join our [Discord se
 | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | ------------------------------------------ |
 | [![release-latest](https://img.shields.io/github/v/release/Silkroad-Developer-Community/OasisBot?label=Latest%20Stable&style=for-the-badge)](https://github.com/Silkroad-Developer-Community/OasisBot/releases/latest) | Latest stable release                      |
 | [![release-all](https://img.shields.io/badge/Latest%20Release-Nightly-FF0000?style=for-the-badge)](https://github.com/Silkroad-Developer-Community/OasisBot/releases)                                                  | Nightly releases for most recent features  |
-| [![release-manager](https://img.shields.io/badge/Latest%20Release-Manager-00DD00?style=for-the-badge)](https://github.com/Silkroad-Developer-Community/OasisBot-Manager/releases/latest)                               | Manager for multiple bot profiles          |
 | [![docs](https://img.shields.io/badge/OasisBot-Docs-FF00FF?style=for-the-badge)](https://Silkroad-Developer-Community.github.io/OasisBot)                                                                              | Documentation, tips & tricks and tutorials |
 
-## Building the project
+## Building
 
-- Clone the repository with the command `git clone --recursive https://github.com/Silkroad-Developer-Community/OasisBot.git`)
+You can run the following commands for setup:
 
-### Visual Studio
+```shell
+winget install Microsoft.DotNet.DesktopRuntime.8 --architecture x86 --force --accept-package-agreements --accept-source-agreements
+winget install Microsoft.DotNet.SDK.8
+winget install Microsoft.VisualStudio.BuildTools --override "--wait --quiet --add Microsoft.VisualStudio.Workload.VCTools --add Microsoft.VisualStudio.Workload.ManagedDesktopBuildTools --includeRecommended"
+git clone --recursive https://github.com/Silkroad-Developer-Community/OasisBot.git
+cd OasisBot
+dotnet restore
+powershell -ExecutionPolicy Bypass .\scripts\build.ps1
+```
 
-- Open the project in [Visual Studio 2026](https://visualstudio.microsoft.com/downloads/) (Required workloads are `.NET desktop development` and `Desktop development with C++`)
-- Build the project (<kbd>Ctrl+Shift+B</kbd>)
-- Run the compiled executable from `Build\OasisBot.exe`
+Alternatively, you can also install `.NET desktop development` and `Desktop development with C++` from the Visual Studio Installer.
 
-### Other
-
-Run the commands below (You still need MSBuild tooling via Visual Studio):
-
-- `dotnet restore`
-- `powershell -ExecutionPolicy Bypass .\scripts\build.ps1`
+You can take builds with <kbd>Ctrl+Shift+B</kbd> from Visual Studio or VSCode and its forks. You can also use the included [build script](scripts/build.ps1).
 
 ## Supported clients
 
