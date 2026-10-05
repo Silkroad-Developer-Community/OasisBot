@@ -31,7 +31,6 @@ namespace RSBot.Views.Dialog
             comboProfiles = new SDUI.Controls.ComboBox();
             label1 = new SDUI.Controls.Label();
             btnOK = new SDUI.Controls.Button();
-            checkSaveSelection = new SDUI.Controls.CheckBox();
             buttonCreateProfile = new SDUI.Controls.Button();
             buttonDeleteProfile = new SDUI.Controls.Button();
             SuspendLayout();
@@ -85,23 +84,6 @@ namespace RSBot.Views.Dialog
             btnOK.Text = "CONTINUE";
             btnOK.UseVisualStyleBackColor = true;
             // 
-            // checkSaveSelection
-            // 
-            checkSaveSelection.AutoSize = true;
-            checkSaveSelection.BackColor = System.Drawing.Color.Transparent;
-            checkSaveSelection.Depth = 0;
-            checkSaveSelection.Font = new System.Drawing.Font("Segoe UI", 9F);
-            checkSaveSelection.Location = new System.Drawing.Point(143, 57);
-            checkSaveSelection.Margin = new System.Windows.Forms.Padding(0);
-            checkSaveSelection.MouseLocation = new System.Drawing.Point(-1, -1);
-            checkSaveSelection.Name = "checkSaveSelection";
-            checkSaveSelection.Ripple = true;
-            checkSaveSelection.Size = new System.Drawing.Size(129, 30);
-            checkSaveSelection.TabIndex = 6;
-            checkSaveSelection.Text = "Save selection";
-            checkSaveSelection.UseVisualStyleBackColor = false;
-            checkSaveSelection.CheckedChanged += checkSaveSelection_CheckedChanged;
-            // 
             // buttonCreateProfile
             // 
             buttonCreateProfile.Color = System.Drawing.Color.Green;
@@ -143,7 +125,6 @@ namespace RSBot.Views.Dialog
             Controls.Add(btnOK);
             Controls.Add(buttonDeleteProfile);
             Controls.Add(buttonCreateProfile);
-            Controls.Add(checkSaveSelection);
             Controls.Add(label1);
             Controls.Add(comboProfiles);
             DwmMargin = -1;
@@ -162,7 +143,6 @@ namespace RSBot.Views.Dialog
         private SDUI.Controls.ComboBox comboProfiles;
         private SDUI.Controls.Label label1;
         private SDUI.Controls.Button btnOK;
-        private SDUI.Controls.CheckBox checkSaveSelection;
         private SDUI.Controls.Button buttonCreateProfile;
         private SDUI.Controls.Button buttonDeleteProfile;
     }

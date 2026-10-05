@@ -146,7 +146,7 @@ public partial class SplashScreen : UIWindow
     {
         if (!ProfileManager.IsProfileLoadedByArgs)
         {
-            if (ProfileManager.ShowProfileDialog)
+            if (ProfileManager.Profiles.Length > 1)
             {
                 var dialog = new ProfileSelectionDialog();
                 if (dialog.ShowDialog() != DialogResult.Cancel)
@@ -161,7 +161,7 @@ public partial class SplashScreen : UIWindow
 
                 //Configured profile could not be found. Fallback to default profile
                 if (!string.IsNullOrEmpty(selectedProfile) && !File.Exists(profilePath))
-                    selectedProfile = "Default";
+                    selectedProfile = "default";
 
                 ProfileManager.SetSelectedProfile(selectedProfile);
             }
