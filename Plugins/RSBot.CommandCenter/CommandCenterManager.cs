@@ -1,6 +1,4 @@
 ﻿namespace RSBot.CommandCenter
 {
-    public class CommandCenterManager
-    {
-    }
+    public class CommandCenterManager { }
 }

@@ -16,7 +16,5 @@ public class CommandCenterPlugin : IPlugin
         Log.Notify("[Command Center] Plugin initialized!");
     }
 
-    public void OnLoadCharacter()
-    {
-    }
+    public void OnLoadCharacter() { }
 }
