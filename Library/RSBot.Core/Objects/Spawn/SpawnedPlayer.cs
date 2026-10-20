@@ -284,7 +284,7 @@ public sealed class SpawnedPlayer : SpawnedBionic
                         Avatars.Add(itemObj, plus);
                 }
             }
-            else if (Game.ClientType == GameClientType.Korean)
+            else if (Game.ClientType == GameClientType.Korean || Game.ClientType == GameClientType.Rigid)
             {
                 for (var i = 0; i < itemCount; i++)
                 {
@@ -406,7 +406,8 @@ public sealed class SpawnedPlayer : SpawnedBionic
             packet.ReadUInt();
 
             PKFlag = packet.ReadByte();
-            packet.ReadByte();
+            if (Game.ClientType != GameClientType.Rigid)
+                packet.ReadByte();
         }
         else
         {
