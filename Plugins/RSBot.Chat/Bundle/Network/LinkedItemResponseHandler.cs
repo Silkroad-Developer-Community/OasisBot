@@ -13,132 +13,202 @@ namespace RSBot.Chat.Bundle.Network
 
         private const int MaxCacheSize = 100;
 
-        private static readonly Queue<uint> _itemHistory = new();
+        private static readonly Queue<ulong> _itemHistory = new();
 
         public void Invoke(Packet packet)
         {
-            packet.ReadByte(); //result 0x01
-            byte itemsCount = packet.ReadByte(); //items count
-            for (int i = 1; i <= itemsCount; i++)
+            if (packet.ReadByte() == 0)
             {
-                uint UID = packet.ReadUInt(); //item unique ID from chat message
-                packet.ReadUInt(); //???
-                if (packet.ReadUInt() == 1) //event item???
-                {
-                    packet.ReadUShort();
-                    packet.ReadULong(); //PeriodBeginTime
-                    packet.ReadULong(); //PeriodEndTime
-                }
-                uint ID = packet.ReadUInt(); //item ID
-                RefObjItem item = Game.ReferenceManager.GetRefItem(ID);
+                packet.ReadUShort(); // Error code
+                return;
+            }
+
+            var itemsCount = packet.ReadByte();
+            for (var i = 0; i < itemsCount; i++)
+            {
+                var uid = packet.ReadULong();
+                ReadRental(packet);
+                var id = packet.ReadUInt();
+                if (id == 0)
+                    continue;
+
+                var item = Game.ReferenceManager.GetRefItem(id);
                 if (item == null)
                 {
-                    Log.Debug($"[LinkedItemResponseHandler] Unknown item ID: {ID}");
+                    // Entries have no length prefix, so the next entry cannot be located safely.
+                    Log.Debug($"[LinkedItemResponseHandler] Unknown item ID: {id}");
+                    return;
                 }
-                ushort amount = 1;
-                string itemName;
-                if (item.IsGrowthPet)
-                {
-                    packet.ReadUInt(); //???
-                    packet.ReadByte(); //???
-                    packet.ReadString(); //Name
-                    packet.ReadByte(); //Level
-                    packet.ReadByte(); //???
 
-                    itemName = item.GetRealName() ?? ID.ToString();
+                if (!TryReadItem(packet, item, out var amount))
+                    return;
 
-                    AddToCache(UID, itemName, amount);
-                    continue;
-                }
-                if (item.IsGrabPet)
-                {
-                    packet.ReadUInt(); //???
-                    packet.ReadByte(); //???
-                    packet.ReadString(); //Name
-                    packet.ReadUInt(); //ExpirationTime
-                    packet.ReadByte(); //???
-
-                    itemName = item.GetRealName() ?? ID.ToString();
-                    AddToCache(UID, itemName, amount);
-                    continue;
-                }
-                if (item.IsFellowPet)
-                {
-                    packet.ReadUInt(); //???
-                    packet.ReadByte(); //???
-                    packet.ReadString(); //Name
-                    packet.ReadByte(); //Level
-                    byte indicator = packet.ReadByte(); //???
-                    if (indicator == 1)
-                    {
-                        packet.ReadUInt(); //???
-                        packet.ReadByte(); //???
-                        packet.ReadUInt(); //???
-                    }
-
-                    itemName = item.GetRealName() ?? ID.ToString();
-                    AddToCache(UID, itemName, amount);
-                    continue;
-                }
-                if (item.IsStackable)
-                    amount = packet.ReadUShort();
-                else
-                    packet.ReadByte(); //OptLevel
-                if (item.IsEquip)
-                {
-                    packet.ReadUInt(); //Variance (Attributes)
-                    packet.ReadUInt(); //???
-                    packet.ReadUInt(); //current Durability or Expiration time
-                    byte magicOptCount = packet.ReadByte(); //magic options count
-                    for (int j = 1; j <= magicOptCount; j++) //MagicOptions
-                    {
-                        packet.ReadUInt(); //MagicOption type
-                        packet.ReadUInt(); //MagicOption value
-                    }
-                    //BindingOptions
-                    packet.ReadByte(); //01 - sockets
-                    byte socketsCount = packet.ReadByte(); //sockets count
-                    for (int k = 1; k <= socketsCount; k++)
-                    {
-                        packet.ReadByte(); //order number
-                        packet.ReadUShort(); //???
-                        packet.ReadUShort(); //socket level
-                        packet.ReadUInt(); //???
-                    }
-                    packet.ReadByte(); //02 - Advanced Elixir
-                    byte advancedCount = packet.ReadByte(); //02 - Advanced Elixir count
-                    for (int l = 1; l <= advancedCount; l++)
-                    {
-                        packet.ReadByte(); //???
-                        packet.ReadUShort(); //???
-                        packet.ReadUShort(); //adv level
-                        packet.ReadUInt(); //???
-                    }
-                    packet.ReadByte(); //03 - Temporaty Enhancement Expiration Time
-                    byte tempEnhanceCount = packet.ReadByte(); //03 - Temporaty Enhancement Expiration Time count???
-                    for (int m = 1; m <= tempEnhanceCount; m++)
-                    {
-                        packet.ReadByte(); //???
-                        packet.ReadUShort(); //???
-                        packet.ReadUShort(); //???
-                        packet.ReadUInt(); //???
-                    }
-                    packet.ReadByte(); //04 - ???
-                    byte wtfCount = packet.ReadByte(); //04 - ??? count
-                    for (int n = 1; n <= wtfCount; n++)
-                    {
-                        packet.ReadByte(); //???
-                        packet.ReadUShort(); //???
-                        packet.ReadUShort(); //???
-                        packet.ReadUInt(); //???
-                    }
-                }
-                itemName = item.GetRealName() ?? ID.ToString();
-                AddToCache(UID, itemName, amount);
+                AddToCache(uid, item.GetRealName() ?? id.ToString(), amount);
             }
         }
 
-        private void AddToCache(uint uid, string name, ushort amount)
+        private static void ReadRental(Packet packet)
+        {
+            var flags = packet.ReadUInt();
+            if ((flags & 3) == 0)
+                return;
+
+            packet.ReadUShort(); // CanDelete
+            if ((flags & 1) != 0)
+            {
+                if (Game.ClientType < GameClientType.Chinese || Game.ClientType == GameClientType.Rigid)
+                {
+                    packet.ReadUInt(); // PeriodBeginTime
+                    packet.ReadUInt(); // PeriodEndTime
+                }
+                else
+                {
+                    packet.ReadULong(); // PeriodBeginTime
+                    packet.ReadULong(); // PeriodEndTime
+                }
+            }
+
+            if ((flags & 2) != 0)
+            {
+                packet.ReadUShort(); // CanRecharge
+                packet.ReadUInt(); // MeterRateTime
+            }
+        }
+
+        private static bool TryReadItem(Packet packet, RefObjItem item, out ushort amount)
+        {
+            amount = 1;
+            if (item.IsEquip || item.IsJobEquip || (item.IsFellowEquip && Game.ClientType >= GameClientType.Chinese))
+            {
+                if (Game.ClientType == GameClientType.Global || Game.ClientType == GameClientType.Korean)
+                    packet.ReadULong(); // separate attribute mask
+                packet.ReadByte(); // OptLevel
+                packet.ReadULong(); // Variance
+                packet.ReadUInt(); // Durability / expiration
+
+                ReadMagicOptions(packet);
+
+                var bindingGroups = Game.ClientType switch
+                {
+                    _ when Game.ClientType < GameClientType.Chinese => 2,
+                    GameClientType.Korean => 3,
+                    _ => 4,
+                };
+                for (var group = 0; group < bindingGroups; group++)
+                {
+                    packet.ReadByte(); // Binding type
+                    var bindingCount = packet.ReadByte();
+                    for (var i = 0; i < bindingCount; i++)
+                    {
+                        packet.ReadByte(); // Slot
+                        packet.ReadULong(); // Binding option ID and value
+                    }
+                }
+            }
+            else if (item.IsStackable)
+            {
+                if (item.TypeID3 == 5 && item.TypeID4 != 1)
+                {
+                    packet.ReadUInt(); // Gold payload
+                    return true;
+                }
+
+                amount = packet.ReadUShort();
+                if (item.IsTrading)
+                    packet.ReadString(); // Owner name
+                else if (item.TypeID3 == 11 && (item.TypeID4 == 1 || item.TypeID4 == 2))
+                    packet.ReadByte(); // Stone assimilation
+                else if (item.TypeID3 == 14 && item.TypeID4 == 2)
+                {
+                    if (Game.ClientType == GameClientType.Global || Game.ClientType == GameClientType.Korean)
+                    {
+                        packet.ReadUInt(); // two DWORDs
+                        packet.ReadUInt();
+                    }
+                    else
+                    {
+                        ReadMagicOptions(packet);
+                    }
+                }
+            }
+            else if (item.IsPet)
+            {
+                return TryReadPet(packet);
+            }
+            else if (item.IsTransmonster || (item.IsMagicCube && item.TypeID4 == 1))
+            {
+                packet.ReadUInt(); // RefCharID / cube data
+            }
+            else if (item.TypeID2 == 2)
+            {
+                // Other mall item subtypes have no additional payload.
+                return true;
+            }
+            else
+            {
+                Log.Debug($"[LinkedItemResponseHandler] Unsupported item type: {item.ID}");
+                return false;
+            }
+
+            return true;
+        }
+
+        private static void ReadMagicOptions(Packet packet)
+        {
+            var count = packet.ReadByte();
+            for (var i = 0; i < count; i++)
+                packet.ReadULong();
+        }
+
+        private static bool TryReadPet(Packet packet)
+        {
+            if (packet.ReadByte() == 1) // Inactive: no RefCharID, name or buffs follow.
+                return true;
+
+            var characterId = packet.ReadUInt();
+            var character = Game.ReferenceManager.GetRefObjChar(characterId);
+            if (character == null)
+            {
+                Log.Debug($"[LinkedItemResponseHandler] Unknown pet character ID: {characterId}");
+                return false;
+            }
+
+            if (
+                character.Bionic != 1
+                || character.TypeID1 != 1
+                || character.TypeID2 != 2
+                || character.TypeID3 != 3
+                || (
+                    character.TypeID4 != 3
+                    && character.TypeID4 != 4
+                    && (Game.ClientType < GameClientType.Chinese || character.TypeID4 != 9)
+                )
+            )
+                return true;
+
+            packet.ReadString(); // Name
+            if (character.TypeID4 == 4)
+                packet.ReadUInt(); // Grab pet expiration (seconds)
+            else if (Game.ClientType >= GameClientType.Chinese)
+                packet.ReadByte(); // Growth / fellow pet level
+
+            var buffCount = packet.ReadByte();
+            for (var i = 0; i < buffCount; i++)
+            {
+                var buffType = packet.ReadByte();
+                packet.ReadUInt(); // Skill / item ID
+                packet.ReadUInt(); // Remaining time
+                if (buffType == 5)
+                {
+                    packet.ReadUInt(); // Additional buff data
+                    packet.ReadByte();
+                }
+            }
+
+            return true;
+        }
+
+        private void AddToCache(ulong uid, string name, ushort amount)
         {
             if (!Chat.LinkedItems.ContainsKey(uid))
             {
@@ -146,7 +216,7 @@ namespace RSBot.Chat.Bundle.Network
 
                 if (_itemHistory.Count > MaxCacheSize)
                 {
-                    uint oldId = _itemHistory.Dequeue();
+                    ulong oldId = _itemHistory.Dequeue();
                     Chat.LinkedItems.Remove(oldId);
                 }
             }
