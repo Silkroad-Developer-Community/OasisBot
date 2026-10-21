@@ -50,6 +50,9 @@ internal static class Program
 
         [Option("headless", Required = false, HelpText = "Start the bot without graphical user interface")]
         public bool Headless { get; set; }
+
+        [Option("update", Required = false, HelpText = "Check for and install updates, then exit")]
+        public bool Update { get; set; }
     }
 
     private static void DisplayHelp(ParserResult<CommandLineOptions> result)
@@ -73,12 +76,14 @@ internal static class Program
         var parserResult = parser.ParseArguments<CommandLineOptions>(args);
 
         bool isHeadless = false;
+        bool updateRequested = false;
 
         parserResult
             .WithParsed(options =>
             {
                 RunOptions(options);
                 isHeadless = options.Headless;
+                updateRequested = options.Update;
             })
             .WithNotParsed(errs =>
             {
@@ -110,7 +115,7 @@ internal static class Program
             Application.SetHighDpiMode(HighDpiMode.PerMonitorV2);
 
             Main mainForm = new Main();
-            SplashScreen splashScreen = new SplashScreen(mainForm);
+            SplashScreen splashScreen = new SplashScreen(mainForm, updateRequested);
             splashScreen.ShowDialog();
 
             Application.Run(mainForm);

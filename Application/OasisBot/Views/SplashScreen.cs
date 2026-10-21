@@ -15,11 +15,12 @@ namespace RSBot.Views;
 public partial class SplashScreen : UIWindow
 {
     public readonly Main _mainForm;
+    private readonly bool _updateRequested;
 
     /// <summary>
     ///     Initializes a new instance of the <see cref="SplashScreen" /> class.
     /// </summary>
-    public SplashScreen(Main mainForm)
+    public SplashScreen(Main mainForm, bool updateRequested)
     {
         InitializeComponent();
 
@@ -28,6 +29,7 @@ public partial class SplashScreen : UIWindow
         CheckForIllegalCrossThreadCalls = false;
 
         _mainForm = mainForm;
+        _updateRequested = updateRequested;
 
         labelVersion.Text = Program.AssemblyVersion;
         referenceDataLoader.RunWorkerCompleted += ReferenceDataLoaderCompleted;
@@ -50,10 +52,18 @@ public partial class SplashScreen : UIWindow
 
         LanguageManager.Translate(_mainForm, Kernel.Language);
 
-        var updater = new Updater();
-        if (await updater.Check())
+        if (_updateRequested)
         {
-            updater.ShowDialog();
+            var updater = new Updater();
+            if (await updater.Check())
+            {
+                updater.StartAutomaticUpdate();
+                updater.ShowDialog(this);
+                return;
+            }
+
+            Environment.Exit(0);
+            return;
         }
 
         if (
