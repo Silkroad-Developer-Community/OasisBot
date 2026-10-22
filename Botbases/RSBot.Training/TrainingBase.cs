@@ -1,4 +1,4 @@
-﻿using System;
+using System;
 using RSBot.Core;
 using RSBot.Core.Components;
 using RSBot.Core.Objects;
@@ -34,7 +34,7 @@ namespace RSBot.Training
                 return;
 
             //Begin the loopback if needed
-            if (Container.Bot.Area.Position.DistanceToPlayer() > 80)
+            if (Container.Bot.Area.Position.DistanceToPlayer() > Container.Bot.Area.Radius + 50)
                 Bundles.Loop.Start();
 
             if (Bundles.Loop.Running)
