@@ -42,6 +42,9 @@ internal static class Program
         [Option('p', "profile", Required = false, HelpText = "Set the profile name to use.")]
         public string Profile { get; set; }
 
+        [Option('a', "account", Required = false, HelpText = "Set the account name to use.")]
+        public string Account { get; set; }
+
         [Option("launch-client", Required = false, HelpText = "Start with client")]
         public bool LaunchClient { get; set; }
 
@@ -50,20 +53,30 @@ internal static class Program
 
         [Option("headless", Required = false, HelpText = "Start the bot without graphical user interface")]
         public bool Headless { get; set; }
+
+        [Option('h', "help", Required = false, HelpText = "Show help message.")]
+        public bool Help { get; set; }
     }
 
     private static void DisplayHelp(ParserResult<CommandLineOptions> result)
     {
-        var helpText = HelpText.AutoBuild(
-            result,
-            h =>
-            {
-                h.AdditionalNewLineAfterOption = false;
-                h.AddDashesToOption = true;
-                return HelpText.DefaultParsingErrorsHandler(result, h);
-            }
+        var helpText = new HelpText
+        {
+            Heading = new HeadingInfo(AssemblyTitle, AssemblyVersion),
+            AdditionalNewLineAfterOption = false,
+            AddDashesToOption = true,
+        };
+        helpText.AddPreOptionsLine(
+            "Copyright (C) 2017-2021 ngoedde; 2021-2026 RSBot Team; 2026 Silkroad Developer Community"
         );
-        Console.WriteLine(helpText);
+        helpText.AddOptions(result);
+
+        var lines = helpText.ToString().Split(new[] { "\r\n", "\r", "\n" }, StringSplitOptions.None);
+        var filteredLines = lines.Where(line =>
+            !line.TrimStart().StartsWith("--help") && !line.TrimStart().StartsWith("--version")
+        );
+
+        Console.WriteLine(string.Join(Environment.NewLine, filteredLines));
     }
 
     [STAThread]
@@ -77,16 +90,19 @@ internal static class Program
         parserResult
             .WithParsed(options =>
             {
+                if (options.Help)
+                {
+                    DisplayHelp(parserResult);
+                    Environment.Exit(0);
+                }
+
                 RunOptions(options);
                 isHeadless = options.Headless;
             })
             .WithNotParsed(errs =>
             {
                 DisplayHelp(parserResult);
-                var isHelp = errs.Any(e =>
-                    e.Tag == ErrorType.HelpRequestedError || e.Tag == ErrorType.VersionRequestedError
-                );
-                Environment.Exit(isHelp ? 0 : 1);
+                Environment.Exit(1);
             });
 
         //CultureInfo.CurrentCulture = CultureInfo.InvariantCulture;
@@ -174,13 +190,20 @@ internal static class Program
 
             ProfileManager.IsProfileLoadedByArgs = true;
             Log.Debug($"Selected profile by args: {profile}");
-        }
 
-        if (!string.IsNullOrEmpty(options.Character))
-        {
-            var character = options.Character;
-            ProfileManager.SelectedCharacter = character;
-            Log.Debug($"Selected character by args: {character}");
+            if (!string.IsNullOrEmpty(options.Account))
+            {
+                var account = options.Account;
+                ProfileManager.SelectedAccount = account;
+                Log.Debug($"Selected account by args: {account}");
+
+                if (!string.IsNullOrEmpty(options.Character))
+                {
+                    var character = options.Character;
+                    ProfileManager.SelectedCharacter = character;
+                    Log.Debug($"Selected character by args: {character}");
+                }
+            }
         }
     }
 }
