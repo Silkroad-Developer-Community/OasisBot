@@ -212,7 +212,7 @@ public partial class Main : DoubleBufferedControl
     {
         var pos = Game.Player.Position;
 
-        PlayerConfig.Set("RSBot.Area.Region", pos.Region);
+        PlayerConfig.Set("RSBot.Area.Region", pos.Region.Id);
         PlayerConfig.Set("RSBot.Area.X", pos.XOffset);
         PlayerConfig.Set("RSBot.Area.Y", pos.YOffset);
         PlayerConfig.Set("RSBot.Area.Z", pos.ZOffset);

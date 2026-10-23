@@ -589,7 +589,7 @@ public partial class Main : UIWindow
         if (!Kernel.Bot.Running)
         {
             var pos = Game.Player.Position;
-            PlayerConfig.Set("RSBot.Area.Region", pos.Region);
+            PlayerConfig.Set("RSBot.Area.Region", pos.Region.Id);
             PlayerConfig.Set("RSBot.Area.X", pos.XOffset);
             PlayerConfig.Set("RSBot.Area.Y", pos.YOffset);
             PlayerConfig.Set("RSBot.Area.Z", pos.ZOffset);

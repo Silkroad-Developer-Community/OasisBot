@@ -1,4 +1,4 @@
-﻿using System.Collections.Generic;
+using System.Collections.Generic;
 using RSBot.Core;
 using RSBot.Core.Components.Scripting;
 using RSBot.Core.Event;
@@ -59,7 +59,7 @@ internal class TrainingAreaScriptCommand : IScriptCommand
             )
                 return false;
 
-            PlayerConfig.Set("RSBot.Area.Region", region);
+            PlayerConfig.Set("RSBot.Area.Region", region.Id);
             PlayerConfig.Set("RSBot.Area.X", xPos);
             PlayerConfig.Set("RSBot.Area.Y", yPos);
             PlayerConfig.Set("RSBot.Area.Z", zPos);
