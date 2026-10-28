@@ -1,6 +1,4 @@
-﻿using System.Threading;
-using System.Threading.Tasks;
-using System.Windows.Forms;
+using System;
 using RSBot.Core;
 using RSBot.Core.Network;
 using RSBot.General.Components;
@@ -35,9 +33,7 @@ internal class GatewayLoginResponse : IPacketHandler
         if (packet.ReadByte() == 0x01)
         {
             Log.NotifyLang("AuthGetewaySuccess");
-            AutoLogin.Pending = false;
-            View.PendingWindow?.Hide();
-            View.PendingWindow?.StopClientlessQueueTask();
+            View.PendingWindow?.End();
 
             if (Game.ClientType == GameClientType.Japanese)
             {
@@ -99,14 +95,24 @@ internal class GatewayLoginResponse : IPacketHandler
                 var count = packet.ReadUShort();
                 var timestamp = packet.ReadInt();
 
-                Task.Factory.StartNew(() =>
-                {
-                    SynchronizationContext.SetSynchronizationContext(new WindowsFormsSynchronizationContext());
-
-                    View.PendingWindow.Start(count, timestamp);
-                    if (!GlobalConfig.Get<bool>("RSBot.General.AutoHidePendingWindow"))
-                        View.PendingWindow.ShowAtTop(View.Instance);
-                });
+                var proxy = Kernel.Proxy;
+                View.Instance.BeginInvoke(
+                    new Action(() =>
+                    {
+                        if (
+                            !ReferenceEquals(Kernel.Proxy, proxy)
+                            || !Game.Started
+                            || proxy == null
+                            || proxy.IsConnectedToAgentserver
+                            || proxy.IsSwitchingToAgentserver
+                            || !proxy.IsConnectedToGatewayserver
+                        )
+                            return;
+                        View.PendingWindow.Start(count, timestamp);
+                        if (!GlobalConfig.Get<bool>("RSBot.General.AutoHidePendingWindow"))
+                            View.PendingWindow.ShowAtTop(View.Instance);
+                    })
+                );
 
                 break;
 

@@ -37,6 +37,11 @@ if ($Clean) {
 }
 
 if ($buildExitCode -eq 0) {
+    & $msBuildPath /p:Configuration=Release /p:Platform=Win32 Library\RSBot.XigncodeHost\XigncodeHost.proj
+    if ($LASTEXITCODE -ne 0) {
+        Write-Output 'XigncodeHost build failed.'
+        exit $LASTEXITCODE
+    }
     if (!$DoNotStart) {
         Write-Output "Starting OasisBot..."
         & ".\Build\OasisBot.exe"

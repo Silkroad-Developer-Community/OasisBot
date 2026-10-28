@@ -37,9 +37,16 @@ public partial class Main : DoubleBufferedControl
     /// <param name="message">The message.</param>
     public void AppendLog(string message, LogLevel level = LogLevel.Notify)
     {
+        if (IsDisposed || Disposing)
+            return;
+
         if (this.InvokeRequired)
         {
-            this.Invoke(new Action<string, LogLevel>(AppendLog), message, level);
+            try
+            {
+                BeginInvoke(new Action<string, LogLevel>(AppendLog), message, level);
+            }
+            catch (InvalidOperationException) when (IsDisposed || Disposing || !IsHandleCreated) { }
             return;
         }
 

@@ -212,6 +212,7 @@ public class AwaitCallback
         if (milliseconds < TIMEOUT_STEP)
             milliseconds = TIMEOUT_STEP;
 
+        var timedOut = false;
         Task.Factory.StartNew(() =>
             {
                 var invoked = false;
@@ -229,12 +230,13 @@ public class AwaitCallback
                 lock (_lock)
                 {
                     _timeout = !_invoked;
-
-                    if (_timeout)
-                        Log.Debug($"Callback timeout, ResponseOpcode: 0x{ResponseOpcode:X}");
+                    timedOut = _timeout;
                 }
             })
             .Wait();
+
+        if (timedOut)
+            Log.Debug($"Callback timeout, ResponseOpcode: 0x{ResponseOpcode:X}");
     }
 
     public async Task AwaitResponseAsync(
@@ -267,12 +269,14 @@ public class AwaitCallback
         }
         catch (TaskCanceledException) { }
 
+        var timedOut = false;
         lock (_lock)
         {
             _timeout = !_invoked && !cancellationToken.IsCancellationRequested;
-
-            if (_timeout)
-                Log.Debug($"Callback timeout, ResponseOpcode: 0x{ResponseOpcode:X}");
+            timedOut = _timeout;
         }
+
+        if (timedOut)
+            Log.Debug($"Callback timeout, ResponseOpcode: 0x{ResponseOpcode:X}");
     }
 }

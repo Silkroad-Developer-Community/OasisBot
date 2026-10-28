@@ -94,6 +94,9 @@ jobs:
         shell: pwsh
         run: |
           msbuild /p:Configuration=Release /p:Platform=x86
+          if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
+          msbuild /p:Configuration=Release /p:Platform=Win32 Library/RSBot.XigncodeHost/XigncodeHost.proj
+          if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
           cd Build
           7z a -tzip -mm=lzma -mx=9 "../OasisBot-Portable-${{ steps.versioning.outputs.version }}.zip" ./*
           cd ..

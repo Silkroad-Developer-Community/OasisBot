@@ -1,5 +1,4 @@
-﻿using RSBot.Core.Network;
-using RSBot.General.Components;
+using RSBot.Core.Network;
 using RSBot.General.Views;
 
 namespace RSBot.General.PacketHandler;
@@ -30,9 +29,7 @@ internal class GatewayPendingCancelingResponse : IPacketHandler
     {
         if (packet.ReadByte() == 0x01)
         {
-            AutoLogin.Pending = false;
-            View.PendingWindow?.Hide();
-            View.PendingWindow?.StopClientlessQueueTask();
+            View.PendingWindow?.End();
         }
     }
 }

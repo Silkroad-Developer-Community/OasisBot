@@ -1,4 +1,4 @@
-﻿using System;
+using System;
 using System.Collections.Generic;
 using System.IO;
 using System.Linq;
@@ -137,7 +137,12 @@ public class PacketManager
     /// <param name="destination">The destination.</param>
     public static void SendPacket(Packet packet, PacketDestination destination)
     {
-        if (Kernel.Proxy == null)
+        SendPacket(packet, destination, Kernel.Proxy);
+    }
+
+    internal static void SendPacket(Packet packet, PacketDestination destination, Proxy proxy)
+    {
+        if (proxy == null)
             return;
 
         if (!packet.Locked)
@@ -149,11 +154,11 @@ public class PacketManager
             {
                 case PacketDestination.Client:
                     if (!Game.Clientless)
-                        Kernel.Proxy.Client?.Send(packet);
+                        proxy.Client?.Send(packet);
                     break;
 
                 case PacketDestination.Server:
-                    Kernel.Proxy.Server?.Send(packet);
+                    proxy.Server?.Send(packet);
                     break;
             }
         }
@@ -163,12 +168,7 @@ public class PacketManager
         }
     }
 
-    /// <summary>
-    ///     Sends the packet.
-    /// </summary>
-    /// <param name="packet">The packet.</param>
-    /// <param name="destination">The destination.</param>
-    /// <param name="callback">The callback.</param>
+    /// <summary>Send a packet and register its response callbacks.</summary>
     public static void SendPacket(Packet packet, PacketDestination destination, params AwaitCallback[] callbacks)
     {
         if (Kernel.Proxy == null)

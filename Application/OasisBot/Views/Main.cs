@@ -138,6 +138,7 @@ public partial class Main : UIWindow
         EventManager.SubscribeEvent("OnStartBot", OnStartBot);
         EventManager.SubscribeEvent("OnStopBot", OnStopBot);
         EventManager.SubscribeEvent("OnAgentServerDisconnected", OnAgentServerDisconnected);
+        EventManager.SubscribeEvent("OnClientDisconnected", OnAgentServerDisconnected);
         EventManager.SubscribeEvent("OnShowScriptRecorder", new Action<int, bool>(OnShowScriptRecorder));
         EventManager.SubscribeEvent("OnAddSidebarElement", new Action<Control>(OnAddSidebarElement));
     }
@@ -959,6 +960,13 @@ public partial class Main : UIWindow
     /// </summary>
     private void OnAgentServerDisconnected()
     {
+        if (IsDisposed || Disposing)
+            return;
+        if (InvokeRequired)
+        {
+            BeginInvoke(new Action(OnAgentServerDisconnected));
+            return;
+        }
         foreach (Control control in windowPageControl.Controls)
         {
             if (!control.Controls.ContainsKey("overlay"))

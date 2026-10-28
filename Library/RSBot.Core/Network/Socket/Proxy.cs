@@ -1,5 +1,9 @@
-﻿using System;
+using System;
+using System.Buffers.Binary;
 using System.IO;
+using System.Text;
+using System.Threading.Tasks;
+using RSBot.Core.Components;
 using RSBot.Core.Event;
 
 namespace RSBot.Core.Network;
@@ -14,6 +18,9 @@ public class Proxy
     }
 
     private ConnectionTarget _connectionTarget;
+    private readonly object _probeGate = new();
+    private XigncodeHostSession _probeHost;
+    private volatile bool _shutdown;
 
     // Avoid log spam when the remote end drops quickly or connection attempts fail repeatedly.
     private DateTime _lastGatewayDisconnectLogUtc;
@@ -94,8 +101,13 @@ public class Proxy
         _gatewayPort = gatewayPort;
 
         if (!Game.Clientless)
+        {
             CreateNewClientInstance(clientPort);
-        else
+            Port = Client.BoundPort;
+        }
+        if (Game.ClientType == GameClientType.VTC_Game)
+            StartVtcProtection();
+        else if (Game.Clientless)
             ConnectToGatewayserver();
     }
 
@@ -104,16 +116,248 @@ public class Proxy
     /// </summary>
     public void Shutdown()
     {
-        Client?.Shutdown();
-        Client = null;
+        Client client;
+        Server server;
+        XigncodeHostSession host;
+        ConnectionTarget disconnectedFrom;
+        lock (_probeGate)
+        {
+            if (_shutdown)
+                return;
+            disconnectedFrom =
+                IsConnectedToAgentserver ? ConnectionTarget.Agent
+                : IsConnectedToGatewayserver ? ConnectionTarget.Gateway
+                : _connectionTarget;
+            _shutdown = true;
+            _connectionTarget = ConnectionTarget.None;
+            IsConnectedToGatewayserver = false;
+            IsConnectedToAgentserver = false;
+            IsSwitchingToAgentserver = false;
+            ClientConnected = false;
+            if (ReferenceEquals(Kernel.Proxy, this))
+            {
+                Game.Ready = false;
+                Game.Started = false;
+            }
+            host = _probeHost;
+            _probeHost = null;
+            client = Client;
+            Client = null;
+            server = Server;
+            Server = null;
+        }
 
-        Server?.Disconnect();
-        Server = null;
+        host?.Dispose();
+        client?.Shutdown();
+        server?.Disconnect();
 
         _agentIp = null;
         _agentPort = 0;
         _gatewayIp = null;
         _gatewayPort = 0;
+
+        if (!ReferenceEquals(Kernel.Proxy, this))
+            return;
+        if (disconnectedFrom == ConnectionTarget.Agent)
+        {
+            Log.Warn("Disconnected from game server!");
+            EventManager.FireEvent("OnAgentServerDisconnected");
+        }
+        else if (disconnectedFrom == ConnectionTarget.Gateway)
+        {
+            Log.Debug("Disconnected from login server!");
+            EventManager.FireEvent("OnGatewayServerDisconnected");
+        }
+    }
+
+    private async void StartVtcProtection()
+    {
+        XigncodeHostSession host = null;
+        try
+        {
+            host = new XigncodeHostSession(
+                data => OnProbeReply(host, data),
+                message => OnProbeFailure(host, message),
+                message => Log.Debug("VTC XIGNCODE: " + message)
+            );
+            bool stopped;
+            lock (_probeGate)
+            {
+                stopped = _shutdown;
+                if (!stopped)
+                    _probeHost = host;
+            }
+            if (stopped)
+            {
+                host.Dispose();
+                return;
+            }
+            var directory = GlobalConfig.Get<string>("RSBot.SilkroadDirectory");
+            await host.StartAsync(
+                    Path.Combine(Kernel.BasePath, "XigncodeHost.exe"),
+                    Path.Combine(directory, GlobalConfig.Get<string>("RSBot.SilkroadExecutable")),
+                    Path.Combine(directory, "XIGNCODE"),
+                    Game.Clientless
+                        ? GlobalConfig.Get<string>("RSBot.General.AutoLoginAccountUsername") ?? string.Empty
+                        : string.Empty
+                )
+                .ConfigureAwait(false);
+            lock (_probeGate)
+            {
+                if (_shutdown || !ReferenceEquals(_probeHost, host) || !ReferenceEquals(Kernel.Proxy, this))
+                    return;
+                Log.Debug("VTC: XIGNCODE session host ready.");
+            }
+            TryConnectVtcGateway();
+        }
+        catch (Exception error)
+        {
+            OnProbeFailure(host, error.Message);
+        }
+    }
+
+    private void TryConnectVtcGateway()
+    {
+        lock (_probeGate)
+        {
+            if (
+                _shutdown
+                || _probeHost == null
+                || !_probeHost.IsReady
+                || !ReferenceEquals(Kernel.Proxy, this)
+                || (!Game.Clientless && !ClientConnected)
+                || _connectionTarget != ConnectionTarget.None
+            )
+                return;
+            ConnectToGatewayserver();
+        }
+    }
+
+    internal async Task<VtcClientLayout> WaitForVtcProtectionAsync()
+    {
+        XigncodeHostSession host;
+        lock (_probeGate)
+        {
+            if (_shutdown || _probeHost == null)
+                throw new IOException("VTC XIGNCODE session host is unavailable.");
+            host = _probeHost;
+        }
+        await host.WaitUntilReadyAsync().ConfigureAwait(false);
+        lock (_probeGate)
+        {
+            if (
+                _shutdown
+                || !host.IsReady
+                || !ReferenceEquals(_probeHost, host)
+                || !ReferenceEquals(Kernel.Proxy, this)
+            )
+                throw new OperationCanceledException("VTC session was replaced during SDK initialization.");
+            return host.ClientLayout;
+        }
+    }
+
+    internal bool TrySwitchToClientless(out string error)
+    {
+        Client previous;
+        lock (_probeGate)
+        {
+            error = null;
+            if (
+                _shutdown
+                || !ReferenceEquals(Kernel.Proxy, this)
+                || !IsConnectedToAgentserver
+                || Server == null
+                || !Server.IsConnected
+            )
+            {
+                error = "VTC: an active game-server session is required for this switch.";
+                return false;
+            }
+            if (_probeHost == null || !_probeHost.IsReady)
+            {
+                error =
+                    "VTC: restart the client with this build so its XIGNCODE session host is initialized before login.";
+                return false;
+            }
+
+            Game.Clientless = true;
+            ClientConnected = false;
+            previous = Client;
+            Client = null;
+            if (previous != null)
+            {
+                previous.Connected -= Client_OnConnected;
+                previous.Disconnected -= Client_OnDisconnected;
+                previous.PacketReceived -= Client_OnPacketReceived;
+            }
+        }
+        previous?.Shutdown();
+        Log.Debug("VTC: switched to clientless; the existing XIGNCODE session host is retained.");
+        return true;
+    }
+
+    private void OnProbeReply(XigncodeHostSession host, byte[] data)
+    {
+        lock (_probeGate)
+        {
+            if (
+                _shutdown
+                || !ReferenceEquals(_probeHost, host)
+                || !ReferenceEquals(Kernel.Proxy, this)
+                || Server == null
+                || !Server.IsConnected
+            )
+                return;
+            var packet = new Packet(0x2110);
+            packet.WriteByte(2);
+            packet.WriteBytes(data);
+            PacketManager.SendPacket(packet, PacketDestination.Server, this);
+        }
+    }
+
+    private void OnProbeFailure(XigncodeHostSession host, string message)
+    {
+        bool failedBeforeConnect;
+        lock (_probeGate)
+        {
+            if (_shutdown || !ReferenceEquals(_probeHost, host))
+                return;
+            failedBeforeConnect =
+                _connectionTarget == ConnectionTarget.None && !IsConnectedToAgentserver && !IsConnectedToGatewayserver;
+        }
+        Log.Error("VTC XIGNCODE: " + message);
+        Shutdown();
+        if (failedBeforeConnect && ReferenceEquals(Kernel.Proxy, this))
+        {
+            Game.Clientless = false;
+            EventManager.FireEvent("OnClientDisconnected");
+        }
+    }
+
+    private bool HandleVtcProbe(Packet packet, PacketDestination destination)
+    {
+        XigncodeHostSession host;
+        lock (_probeGate)
+            host = _probeHost;
+        if (host == null || packet.Opcode != 0x2110)
+            return false;
+        if (destination == PacketDestination.Server)
+        {
+            Log.Debug("VTC: consumed game-client Probe reply; the session host owns 0x2110.");
+            return true;
+        }
+
+        var bytes = packet.GetBytes();
+        if (bytes.Length != 4001 || bytes[0] != 1)
+            OnProbeFailure(host, "Unsupported incoming 0x2110 framing.");
+        else
+        {
+            var challenge = new byte[4000];
+            Buffer.BlockCopy(bytes, 1, challenge, 0, challenge.Length);
+            if (!host.TrySubmit(challenge))
+                OnProbeFailure(host, "Could not queue Probe challenge.");
+        }
+        return true;
     }
 
     /// <summary>
@@ -191,6 +435,8 @@ public class Proxy
     /// <param name="packet">The packet</param>
     private void HandleReceivedPacket(Packet packet, PacketDestination destination)
     {
+        if (_shutdown || HandleVtcProbe(packet, destination))
+            return;
         //if(packet.Opcode != 0x2002)
         //   Log.Notify(packet.ToString());
 
@@ -204,10 +450,10 @@ public class Proxy
         }
         finally
         {
-            if (packet != null)
+            if (packet != null && !_shutdown && (destination != PacketDestination.Server || UpdateVtcIdentity(packet)))
                 try
                 {
-                    PacketManager.SendPacket(packet, destination);
+                    PacketManager.SendPacket(packet, destination, this);
 
                     packet.SeekRead(0, SeekOrigin.Begin);
 
@@ -245,7 +491,9 @@ public class Proxy
 
         ClientConnected = true;
 
-        if (!IsConnectedToGatewayserver && !IsConnectedToAgentserver)
+        if (Game.ClientType == GameClientType.VTC_Game)
+            TryConnectVtcGateway();
+        else if (!IsConnectedToGatewayserver && !IsConnectedToAgentserver)
             ConnectToGatewayserver();
     }
 
@@ -261,13 +509,42 @@ public class Proxy
     ///     Fired when a client packet was received
     /// </summary>
     /// <param name="packet">The packet.</param>
+    private bool UpdateVtcIdentity(Packet packet)
+    {
+        XigncodeHostSession host;
+        lock (_probeGate)
+            host = _probeHost;
+        if (host != null && (packet.Opcode == 0x6102 || packet.Opcode == 0x610A))
+        {
+            var bytes = packet.GetBytes();
+            if (bytes.Length >= 3)
+            {
+                var length = BinaryPrimitives.ReadUInt16LittleEndian(bytes.AsSpan(1, 2));
+                if (
+                    length > 0
+                    && length <= 1024
+                    && bytes.Length >= 3 + length
+                    && !host.TrySetIdentity(Encoding.UTF8.GetString(bytes, 3, length))
+                )
+                {
+                    OnProbeFailure(host, "Could not update SDK client identity.");
+                    return false;
+                }
+            }
+        }
+        return true;
+    }
+
     private void Client_OnPacketReceived(Packet packet)
     {
+        if (_shutdown || Game.Clientless)
+            return;
         if (IsConnectedToAgentserver && packet.Opcode == 0x6100)
             return;
 
         HandleReceivedPacket(packet, PacketDestination.Server);
-        EventManager.FireEvent("OnClientPacketReceive", packet);
+        if (!_shutdown && !Game.Clientless)
+            EventManager.FireEvent("OnClientPacketReceive", packet);
     }
 
     #endregion Client
@@ -304,46 +581,63 @@ public class Proxy
     /// </summary>
     private void Server_OnDisconnected()
     {
-        if (IsConnectedToAgentserver || _connectionTarget == ConnectionTarget.Agent)
+        ConnectionTarget disconnectedFrom;
+        XigncodeHostSession host;
+        bool writeLog;
+        lock (_probeGate)
         {
-            _connectionTarget = ConnectionTarget.None;
-
-            // Only log if we had an established connection or enough time passed (rate limit).
-            if (IsConnectedToAgentserver || (DateTime.UtcNow - _lastAgentDisconnectLogUtc).TotalSeconds >= 3)
-            {
-                _lastAgentDisconnectLogUtc = DateTime.UtcNow;
-                Log.Warn("Disconnected from game server!");
-            }
-
-            IsConnectedToAgentserver = false;
-            IsSwitchingToAgentserver = false;
-
-            Game.Ready = false;
-            Game.Started = false;
-
-            EventManager.FireEvent("OnAgentServerDisconnected");
-        }
-        else if (IsConnectedToGatewayserver || _connectionTarget == ConnectionTarget.Gateway)
-        {
-            _connectionTarget = ConnectionTarget.None;
-
-            // Capture state before we flip it; allows us to avoid logging disconnects that happen
-            // before an actual connection was established.
-            var wasConnectedToGateway = IsConnectedToGatewayserver;
-            IsConnectedToGatewayserver = false;
-
-            // Gateway disconnect is expected during the Gateway -> Agent switch.
-            if (IsSwitchingToAgentserver)
+            if (_shutdown)
+                return;
+            disconnectedFrom =
+                IsConnectedToAgentserver ? ConnectionTarget.Agent
+                : IsConnectedToGatewayserver ? ConnectionTarget.Gateway
+                : _connectionTarget;
+            if (disconnectedFrom == ConnectionTarget.None)
                 return;
 
-            if (wasConnectedToGateway || (DateTime.UtcNow - _lastGatewayDisconnectLogUtc).TotalSeconds >= 3)
-            {
-                _lastGatewayDisconnectLogUtc = DateTime.UtcNow;
-                Log.Debug("Disconnected from login server!");
-            }
+            var wasConnected =
+                disconnectedFrom == ConnectionTarget.Agent ? IsConnectedToAgentserver : IsConnectedToGatewayserver;
+            _connectionTarget = ConnectionTarget.None;
+            IsConnectedToAgentserver = false;
+            IsConnectedToGatewayserver = false;
+            if (disconnectedFrom == ConnectionTarget.Gateway && IsSwitchingToAgentserver)
+                return;
+            IsSwitchingToAgentserver = false;
 
-            EventManager.FireEvent("OnGatewayServerDisconnected");
+            var now = DateTime.UtcNow;
+            var lastLog =
+                disconnectedFrom == ConnectionTarget.Agent ? _lastAgentDisconnectLogUtc : _lastGatewayDisconnectLogUtc;
+            writeLog = wasConnected || (now - lastLog).TotalSeconds >= 3;
+            if (writeLog)
+            {
+                if (disconnectedFrom == ConnectionTarget.Agent)
+                    _lastAgentDisconnectLogUtc = now;
+                else
+                    _lastGatewayDisconnectLogUtc = now;
+            }
+            if (disconnectedFrom == ConnectionTarget.Agent && ReferenceEquals(Kernel.Proxy, this))
+            {
+                Game.Ready = false;
+                Game.Started = false;
+            }
+            host = _probeHost;
+            _probeHost = null;
         }
+        host?.Dispose();
+        if (!ReferenceEquals(Kernel.Proxy, this))
+            return;
+        if (writeLog)
+        {
+            if (disconnectedFrom == ConnectionTarget.Agent)
+                Log.Warn("Disconnected from game server!");
+            else
+                Log.Debug("Disconnected from login server!");
+        }
+        if (!ReferenceEquals(Kernel.Proxy, this))
+            return;
+        EventManager.FireEvent(
+            disconnectedFrom == ConnectionTarget.Agent ? "OnAgentServerDisconnected" : "OnGatewayServerDisconnected"
+        );
     }
 
     /// <summary>

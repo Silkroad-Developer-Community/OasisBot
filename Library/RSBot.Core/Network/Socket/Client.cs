@@ -15,6 +15,8 @@ public class Client() : NetBase(isClient: true)
     /// </value>
     public Socket _listener;
 
+    internal ushort BoundPort => (ushort)((IPEndPoint)_listener.LocalEndPoint).Port;
+
     /// <summary>
     ///     Listens the specified port.
     /// </summary>
@@ -25,13 +27,18 @@ public class Client() : NetBase(isClient: true)
         {
             _listener = new Socket(AddressFamily.InterNetwork, SocketType.Stream, ProtocolType.Tcp);
 
-            StartNetWorker();
-
             _listener.Bind(new IPEndPoint(IPAddress.Loopback, port));
             _listener.Listen(1);
+            StartNetWorker();
             _listener.BeginAccept(OnClientConnect, null);
         }
-        catch { }
+        catch
+        {
+            StopNetWorker();
+            _listener?.Dispose();
+            _listener = null;
+            throw;
+        }
     }
 
     /// <summary>

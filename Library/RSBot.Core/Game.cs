@@ -1,4 +1,4 @@
-﻿using System;
+using System;
 using System.IO;
 using RSBot.Core.Client;
 using RSBot.Core.Components;
@@ -140,16 +140,25 @@ public class Game
         var divisionIndex = GlobalConfig.Get<int>("RSBot.DivisionIndex");
         var severIndex = GlobalConfig.Get<int>("RSBot.GatewayIndex");
 
-        Port = NetworkUtilities.GetFreePort(33673, 39999, 1);
+        Port = 0;
 
         Kernel.Proxy = new Proxy();
-        Kernel.Proxy.Start(
-            Port,
-            ReferenceManager.DivisionInfo.Divisions[divisionIndex].GatewayServers[severIndex],
-            ReferenceManager.GatewayInfo.Port
-        );
 
         Started = true;
+        try
+        {
+            Kernel.Proxy.Start(
+                Port,
+                ReferenceManager.DivisionInfo.Divisions[divisionIndex].GatewayServers[severIndex],
+                ReferenceManager.GatewayInfo.Port
+            );
+            Port = Kernel.Proxy.Port;
+        }
+        catch
+        {
+            Kernel.Proxy.Shutdown();
+            throw;
+        }
     }
 
     /// <summary>

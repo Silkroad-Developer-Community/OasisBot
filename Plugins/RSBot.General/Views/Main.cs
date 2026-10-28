@@ -1,4 +1,4 @@
-﻿using System;
+using System;
 using System.ComponentModel;
 using System.Drawing;
 using System.Globalization;
@@ -271,8 +271,7 @@ internal partial class Main : DoubleBufferedControl
             this.Invoke(new Action(OnAutoLoginAborted));
             return;
         }
-        View.PendingWindow?.Hide();
-        View.PendingWindow?.StopClientlessQueueTask();
+        View.PendingWindow?.End();
     }
 
     private void OnAutoReloginStarted()
@@ -516,42 +515,39 @@ internal partial class Main : DoubleBufferedControl
     /// <param name="e">The <see cref="EventArgs" /> instance containing the event data.</param>
     private async void btnStartClientless_Click(object sender, EventArgs e)
     {
-        await Task.Run(async () =>
+        if (!Game.Clientless)
         {
-            if (!Game.Clientless)
+            if (!checkEnableAutoLogin.Checked || comboAccounts.SelectedIndex <= 0)
             {
-                if (!checkEnableAutoLogin.Checked || comboAccounts.SelectedIndex <= 0)
-                {
-                    var msgBoxTitle = LanguageManager.GetLang("StartClientlessMsgBoxTitle");
-                    var msgBoxContent = LanguageManager.GetLang("StartClientlessMsgBoxContent");
-
-                    MessageBox.Show(msgBoxContent, msgBoxTitle, MessageBoxButtons.OK, MessageBoxIcon.Warning);
-
-                    return;
-                }
-
-                btnStartClient.Enabled = false;
-                btnClientHideShow.Enabled = false;
-
-                await GeneralManager.StartClientlessAsync();
-            }
-            else
-            {
-                var msgBoxTitle = LanguageManager.GetLang("MsgBoxDisconnectDialogTitle");
-                var msgBoxContent = LanguageManager.GetLang("MsgBoxDisconnectDialogContent");
-
-                var result = MessageBox.Show(
-                    msgBoxContent,
-                    msgBoxTitle,
-                    MessageBoxButtons.YesNo,
+                MessageBox.Show(
+                    this,
+                    LanguageManager.GetLang("StartClientlessMsgBoxContent"),
+                    LanguageManager.GetLang("StartClientlessMsgBoxTitle"),
+                    MessageBoxButtons.OK,
                     MessageBoxIcon.Warning
                 );
-                if (result == DialogResult.No)
-                    return;
-
-                await GeneralManager.DisconnectAsync();
+                return;
             }
-        });
+            btnStartClient.Enabled = false;
+            btnClientHideShow.Enabled = false;
+            await GeneralManager.StartClientlessAsync();
+            return;
+        }
+
+        if (
+            MessageBox.Show(
+                this,
+                LanguageManager.GetLang("MsgBoxDisconnectDialogContent"),
+                LanguageManager.GetLang("MsgBoxDisconnectDialogTitle"),
+                MessageBoxButtons.YesNo,
+                MessageBoxIcon.Warning
+            ) != DialogResult.Yes
+        )
+            return;
+
+        btnStartClientless.Enabled = false;
+        btnStartClient.Enabled = false;
+        await GeneralManager.DisconnectAsync();
     }
 
     /// <summary>

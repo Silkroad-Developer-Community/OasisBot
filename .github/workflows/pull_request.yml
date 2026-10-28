@@ -34,4 +34,7 @@ jobs:
           dotnet tool run csharpier check .
 
       - name: Build the application
-        run: msbuild /p:Configuration=Release /p:Platform=x86
+        run: |
+          msbuild /p:Configuration=Release /p:Platform=x86
+          if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
+          msbuild /p:Configuration=Release /p:Platform=Win32 Library/RSBot.XigncodeHost/XigncodeHost.proj

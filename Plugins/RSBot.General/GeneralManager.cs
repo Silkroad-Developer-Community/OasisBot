@@ -1,4 +1,4 @@
-﻿using System.IO;
+using System.IO;
 using System.Threading;
 using System.Threading.Tasks;
 using RSBot.Core;
@@ -44,6 +44,8 @@ namespace RSBot.General
         private void OnAgentServerConnected()
         {
             Interlocked.Increment(ref _reloginSeq);
+            AutoLogin.Pending = false;
+            EventManager.FireEvent("OnAutoLoginAborted");
         }
 
         private async void OnAgentServerDisconnected()
@@ -189,7 +191,8 @@ namespace RSBot.General
                 if (!Kernel.Proxy.IsConnectedToAgentserver)
                     return;
 
-                ClientlessManager.GoClientless();
+                if (!ClientlessManager.TryGoClientless())
+                    return;
 
                 EventManager.FireEvent("OnSwitchToClientless");
 
@@ -229,7 +232,8 @@ namespace RSBot.General
             if (Game.Clientless)
                 return;
 
-            ClientlessManager.GoClientless();
+            if (!ClientlessManager.TryGoClientless())
+                return;
             ClientManager.Kill();
 
             EventManager.FireEvent("OnSwitchToClientless");
@@ -257,13 +261,14 @@ namespace RSBot.General
 
         public static async Task DisconnectAsync()
         {
+            var proxy = Kernel.Proxy;
             await Task.Run(() =>
             {
                 Game.Clientless = false;
-
+                AutoLogin.Pending = false;
+                EventManager.FireEvent("OnAutoLoginAborted");
                 EventManager.FireEvent("OnAutoReloginOngoing");
-
-                Kernel.Proxy.Shutdown();
+                proxy?.Shutdown();
             });
         }
 

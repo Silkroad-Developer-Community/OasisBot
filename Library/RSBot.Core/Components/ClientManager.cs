@@ -1,4 +1,4 @@
-﻿using System;
+using System;
 using System.Diagnostics;
 using System.Globalization;
 using System.IO;
@@ -39,8 +39,37 @@ public class ClientManager
     /// <returns>Has successfully started <c>true</c>; otherwise <c>false</c></returns>
     public static async Task<bool> Start()
     {
+        var sessionProxy = Kernel.Proxy;
+        VtcClientLayout vtcLayout = null;
+        if (Game.ClientType == GameClientType.VTC_Game)
+        {
+            try
+            {
+                if (sessionProxy == null)
+                    return false;
+                vtcLayout = await sessionProxy.WaitForVtcProtectionAsync().ConfigureAwait(false);
+            }
+            catch (Exception error)
+            {
+                Log.Error("VTC game startup: " + error.Message);
+                return false;
+            }
+        }
         var silkroadDirectory = GlobalConfig.Get<string>("RSBot.SilkroadDirectory");
         var path = Path.Combine(silkroadDirectory, GlobalConfig.Get<string>("RSBot.SilkroadExecutable"));
+        if (vtcLayout != null)
+        {
+            try
+            {
+                vtcLayout.ValidateForGame(path);
+            }
+            catch (Exception error)
+            {
+                Log.Error(error.Message);
+                sessionProxy?.Shutdown();
+                return false;
+            }
+        }
 
         string libraryDllName = "Client.Library.dll";
         string fullPath = Path.Combine(Kernel.BasePath, libraryDllName);
@@ -72,6 +101,19 @@ public class ClientManager
             args = $"-LOGIN:{login} -PASSWORD:{password}";
         }
 
+        if (specialClient)
+        {
+            try
+            {
+                ClientLoaderFile.Ensure(fullPath, Path.Combine(silkroadDirectory, "dsound.dll"));
+            }
+            catch (Exception error) when (error is IOException || error is UnauthorizedAccessException)
+            {
+                Log.Error("Could not prepare client loader: " + error.Message);
+                return false;
+            }
+        }
+
         if (
             !CreateProcess(
                 null,
@@ -92,30 +134,41 @@ public class ClientManager
 
         if (specialClient)
         {
-            try
-            {
-                File.Copy(
-                    Path.Combine(Kernel.BasePath, libraryDllName),
-                    Path.Combine(silkroadDirectory, "dsound.dll"),
-                    true
-                );
-            }
-            catch (UnauthorizedAccessException)
-            {
-                Log.Error("Run as administrator!");
-            }
-            catch (IOException)
-            {
-                Log.Debug("DLL is using, can't replace");
-            }
-
             Process sroProcess = Process.GetProcessById((int)pi.dwProcessId);
 
-            if (
-                Game.ClientType == GameClientType.VTC_Game
-                || Game.ClientType == GameClientType.Turkey
-                || Game.ClientType == GameClientType.Taiwan
-            )
+            if (Game.ClientType == GameClientType.VTC_Game)
+            {
+                string error = "VTC client unpack timeout or unsupported client version.";
+                if (
+                    !WaitForVtcStartupPatch(sroProcess, pi.hThread, vtcLayout, out error)
+                    || !VtcXigncodeDisablePatch.TryInstall(sroProcess, pi.hProcess, vtcLayout, out error)
+                    || !VtcGatewayRedirectPatch.TryInstall(
+                        sroProcess,
+                        pi.hProcess,
+                        vtcLayout,
+                        Game.ReferenceManager.DivisionInfo.Divisions[divisionIndex].GatewayServers,
+                        Game.ReferenceManager.GatewayInfo.Port,
+                        sessionProxy.Port,
+                        out error
+                    )
+                )
+                {
+                    Log.Error(error);
+
+                    try
+                    {
+                        sroProcess.Kill();
+                    }
+                    catch { }
+                    sessionProxy?.Shutdown();
+                    CloseHandle(pi.hThread);
+                    CloseHandle(pi.hProcess);
+                    return false;
+                }
+
+                Log.Debug("VTC: game XIGNCODE disabled; the session host owns initialization and Probe commands.");
+            }
+            else if (Game.ClientType == GameClientType.Turkey || Game.ClientType == GameClientType.Taiwan)
             {
                 WaitForXigncodeUnpack(sroProcess, pi.hThread);
                 ApplyXigncodePatch(sroProcess, pi);
@@ -292,6 +345,58 @@ public class ClientManager
         {
             return false;
         }
+    }
+
+    /// <summary>
+    /// Disables the VTC SDK wrappers during unpacking and waits for the connect call.
+    /// Leaves the primary thread suspended for the remaining startup patches.
+    /// </summary>
+    private static bool WaitForVtcStartupPatch(
+        Process process,
+        IntPtr hThread,
+        VtcClientLayout layout,
+        out string error
+    )
+    {
+        error = "VTC client unpack timeout or unsupported client version.";
+        var sdkDisabled = false;
+        var timer = Stopwatch.StartNew();
+        while (timer.ElapsedMilliseconds < 5000)
+        {
+            ResumeThread(hThread);
+            Thread.Sleep(8);
+            SuspendThread(hThread);
+            if (process.HasExited)
+            {
+                error = "VTC client exited during startup patching.";
+                return false;
+            }
+            try
+            {
+                process.Refresh();
+
+                if (
+                    !sdkDisabled
+                    && VtcXigncodeDisablePatch.IsReady(process.Handle, process.MainModule.BaseAddress, layout)
+                )
+                {
+                    if (!VtcXigncodeDisablePatch.TryInstall(process, process.Handle, layout, out error))
+                        return false;
+                    sdkDisabled = true;
+                }
+                if (
+                    sdkDisabled
+                    && VtcGatewayRedirectPatch.IsReady(process.Handle, process.MainModule.BaseAddress, layout)
+                )
+                    return true;
+            }
+            catch
+            {
+                // The main module may not yet be readable while the executable is unpacking.
+            }
+        }
+        error ??= "VTC client unpack timeout or unsupported client version.";
+        return false;
     }
 
     /// <summary>

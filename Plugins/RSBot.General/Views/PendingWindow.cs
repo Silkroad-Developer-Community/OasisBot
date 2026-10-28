@@ -1,4 +1,4 @@
-﻿using System;
+using System;
 using System.Drawing;
 using System.Text;
 using System.Threading;
@@ -59,25 +59,61 @@ public partial class PendingWindow : UIWindowBase
         var timestamp = packet.ReadInt();
         var begin = packet.ReadUShort();
 
-        Log.StatusLang("PendingQueue", Serverlist.Joining?.Name, begin, end);
-        labelPending.Text = $"{begin} / {end}";
-        PrintTime(labelAvgWaitingTime, timestamp);
-        LogPending(begin, end);
-
-        if (GlobalConfig.Get("RSBot.General.EnableQuqueNotification", false))
+        var proxy = Kernel.Proxy;
+        RunOnUi(() =>
         {
-            var queue = GlobalConfig.Get("RSBot.General.QueueLeft", 30);
-            if (begin <= queue && _queueNotifyIndex == 0)
-            {
-                notifyIcon.Visible = true;
-                notifyIcon.BalloonTipTitle = "Pending Queue Notification";
-                notifyIcon.BalloonTipText = $"{begin} / {end}";
-                notifyIcon.ShowBalloonTip(2000);
-            }
+            if (
+                !AutoLogin.Pending
+                || !ReferenceEquals(Kernel.Proxy, proxy)
+                || proxy == null
+                || proxy.IsConnectedToAgentserver
+            )
+                return;
+            Log.StatusLang("PendingQueue", Serverlist.Joining?.Name, begin, end);
+            labelPending.Text = $"{begin} / {end}";
+            PrintTime(labelAvgWaitingTime, timestamp);
+            LogPending(begin, end);
 
-            if (++_queueNotifyIndex > 3)
-                _queueNotifyIndex = 0;
-        }
+            if (GlobalConfig.Get("RSBot.General.EnableQuqueNotification", false))
+            {
+                var queue = GlobalConfig.Get("RSBot.General.QueueLeft", 30);
+                if (begin <= queue && _queueNotifyIndex == 0)
+                {
+                    notifyIcon.Visible = true;
+                    notifyIcon.BalloonTipTitle = "Pending Queue Notification";
+                    notifyIcon.BalloonTipText = $"{begin} / {end}";
+                    notifyIcon.ShowBalloonTip(2000);
+                }
+
+                if (++_queueNotifyIndex > 3)
+                    _queueNotifyIndex = 0;
+            }
+        });
+    }
+
+    private static void RunOnUi(Action action)
+    {
+        var view = View.Instance;
+        if (view.IsDisposed || view.Disposing)
+            return;
+        if (view.InvokeRequired)
+            view.BeginInvoke(action);
+        else
+            action();
+    }
+
+    internal void End()
+    {
+        AutoLogin.Pending = false;
+        StopClientlessQueueTask();
+        RunOnUi(() =>
+        {
+            if (AutoLogin.Pending)
+                return;
+            Hide();
+            notifyIcon.Visible = false;
+            Log.StatusLang("Ready");
+        });
     }
 
     internal void Start(int count, int timestamp)
@@ -103,15 +139,25 @@ public partial class PendingWindow : UIWindowBase
         if (!Game.Clientless)
             return;
 
-        _clientlessQueueTaskTokenSource = new CancellationTokenSource();
-        var token = _clientlessQueueTaskTokenSource.Token;
+        var source = new CancellationTokenSource();
+        var token = source.Token;
+
+        Interlocked.Exchange(ref _clientlessQueueTaskTokenSource, source);
+        var proxy = Kernel.Proxy;
 
         Task.Run(
             async () =>
             {
                 try
                 {
-                    while (!token.IsCancellationRequested)
+                    while (
+                        !token.IsCancellationRequested
+                        && Game.Clientless
+                        && AutoLogin.Pending
+                        && ReferenceEquals(Kernel.Proxy, proxy)
+                        && proxy != null
+                        && !proxy.IsConnectedToAgentserver
+                    )
                     {
                         ClientlessManager.RequestServerList();
 
@@ -133,26 +179,26 @@ public partial class PendingWindow : UIWindowBase
 
     internal void StopClientlessQueueTask()
     {
-        if (_clientlessQueueTaskTokenSource != null)
-        {
-            _clientlessQueueTaskTokenSource.Cancel();
-            _clientlessQueueTaskTokenSource.Dispose();
-            _clientlessQueueTaskTokenSource = null;
-        }
+        var source = Interlocked.Exchange(ref _clientlessQueueTaskTokenSource, null);
+        if (source == null)
+            return;
+        source.Cancel();
+        source.Dispose();
     }
 
     private void OnClock()
     {
-        if (!AutoLogin.Pending || !Visible)
+        if (!AutoLogin.Pending)
             return;
-
-        PrintTime(labelMyWaitingTime, Kernel.TickCount - _startedTick);
+        RunOnUi(() =>
+        {
+            if (AutoLogin.Pending && Visible)
+                PrintTime(labelMyWaitingTime, Kernel.TickCount - _startedTick);
+        });
     }
 
     private void PrintTime(Label label, int millisecond)
     {
-        //label.RunInUIThread(() =>
-        //{
         var text = new StringBuilder();
 
         var translatedHours = LanguageManager.GetLang("Xhours");
@@ -170,7 +216,6 @@ public partial class PendingWindow : UIWindowBase
             text.AppendFormat(translatedSeconds, timespan.Seconds);
 
         label.Text = text.ToString();
-        //});
     }
 
     private void LogPending(int count, int count2)
