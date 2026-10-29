@@ -39,6 +39,11 @@ public partial class Updater : UIWindow
     /// </summary>
     private string _downloadUrl;
 
+    /// <summary>
+    /// Indicates whether a download is currently in progress
+    /// </summary>
+    private bool _isDownloading;
+
     public Updater()
     {
         InitializeComponent();
@@ -66,6 +71,32 @@ public partial class Updater : UIWindow
 
     private void _Client_DownloadFileCompleted(object sender, AsyncCompletedEventArgs e)
     {
+        if (e.Cancelled)
+        {
+            _isDownloading = false;
+            btnDownload.Enabled = true;
+            MessageBox.Show(
+                "The update download was cancelled.",
+                "Update Cancelled",
+                MessageBoxButtons.OK,
+                MessageBoxIcon.Information
+            );
+            return;
+        }
+
+        if (e.Error != null)
+        {
+            _isDownloading = false;
+            btnDownload.Enabled = true;
+            MessageBox.Show(
+                $"Failed to download update: {e.Error.Message}",
+                "Update Error",
+                MessageBoxButtons.OK,
+                MessageBoxIcon.Error
+            );
+            return;
+        }
+
         var installerPath = Path.Combine(Kernel.BasePath, "RSBot-Setup-Latest.exe");
         try
         {
@@ -74,6 +105,8 @@ public partial class Updater : UIWindow
         }
         catch (Exception ex)
         {
+            _isDownloading = false;
+            btnDownload.Enabled = true;
             MessageBox.Show(
                 $"Failed to launch installer: {ex.Message}\n\nNote: If you are testing with the mock updater, the downloaded file is a dummy and cannot be executed.",
                 "Update Error",
@@ -103,6 +136,22 @@ public partial class Updater : UIWindow
 
     private void btnDownload_Click(object sender, EventArgs e)
     {
+        StartDownload();
+    }
+
+    public void StartAutomaticUpdate()
+    {
+        StartDownload();
+    }
+
+    private void StartDownload()
+    {
+        if (_webClient == null || string.IsNullOrWhiteSpace(_downloadUrl) || _isDownloading)
+            return;
+
+        _isDownloading = true;
+        btnDownload.Enabled = false;
+
         try
         {
             downloadProgress.Visible = true;
@@ -113,12 +162,16 @@ public partial class Updater : UIWindow
 
             var installerPath = Path.Combine(Kernel.BasePath, "RSBot-Setup-Latest.exe");
 
-            _webClient.DownloadFileAsync(new Uri(_downloadUrl), installerPath);
+            _webClient.DownloadProgressChanged -= _Client_DownloadProgressChanged;
+            _webClient.DownloadFileCompleted -= _Client_DownloadFileCompleted;
             _webClient.DownloadProgressChanged += _Client_DownloadProgressChanged;
             _webClient.DownloadFileCompleted += _Client_DownloadFileCompleted;
+            _webClient.DownloadFileAsync(new Uri(_downloadUrl), installerPath);
         }
         catch (Exception ex)
         {
+            _isDownloading = false;
+            btnDownload.Enabled = true;
             MessageBox.Show(ex.Message, "Error!", MessageBoxButtons.OK, MessageBoxIcon.Error);
             Environment.Exit(0);
         }
@@ -143,33 +196,11 @@ public partial class Updater : UIWindow
     /// <returns><c>true</c> if there is otherwise, <c>false</c>.</returns>
     public async Task<bool> Check()
     {
-        if (!GeneralConfig.Exists("RSBot.AutoUpdate"))
-        {
-            GeneralConfig.Set("RSBot.AutoUpdate", true);
-            GeneralConfig.Save();
-        }
-
-        if (!GeneralConfig.Get("RSBot.AutoUpdate", true))
-            return false;
-
-        // Rate limiting: Only check once every 12 hours unless in debug environment
-        var lastCheckStr = GeneralConfig.Get<string>("RSBot.LastUpdateCheck", "0");
-        if (long.TryParse(lastCheckStr, out var lastCheckTicks))
-        {
-            var lastCheck = new DateTime(lastCheckTicks);
-            if (DateTime.Now < lastCheck.AddHours(12) && !GlobalConfig.Get("RSBot.DebugEnvironment", false))
-                return false;
-        }
-
         if (
             !File.Exists(Path.Combine(Kernel.BasePath, "unins000.exe"))
             && !GlobalConfig.Get("RSBot.DebugEnvironment", false)
         )
             return false;
-
-        // Update the last check time immediately to prevent multiple instances from triggering simultaneously
-        GeneralConfig.Set("RSBot.LastUpdateCheck", DateTime.Now.Ticks.ToString());
-        GeneralConfig.Save();
 
         try
         {
