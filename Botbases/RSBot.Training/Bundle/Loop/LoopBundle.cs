@@ -9,6 +9,8 @@ namespace RSBot.Training.Bundle.Loop;
 
 internal class LoopBundle : IBundle
 {
+    private System.DateTime _lastAutopathAttempt = System.DateTime.MinValue;
+
     /// <summary>
     ///     Gets the configuration.
     /// </summary>
@@ -78,6 +80,7 @@ internal class LoopBundle : IBundle
             ShoppingManager.Stop();
 
         Running = false;
+        _lastAutopathAttempt = System.DateTime.MinValue;
     }
 
     /// <summary>
@@ -165,6 +168,14 @@ internal class LoopBundle : IBundle
 
         if (Config.WalkScript == null || !File.Exists(Config.WalkScript))
         {
+            if (Container.Bot.Area.Position.DistanceToPlayer() <= Container.Bot.Area.Radius + 50)
+                return;
+
+            if (System.DateTime.UtcNow - _lastAutopathAttempt < System.TimeSpan.FromSeconds(30))
+                return;
+
+            _lastAutopathAttempt = System.DateTime.UtcNow;
+
             Log.Notify("No walkback script found. Attempting to generate a dynamic path...");
             if (NavigationManager.CalculatePathToTrainingArea())
             {
