@@ -1,4 +1,4 @@
-﻿using System;
+using System;
 using System.Linq;
 using System.Windows.Forms;
 using RSBot.Core;
@@ -35,7 +35,7 @@ public partial class TrainingAreasDialog : UIWindowBase
             return;
         }
 
-        PlayerConfig.Set("RSBot.Area.Region", trainingArea.Position.Region);
+        PlayerConfig.Set("RSBot.Area.Region", trainingArea.Position.Region.Id);
         PlayerConfig.Set("RSBot.Area.X", trainingArea.Position.XOffset);
         PlayerConfig.Set("RSBot.Area.Y", trainingArea.Position.YOffset);
         PlayerConfig.Set("RSBot.Area.Z", trainingArea.Position.ZOffset);
