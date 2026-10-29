@@ -243,17 +243,32 @@ namespace RSBot.General
         {
             await Task.Run(async () =>
             {
-                if (!Game.Clientless)
+                if (Game.Clientless)
+                    return;
+
+                var started = false;
+                Game.Clientless = true;
+                try
                 {
-                    Game.Clientless = true;
                     Log.StatusLang("StartingClientless");
                     EventManager.FireEvent("OnClientlessProcessStarted");
 
                     var userAuthenticated = await HandleRegionalAuth();
-
-                    if (userAuthenticated)
+                    if (!userAuthenticated)
                     {
-                        Game.Start();
+                        Log.Warn("Regional auth failed!");
+                        return;
+                    }
+
+                    Game.Start();
+                    started = true;
+                }
+                finally
+                {
+                    if (!started)
+                    {
+                        Game.Clientless = false;
+                        EventManager.FireEvent("OnClientDisconnected");
                     }
                 }
             });

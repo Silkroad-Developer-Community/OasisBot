@@ -31,6 +31,11 @@ public partial class PendingWindow : UIWindowBase
     /// </summary>
     private CancellationTokenSource _clientlessQueueTaskTokenSource;
 
+    private readonly object _pendingLock = new();
+
+    // Each transition invalidates UI callbacks posted by an older queue state.
+    private int _pendingGeneration;
+
     public PendingWindow()
     {
         InitializeComponent();
@@ -60,33 +65,40 @@ public partial class PendingWindow : UIWindowBase
         var begin = packet.ReadUShort();
 
         var proxy = Kernel.Proxy;
+        int generation;
+        lock (_pendingLock)
+            generation = _pendingGeneration;
         RunOnUi(() =>
         {
-            if (
-                !AutoLogin.Pending
-                || !ReferenceEquals(Kernel.Proxy, proxy)
-                || proxy == null
-                || proxy.IsConnectedToAgentserver
-            )
-                return;
-            Log.StatusLang("PendingQueue", Serverlist.Joining?.Name, begin, end);
-            labelPending.Text = $"{begin} / {end}";
-            PrintTime(labelAvgWaitingTime, timestamp);
-            LogPending(begin, end);
-
-            if (GlobalConfig.Get("RSBot.General.EnableQuqueNotification", false))
+            lock (_pendingLock)
             {
-                var queue = GlobalConfig.Get("RSBot.General.QueueLeft", 30);
-                if (begin <= queue && _queueNotifyIndex == 0)
-                {
-                    notifyIcon.Visible = true;
-                    notifyIcon.BalloonTipTitle = "Pending Queue Notification";
-                    notifyIcon.BalloonTipText = $"{begin} / {end}";
-                    notifyIcon.ShowBalloonTip(2000);
-                }
+                if (
+                    generation != _pendingGeneration
+                    || !AutoLogin.Pending
+                    || !ReferenceEquals(Kernel.Proxy, proxy)
+                    || proxy == null
+                    || proxy.IsConnectedToAgentserver
+                )
+                    return;
+                Log.StatusLang("PendingQueue", Serverlist.Joining?.Name, begin, end);
+                labelPending.Text = $"{begin} / {end}";
+                PrintTime(labelAvgWaitingTime, timestamp);
+                LogPending(begin, end);
 
-                if (++_queueNotifyIndex > 3)
-                    _queueNotifyIndex = 0;
+                if (GlobalConfig.Get("RSBot.General.EnableQuqueNotification", false))
+                {
+                    var queue = GlobalConfig.Get("RSBot.General.QueueLeft", 30);
+                    if (begin <= queue && _queueNotifyIndex == 0)
+                    {
+                        notifyIcon.Visible = true;
+                        notifyIcon.BalloonTipTitle = "Pending Queue Notification";
+                        notifyIcon.BalloonTipText = $"{begin} / {end}";
+                        notifyIcon.ShowBalloonTip(2000);
+                    }
+
+                    if (++_queueNotifyIndex > 3)
+                        _queueNotifyIndex = 0;
+                }
             }
         });
     }
@@ -97,40 +109,89 @@ public partial class PendingWindow : UIWindowBase
         if (view.IsDisposed || view.Disposing)
             return;
         if (view.InvokeRequired)
-            view.BeginInvoke(action);
+        {
+            try
+            {
+                view.BeginInvoke(action);
+            }
+            catch (InvalidOperationException) when (view.IsDisposed || view.Disposing || !view.IsHandleCreated) { }
+        }
         else
             action();
     }
 
+    /// <summary>
+    ///     Clears queue state immediately and hides its UI unless a new queue has started.
+    /// </summary>
     internal void End()
     {
-        AutoLogin.Pending = false;
-        StopClientlessQueueTask();
+        int generation;
+        lock (_pendingLock)
+        {
+            generation = ++_pendingGeneration;
+            AutoLogin.Pending = false;
+            StopClientlessQueueTask();
+        }
         RunOnUi(() =>
         {
-            if (AutoLogin.Pending)
-                return;
-            Hide();
-            notifyIcon.Visible = false;
-            Log.StatusLang("Ready");
+            lock (_pendingLock)
+            {
+                if (generation != _pendingGeneration)
+                    return;
+                Hide();
+                notifyIcon.Visible = false;
+                Log.StatusLang("Ready");
+            }
         });
     }
 
+    /// <summary>
+    ///     Publishes queue state and schedules UI updates that can be invalidated by End().
+    /// </summary>
     internal void Start(int count, int timestamp)
     {
-        AutoLogin.Pending = true;
-        _startedTick = Kernel.TickCount;
+        var proxy = Kernel.Proxy;
+        int generation;
+        lock (_pendingLock)
+        {
+            if (!IsCurrentGatewaySession(proxy))
+                return;
 
-        Log.StatusLang("PendingQueue", Serverlist.Joining?.Name, count, count);
+            generation = ++_pendingGeneration;
+            AutoLogin.Pending = true;
+            StopClientlessQueueTask();
+        }
+        RunOnUi(() =>
+        {
+            lock (_pendingLock)
+            {
+                if (generation != _pendingGeneration || !IsCurrentGatewaySession(proxy))
+                    return;
 
-        labelPending.Text = $"{count} / {count}";
-        labelServerName.Text = labelServerName.Text.Replace("{SERVER}", Serverlist.Joining?.Name);
+                _startedTick = Kernel.TickCount;
+                _queueNotifyIndex = 0;
+                Log.StatusLang("PendingQueue", Serverlist.Joining?.Name, count, count);
 
-        PrintTime(labelAvgWaitingTime, timestamp);
-        LogPending(count, count);
+                labelPending.Text = $"{count} / {count}";
+                labelServerName.Text = labelServerName.Text.Replace("{SERVER}", Serverlist.Joining?.Name);
 
-        StartClientlessQueueTask();
+                PrintTime(labelAvgWaitingTime, timestamp);
+                LogPending(count, count);
+
+                StartClientlessQueueTask();
+                if (!GlobalConfig.Get<bool>("RSBot.General.AutoHidePendingWindow") && !Visible)
+                    ShowAtTop(View.Instance);
+            }
+        });
     }
+
+    private static bool IsCurrentGatewaySession(Proxy proxy) =>
+        proxy != null
+        && ReferenceEquals(Kernel.Proxy, proxy)
+        && Game.Started
+        && proxy.IsConnectedToGatewayserver
+        && !proxy.IsConnectedToAgentserver
+        && !proxy.IsSwitchingToAgentserver;
 
     private void StartClientlessQueueTask()
     {

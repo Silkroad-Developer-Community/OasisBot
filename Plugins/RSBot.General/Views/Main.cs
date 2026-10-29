@@ -20,6 +20,7 @@ namespace RSBot.General.Views;
 internal partial class Main : DoubleBufferedControl
 {
     private bool _clientVisible;
+    private bool _clientlessActionPending;
     private static int _reloginSeq;
 
     /// <summary>
@@ -266,11 +267,7 @@ internal partial class Main : DoubleBufferedControl
     #region LogicEvents
     private void OnAutoLoginAborted()
     {
-        if (this.InvokeRequired)
-        {
-            this.Invoke(new Action(OnAutoLoginAborted));
-            return;
-        }
+        // End() invalidates queued starts synchronously and dispatches its own UI cleanup.
         View.PendingWindow?.End();
     }
 
@@ -287,6 +284,8 @@ internal partial class Main : DoubleBufferedControl
 
     private void OnClientDisconnected()
     {
+        if (IsDisposed || Disposing)
+            return;
         if (this.InvokeRequired)
         {
             this.Invoke(new Action(OnClientDisconnected));
@@ -303,6 +302,8 @@ internal partial class Main : DoubleBufferedControl
 
     private void OnAutoReloginOngoing()
     {
+        if (IsDisposed || Disposing)
+            return;
         if (this.InvokeRequired)
         {
             this.Invoke(new Action(OnAutoReloginOngoing));
@@ -327,6 +328,8 @@ internal partial class Main : DoubleBufferedControl
 
     private void OnClientlessProcessStarted()
     {
+        if (IsDisposed || Disposing)
+            return;
         if (this.InvokeRequired)
         {
             this.Invoke(new Action(OnClientlessProcessStarted));
@@ -515,6 +518,9 @@ internal partial class Main : DoubleBufferedControl
     /// <param name="e">The <see cref="EventArgs" /> instance containing the event data.</param>
     private async void btnStartClientless_Click(object sender, EventArgs e)
     {
+        if (_clientlessActionPending)
+            return;
+
         if (!Game.Clientless)
         {
             if (!checkEnableAutoLogin.Checked || comboAccounts.SelectedIndex <= 0)
@@ -528,9 +534,28 @@ internal partial class Main : DoubleBufferedControl
                 );
                 return;
             }
+            _clientlessActionPending = true;
             btnStartClient.Enabled = false;
             btnClientHideShow.Enabled = false;
-            await GeneralManager.StartClientlessAsync();
+            try
+            {
+                await GeneralManager.StartClientlessAsync();
+            }
+            catch (Exception ex)
+            {
+                Log.Error($"Could not start clientless: {ex}");
+                if (!IsDisposed && !Disposing)
+                    OnClientDisconnected();
+            }
+            finally
+            {
+                _clientlessActionPending = false;
+                if (!IsDisposed && !Disposing)
+                {
+                    if (!Game.Clientless)
+                        btnClientHideShow.Enabled = ClientManager.IsRunning;
+                }
+            }
             return;
         }
 
@@ -545,9 +570,23 @@ internal partial class Main : DoubleBufferedControl
         )
             return;
 
+        _clientlessActionPending = true;
         btnStartClientless.Enabled = false;
         btnStartClient.Enabled = false;
-        await GeneralManager.DisconnectAsync();
+        try
+        {
+            await GeneralManager.DisconnectAsync();
+        }
+        catch (Exception ex)
+        {
+            Log.Error($"Disconnect failed: {ex}");
+            if (!IsDisposed && !Disposing)
+                OnClientDisconnected();
+        }
+        finally
+        {
+            _clientlessActionPending = false;
+        }
     }
 
     /// <summary>
@@ -557,6 +596,9 @@ internal partial class Main : DoubleBufferedControl
     /// <param name="e">The <see cref="EventArgs" /> instance containing the event data.</param>
     private async void btnStartClient_Click(object sender, EventArgs e)
     {
+        if (_clientlessActionPending)
+            return;
+
         if (!GeneralManager.IsClientless && GeneralManager.IsConnected)
         {
             var extraStr = LanguageManager.GetLang("KillClientWarnMsgBoxSplit1");
