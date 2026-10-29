@@ -125,7 +125,10 @@ internal class TargetBundle : IBundle
 
         if (
             !SpawnManager.TryGetEntities<SpawnedMonster>(
-                e => e.AttackingPlayer && e.State.LifeState == LifeState.Alive,
+                e =>
+                    e.AttackingPlayer
+                    && e.State.LifeState == LifeState.Alive
+                    && (_blacklist == null || !_blacklist.ContainsKey(e.UniqueId)),
                 out var entities
             )
         )

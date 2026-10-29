@@ -188,7 +188,6 @@ public partial class PendingWindow : UIWindowBase
     private static bool IsCurrentGatewaySession(Proxy proxy) =>
         proxy != null
         && ReferenceEquals(Kernel.Proxy, proxy)
-        && Game.Started
         && proxy.IsConnectedToGatewayserver
         && !proxy.IsConnectedToAgentserver
         && !proxy.IsSwitchingToAgentserver;
