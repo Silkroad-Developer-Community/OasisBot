@@ -121,7 +121,7 @@ public class ClientManager
                 IntPtr.Zero,
                 IntPtr.Zero,
                 false,
-                CREATE_SUSPENDED,
+                vtcLayout != null ? VtcClientStartup.DebugOnlyThisProcess : CREATE_SUSPENDED,
                 IntPtr.Zero,
                 silkroadDirectory,
                 ref si,
@@ -130,6 +130,7 @@ public class ClientManager
         )
             return false;
 
+        using var vtcStartup = vtcLayout != null ? new VtcClientStartup(pi) : null;
         PrepareTempConfigFile(pi.dwProcessId, divisionIndex);
 
         if (specialClient)
@@ -138,9 +139,9 @@ public class ClientManager
 
             if (Game.ClientType == GameClientType.VTC_Game)
             {
-                string error = "VTC client unpack timeout or unsupported client version.";
+                string error;
                 if (
-                    !WaitForVtcStartupPatch(sroProcess, pi.hThread, vtcLayout, out error)
+                    !vtcStartup.TryPrepare(sroProcess, vtcLayout, out error)
                     || !VtcXigncodeDisablePatch.TryInstall(sroProcess, pi.hProcess, vtcLayout, out error)
                     || !VtcGatewayRedirectPatch.TryInstall(
                         sroProcess,
@@ -155,14 +156,8 @@ public class ClientManager
                 {
                     Log.Error(error);
 
-                    try
-                    {
-                        sroProcess.Kill();
-                    }
-                    catch { }
+                    vtcStartup.Dispose();
                     sessionProxy?.Shutdown();
-                    CloseHandle(pi.hThread);
-                    CloseHandle(pi.hProcess);
                     return false;
                 }
 
@@ -182,7 +177,18 @@ public class ClientManager
 
             BypassLauncherCheck(sroProcess, pi);
 
-            ResumeThread(pi.hThread);
+            if (vtcStartup != null)
+            {
+                if (!vtcStartup.TryResume(out var error))
+                {
+                    Log.Error(error);
+                    vtcStartup.Dispose();
+                    sessionProxy?.Shutdown();
+                    return false;
+                }
+            }
+            else
+                ResumeThread(pi.hThread);
 
             _process = sroProcess;
         }
@@ -345,58 +351,6 @@ public class ClientManager
         {
             return false;
         }
-    }
-
-    /// <summary>
-    /// Disables the VTC SDK wrappers during unpacking and waits for the connect call.
-    /// Leaves the primary thread suspended for the remaining startup patches.
-    /// </summary>
-    private static bool WaitForVtcStartupPatch(
-        Process process,
-        IntPtr hThread,
-        VtcClientLayout layout,
-        out string error
-    )
-    {
-        error = "VTC client unpack timeout or unsupported client version.";
-        var sdkDisabled = false;
-        var timer = Stopwatch.StartNew();
-        while (timer.ElapsedMilliseconds < 5000)
-        {
-            ResumeThread(hThread);
-            Thread.Sleep(8);
-            SuspendThread(hThread);
-            if (process.HasExited)
-            {
-                error = "VTC client exited during startup patching.";
-                return false;
-            }
-            try
-            {
-                process.Refresh();
-
-                if (
-                    !sdkDisabled
-                    && VtcXigncodeDisablePatch.IsReady(process.Handle, process.MainModule.BaseAddress, layout)
-                )
-                {
-                    if (!VtcXigncodeDisablePatch.TryInstall(process, process.Handle, layout, out error))
-                        return false;
-                    sdkDisabled = true;
-                }
-                if (
-                    sdkDisabled
-                    && VtcGatewayRedirectPatch.IsReady(process.Handle, process.MainModule.BaseAddress, layout)
-                )
-                    return true;
-            }
-            catch
-            {
-                // The main module may not yet be readable while the executable is unpacking.
-            }
-        }
-        error ??= "VTC client unpack timeout or unsupported client version.";
-        return false;
     }
 
     /// <summary>
