@@ -37,7 +37,7 @@ if ($Clean) {
 }
 
 if ($buildExitCode -eq 0) {
-    & $msBuildPath /p:Configuration=Release /p:Platform=Win32 Library\RSBot.XigncodeHost\XigncodeHost.proj
+    & $msBuildPath /p:Configuration=Release /p:Platform=Win32 Library\RSBot.XigncodeHost\XigncodeHost.vcxproj
     if ($LASTEXITCODE -ne 0) {
         Write-Output 'XigncodeHost build failed.'
         exit $LASTEXITCODE

@@ -37,4 +37,4 @@ jobs:
         run: |
           msbuild /p:Configuration=Release /p:Platform=x86
           if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
-          msbuild /p:Configuration=Release /p:Platform=Win32 Library/RSBot.XigncodeHost/XigncodeHost.proj
+          msbuild /p:Configuration=Release /p:Platform=Win32 Library/RSBot.XigncodeHost/XigncodeHost.vcxproj
