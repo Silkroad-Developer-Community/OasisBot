@@ -44,6 +44,9 @@
             checkNoMPPotions = new SDUI.Controls.CheckBox();
             checkNoHPPotions = new SDUI.Controls.CheckBox();
             checkDurability = new SDUI.Controls.CheckBox();
+            checkUseRepairKit = new SDUI.Controls.CheckBox();
+            numRepairKitSlot = new SDUI.Controls.NumUpDown();
+            labelRepairKitSlot = new SDUI.Controls.Label();
             checkDead = new SDUI.Controls.CheckBox();
             checkInventory = new SDUI.Controls.CheckBox();
             checkNoArrows = new SDUI.Controls.CheckBox();
@@ -128,6 +131,9 @@
             // 
             groupBackTown.Anchor = System.Windows.Forms.AnchorStyles.Top | System.Windows.Forms.AnchorStyles.Right;
             groupBackTown.BackColor = System.Drawing.Color.Transparent;
+            groupBackTown.Controls.Add(checkUseRepairKit);
+            groupBackTown.Controls.Add(numRepairKitSlot);
+            groupBackTown.Controls.Add(labelRepairKitSlot);
             groupBackTown.Controls.Add(label19);
             groupBackTown.Controls.Add(numShardFatigueMinToDC);
             groupBackTown.Controls.Add(numMPPotionsLeft);
@@ -150,7 +156,7 @@
             groupBackTown.Padding = new System.Windows.Forms.Padding(4, 12, 4, 4);
             groupBackTown.Radius = 10;
             groupBackTown.ShadowDepth = 4;
-            groupBackTown.Size = new System.Drawing.Size(330, 356);
+            groupBackTown.Size = new System.Drawing.Size(330, 386);
             groupBackTown.TabIndex = 17;
             groupBackTown.TabStop = false;
             groupBackTown.Text = "Back to town";
@@ -235,6 +241,7 @@
             checkShardFatigue.TabIndex = 12;
             checkShardFatigue.Text = "Shard fatigue";
             toolTip1.SetToolTip(checkShardFatigue, "Return and disconnect when Shard fatigue reaches that time");
+            toolTip1.SetToolTip(numRepairKitSlot, "Equipment slot 0-7 to repair with a kit, 8 = any slot");
             checkShardFatigue.UseVisualStyleBackColor = false;
             checkShardFatigue.CheckedChanged += settings_CheckedChanged;
             // 
@@ -367,6 +374,48 @@
             checkDurability.Text = "Equipment durability low";
             checkDurability.UseVisualStyleBackColor = false;
             checkDurability.CheckedChanged += settings_CheckedChanged;
+            // 
+            // checkUseRepairKit
+            // 
+            checkUseRepairKit.AutoSize = true;
+            checkUseRepairKit.BackColor = System.Drawing.Color.Transparent;
+            checkUseRepairKit.Depth = 0;
+            checkUseRepairKit.Location = new System.Drawing.Point(15, 349);
+            checkUseRepairKit.Margin = new System.Windows.Forms.Padding(0);
+            checkUseRepairKit.MouseLocation = new System.Drawing.Point(-1, -1);
+            checkUseRepairKit.Name = "checkUseRepairKit";
+            checkUseRepairKit.Ripple = true;
+            checkUseRepairKit.Size = new System.Drawing.Size(160, 30);
+            checkUseRepairKit.TabIndex = 18;
+            checkUseRepairKit.Text = "Repair kit at 6";
+            checkUseRepairKit.UseVisualStyleBackColor = false;
+            checkUseRepairKit.CheckedChanged += settings_CheckedChanged;
+            // 
+            // numRepairKitSlot
+            // 
+            numRepairKitSlot.BackColor = System.Drawing.Color.Transparent;
+            numRepairKitSlot.Font = new System.Drawing.Font("Segoe UI", 9.25F);
+            numRepairKitSlot.ForeColor = System.Drawing.Color.FromArgb(0, 0, 0);
+            numRepairKitSlot.Location = new System.Drawing.Point(183, 348);
+            numRepairKitSlot.Margin = new System.Windows.Forms.Padding(4);
+            numRepairKitSlot.Maximum = new decimal(new int[] { 8, 0, 0, 0 });
+            numRepairKitSlot.Minimum = new decimal(new int[] { 0, 0, 0, 0 });
+            numRepairKitSlot.MinimumSize = new System.Drawing.Size(100, 31);
+            numRepairKitSlot.Name = "numRepairKitSlot";
+            numRepairKitSlot.Size = new System.Drawing.Size(100, 31);
+            numRepairKitSlot.TabIndex = 19;
+            numRepairKitSlot.Value = new decimal(new int[] { 8, 0, 0, 0 });
+            numRepairKitSlot.ValueChanged += numSettings_ValueChanged;
+            // 
+            // labelRepairKitSlot
+            // 
+            labelRepairKitSlot.ApplyGradient = false;
+            labelRepairKitSlot.AutoSize = true;
+            labelRepairKitSlot.ForeColor = System.Drawing.Color.FromArgb(0, 0, 0);
+            labelRepairKitSlot.Location = new System.Drawing.Point(286, 352);
+            labelRepairKitSlot.Name = "labelRepairKitSlot";
+            labelRepairKitSlot.Size = new System.Drawing.Size(34, 20);
+            labelRepairKitSlot.Text = "slot";
             // 
             // checkDead
             // 
@@ -1232,7 +1281,7 @@
             groupStatPoints.Controls.Add(numIncInt);
             groupStatPoints.Controls.Add(checkIncStr);
             groupStatPoints.Controls.Add(checkIncInt);
-            groupStatPoints.Location = new System.Drawing.Point(599, 377);
+            groupStatPoints.Location = new System.Drawing.Point(599, 407);
             groupStatPoints.Margin = new System.Windows.Forms.Padding(7, 5, 0, 0);
             groupStatPoints.Name = "groupStatPoints";
             groupStatPoints.Padding = new System.Windows.Forms.Padding(4, 12, 4, 4);
@@ -1425,6 +1474,9 @@
         private SDUI.Controls.CheckBox checkNoMPPotions;
         private SDUI.Controls.CheckBox checkNoHPPotions;
         private SDUI.Controls.CheckBox checkDurability;
+        private SDUI.Controls.CheckBox checkUseRepairKit;
+        private SDUI.Controls.NumUpDown numRepairKitSlot;
+        private SDUI.Controls.Label labelRepairKitSlot;
         private SDUI.Controls.CheckBox checkDead;
         private SDUI.Controls.CheckBox checkInventory;
         private SDUI.Controls.CheckBox checkNoArrows;
