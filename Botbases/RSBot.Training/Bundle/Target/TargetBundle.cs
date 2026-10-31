@@ -98,7 +98,15 @@ internal class TargetBundle : IBundle
 
         var warlockModeEnabled = PlayerConfig.Get("RSBot.Skills.checkWarlockMode", false);
         if (warlockModeEnabled && Game.SelectedEntity?.State.HasTwoDots() == true)
-            return;
+        {
+            Log.Debug("[TargetBundle] Target has 2 DoTs, switching to the next target!");
+
+            if (Game.Player.InAction)
+                SkillManager.CancelAction();
+
+            Game.SelectedEntity.TryDeselect();
+            Game.SelectedEntity = null;
+        }
 
         if (Game.SelectedEntity != null && Game.SelectedEntity is not SpawnedMonster)
             Game.SelectedEntity = null;
@@ -123,10 +131,13 @@ internal class TargetBundle : IBundle
         if (!attackWeakerFirst || !IsEmergencySituation())
             return null;
 
+        var warlockModeEnabled = PlayerConfig.Get<bool>("RSBot.Skills.checkWarlockMode");
+
         if (
             !SpawnManager.TryGetEntities<SpawnedMonster>(
                 e =>
                     e.AttackingPlayer
+                    && !(warlockModeEnabled && e.State.HasTwoDots())
                     && e.State.LifeState == LifeState.Alive
                     && (_blacklist == null || !_blacklist.ContainsKey(e.UniqueId)),
                 out var entities
