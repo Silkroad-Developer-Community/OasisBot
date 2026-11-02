@@ -55,8 +55,8 @@ public class ClientManager
                 return false;
             }
         }
-        var silkroadDirectory = GlobalConfig.Get<string>("RSBot.SilkroadDirectory");
-        var path = Path.Combine(silkroadDirectory, GlobalConfig.Get<string>("RSBot.SilkroadExecutable"));
+        var silkroadDirectory = GlobalConfig.Profile.SilkroadDirectory;
+        var path = Path.Combine(silkroadDirectory, GlobalConfig.Profile.SilkroadExecutable);
         if (vtcLayout != null)
         {
             try

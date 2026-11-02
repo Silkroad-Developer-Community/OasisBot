@@ -179,7 +179,7 @@ public partial class PendingWindow : UIWindowBase
                 LogPending(count, count);
 
                 StartClientlessQueueTask();
-                if (!GlobalConfig.Get<bool>("RSBot.General.AutoHidePendingWindow") && !Visible)
+                if (!GlobalConfig.Profile.Bot.AutoHidePendingWindow && !Visible)
                     ShowAtTop(View.Instance);
             }
         });
