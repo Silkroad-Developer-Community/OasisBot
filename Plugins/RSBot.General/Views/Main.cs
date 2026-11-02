@@ -1,4 +1,4 @@
-﻿using System;
+using System;
 using System.ComponentModel;
 using System.Drawing;
 using System.Globalization;
@@ -20,6 +20,7 @@ namespace RSBot.General.Views;
 internal partial class Main : DoubleBufferedControl
 {
     private bool _clientVisible;
+    private bool _clientlessActionPending;
     private static int _reloginSeq;
 
     /// <summary>
@@ -266,13 +267,8 @@ internal partial class Main : DoubleBufferedControl
     #region LogicEvents
     private void OnAutoLoginAborted()
     {
-        if (this.InvokeRequired)
-        {
-            this.Invoke(new Action(OnAutoLoginAborted));
-            return;
-        }
-        View.PendingWindow?.Hide();
-        View.PendingWindow?.StopClientlessQueueTask();
+        // End() invalidates queued starts synchronously and dispatches its own UI cleanup.
+        View.PendingWindow?.End();
     }
 
     private void OnAutoReloginStarted()
@@ -288,6 +284,8 @@ internal partial class Main : DoubleBufferedControl
 
     private void OnClientDisconnected()
     {
+        if (IsDisposed || Disposing)
+            return;
         if (this.InvokeRequired)
         {
             this.Invoke(new Action(OnClientDisconnected));
@@ -304,6 +302,8 @@ internal partial class Main : DoubleBufferedControl
 
     private void OnAutoReloginOngoing()
     {
+        if (IsDisposed || Disposing)
+            return;
         if (this.InvokeRequired)
         {
             this.Invoke(new Action(OnAutoReloginOngoing));
@@ -328,6 +328,8 @@ internal partial class Main : DoubleBufferedControl
 
     private void OnClientlessProcessStarted()
     {
+        if (IsDisposed || Disposing)
+            return;
         if (this.InvokeRequired)
         {
             this.Invoke(new Action(OnClientlessProcessStarted));
@@ -522,42 +524,75 @@ internal partial class Main : DoubleBufferedControl
     /// <param name="e">The <see cref="EventArgs" /> instance containing the event data.</param>
     private async void btnStartClientless_Click(object sender, EventArgs e)
     {
-        await Task.Run(async () =>
+        if (_clientlessActionPending)
+            return;
+
+        if (!Game.Clientless)
         {
-            if (!Game.Clientless)
+            if (!checkEnableAutoLogin.Checked || comboAccounts.SelectedIndex <= 0)
             {
-                if (!checkEnableAutoLogin.Checked || comboAccounts.SelectedIndex <= 0)
-                {
-                    var msgBoxTitle = LanguageManager.GetLang("StartClientlessMsgBoxTitle");
-                    var msgBoxContent = LanguageManager.GetLang("StartClientlessMsgBoxContent");
-
-                    MessageBox.Show(msgBoxContent, msgBoxTitle, MessageBoxButtons.OK, MessageBoxIcon.Warning);
-
-                    return;
-                }
-
-                btnStartClient.Enabled = false;
-                btnClientHideShow.Enabled = false;
-
-                await GeneralManager.StartClientlessAsync();
-            }
-            else
-            {
-                var msgBoxTitle = LanguageManager.GetLang("MsgBoxDisconnectDialogTitle");
-                var msgBoxContent = LanguageManager.GetLang("MsgBoxDisconnectDialogContent");
-
-                var result = MessageBox.Show(
-                    msgBoxContent,
-                    msgBoxTitle,
-                    MessageBoxButtons.YesNo,
+                MessageBox.Show(
+                    this,
+                    LanguageManager.GetLang("StartClientlessMsgBoxContent"),
+                    LanguageManager.GetLang("StartClientlessMsgBoxTitle"),
+                    MessageBoxButtons.OK,
                     MessageBoxIcon.Warning
                 );
-                if (result == DialogResult.No)
-                    return;
-
-                await GeneralManager.DisconnectAsync();
+                return;
             }
-        });
+            _clientlessActionPending = true;
+            btnStartClient.Enabled = false;
+            btnClientHideShow.Enabled = false;
+            try
+            {
+                await GeneralManager.StartClientlessAsync();
+            }
+            catch (Exception ex)
+            {
+                Log.Error($"Could not start clientless: {ex}");
+                if (!IsDisposed && !Disposing)
+                    OnClientDisconnected();
+            }
+            finally
+            {
+                _clientlessActionPending = false;
+                if (!IsDisposed && !Disposing)
+                {
+                    if (!Game.Clientless)
+                        btnClientHideShow.Enabled = ClientManager.IsRunning;
+                }
+            }
+            return;
+        }
+
+        if (
+            MessageBox.Show(
+                this,
+                LanguageManager.GetLang("MsgBoxDisconnectDialogContent"),
+                LanguageManager.GetLang("MsgBoxDisconnectDialogTitle"),
+                MessageBoxButtons.YesNo,
+                MessageBoxIcon.Warning
+            ) != DialogResult.Yes
+        )
+            return;
+
+        _clientlessActionPending = true;
+        btnStartClientless.Enabled = false;
+        btnStartClient.Enabled = false;
+        try
+        {
+            await GeneralManager.DisconnectAsync();
+        }
+        catch (Exception ex)
+        {
+            Log.Error($"Disconnect failed: {ex}");
+            if (!IsDisposed && !Disposing)
+                OnClientDisconnected();
+        }
+        finally
+        {
+            _clientlessActionPending = false;
+        }
     }
 
     /// <summary>
@@ -567,6 +602,9 @@ internal partial class Main : DoubleBufferedControl
     /// <param name="e">The <see cref="EventArgs" /> instance containing the event data.</param>
     private async void btnStartClient_Click(object sender, EventArgs e)
     {
+        if (_clientlessActionPending)
+            return;
+
         if (!GeneralManager.IsClientless && GeneralManager.IsConnected)
         {
             var extraStr = LanguageManager.GetLang("KillClientWarnMsgBoxSplit1");

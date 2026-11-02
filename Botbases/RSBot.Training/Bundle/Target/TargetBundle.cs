@@ -125,7 +125,10 @@ internal class TargetBundle : IBundle
 
         if (
             !SpawnManager.TryGetEntities<SpawnedMonster>(
-                e => e.AttackingPlayer && e.State.LifeState == LifeState.Alive,
+                e =>
+                    e.AttackingPlayer
+                    && e.State.LifeState == LifeState.Alive
+                    && (_blacklist == null || !_blacklist.ContainsKey(e.UniqueId)),
                 out var entities
             )
         )
@@ -133,8 +136,8 @@ internal class TargetBundle : IBundle
 
         return entities
             .OrderBy(e => (byte)e.Rarity)
-            .OrderBy(e => e.Record.Level)
-            .OrderByDescending(e => e.Position.DistanceToPlayer())
+            .ThenBy(e => e.Record.Level)
+            .ThenBy(e => e.Position.DistanceToPlayer())
             .FirstOrDefault();
     }
 
@@ -180,9 +183,9 @@ internal class TargetBundle : IBundle
             return default;
 
         return entities
-            .OrderBy(m => m.Movement.Source.DistanceTo(Container.Bot.Area.Position))
-            .OrderBy(m => Bundles.Avoidance.PreferMonster(m.Rarity))
             .OrderByDescending(m => m.AttackingPlayer)
+            .ThenByDescending(m => Bundles.Avoidance.PreferMonster(m.Rarity))
+            .ThenBy(m => m.Movement.Source.DistanceToPlayer())
             .FirstOrDefault();
     }
 

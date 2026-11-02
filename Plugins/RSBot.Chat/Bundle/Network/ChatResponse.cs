@@ -97,7 +97,7 @@ internal class ChatResponse : IPacketHandler
             {
                 string rawValue = match.Groups[1].Value;
 
-                if (uint.TryParse(rawValue, out uint uid))
+                if (ulong.TryParse(rawValue, out ulong uid))
                 {
                     if (Bundle.Chat.LinkedItems.TryGetValue(uid, out var data) && data.itemName != null)
                     {

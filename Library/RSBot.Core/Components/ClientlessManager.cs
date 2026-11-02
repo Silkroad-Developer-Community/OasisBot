@@ -1,4 +1,5 @@
 ﻿using System;
+using System.Threading;
 using System.Threading.Tasks;
 using RSBot.Core.Event;
 using RSBot.Core.Network;
@@ -7,6 +8,8 @@ namespace RSBot.Core.Components;
 
 public class ClientlessManager
 {
+    private static int _keepAliveGeneration;
+
     /// <summary>
     ///     Optional regional authentication handler provided by the host plugin.
     ///     Returns <c>true</c> if authentication succeeded (or is not required).
@@ -38,12 +41,31 @@ public class ClientlessManager
     /// </summary>
     public static void GoClientless()
     {
-        if (Kernel.Proxy.Client != null)
-            Kernel.Proxy.Client.Shutdown();
+        TryGoClientless();
+    }
 
-        Game.Clientless = true;
+    public static bool TryGoClientless()
+    {
+        if (Game.Clientless)
+            return true;
+        if (Game.ClientType == GameClientType.VTC_Game)
+        {
+            if (Kernel.Proxy == null)
+                return false;
+            if (!Kernel.Proxy.TrySwitchToClientless(out var error))
+            {
+                Log.Warn(error);
+                return false;
+            }
+        }
+        else
+        {
+            Kernel.Proxy.Client?.Shutdown();
+            Game.Clientless = true;
+        }
 
         KeepAlivePacketWorker();
+        return true;
     }
 
     /// <summary>
@@ -98,11 +120,25 @@ public class ClientlessManager
     /// </summary>
     private static async void KeepAlivePacketWorker()
     {
-        while (Kernel.Proxy.IsConnectedToAgentserver)
+        var proxy = Kernel.Proxy;
+        var generation = Interlocked.Increment(ref _keepAliveGeneration);
+        while (
+            ReferenceEquals(Kernel.Proxy, proxy)
+            && proxy != null
+            && Game.Clientless
+            && proxy.IsConnectedToAgentserver
+            && generation == Volatile.Read(ref _keepAliveGeneration)
+        )
         {
             await Task.Delay(10000);
-
-            PacketManager.SendPacket(new Packet(0x2002), PacketDestination.Server);
+            if (
+                !ReferenceEquals(Kernel.Proxy, proxy)
+                || !Game.Clientless
+                || !proxy.IsConnectedToAgentserver
+                || generation != Volatile.Read(ref _keepAliveGeneration)
+            )
+                return;
+            PacketManager.SendPacket(new Packet(0x2002), PacketDestination.Server, proxy);
         }
     }
 }

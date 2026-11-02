@@ -1,6 +1,3 @@
-﻿using System.Threading;
-using System.Threading.Tasks;
-using System.Windows.Forms;
 using RSBot.Core;
 using RSBot.Core.Network;
 using RSBot.General.Components;
@@ -35,9 +32,7 @@ internal class GatewayLoginResponse : IPacketHandler
         if (packet.ReadByte() == 0x01)
         {
             Log.NotifyLang("AuthGetewaySuccess");
-            AutoLogin.Pending = false;
-            View.PendingWindow?.Hide();
-            View.PendingWindow?.StopClientlessQueueTask();
+            View.PendingWindow?.End();
 
             if (Game.ClientType == GameClientType.Japanese)
             {
@@ -101,14 +96,7 @@ internal class GatewayLoginResponse : IPacketHandler
                 var count = packet.ReadUShort();
                 var timestamp = packet.ReadInt();
 
-                Task.Factory.StartNew(() =>
-                {
-                    SynchronizationContext.SetSynchronizationContext(new WindowsFormsSynchronizationContext());
-
-                    View.PendingWindow.Start(count, timestamp);
-                    if (!GlobalConfig.Profile.Bot.AutoHidePendingWindow)
-                        View.PendingWindow.ShowAtTop(View.Instance);
-                });
+                View.PendingWindow.Start(count, timestamp);
 
                 break;
 

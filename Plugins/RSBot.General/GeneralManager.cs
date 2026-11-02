@@ -1,4 +1,4 @@
-﻿using System.IO;
+using System.IO;
 using System.Threading;
 using System.Threading.Tasks;
 using RSBot.Core;
@@ -44,6 +44,8 @@ namespace RSBot.General
         private void OnAgentServerConnected()
         {
             Interlocked.Increment(ref _reloginSeq);
+            AutoLogin.Pending = false;
+            EventManager.FireEvent("OnAutoLoginAborted");
         }
 
         private async void OnAgentServerDisconnected()
@@ -189,7 +191,8 @@ namespace RSBot.General
                 if (!Kernel.Proxy.IsConnectedToAgentserver)
                     return;
 
-                ClientlessManager.GoClientless();
+                if (!ClientlessManager.TryGoClientless())
+                    return;
 
                 EventManager.FireEvent("OnSwitchToClientless");
 
@@ -230,7 +233,8 @@ namespace RSBot.General
             if (Game.Clientless)
                 return;
 
-            ClientlessManager.GoClientless();
+            if (!ClientlessManager.TryGoClientless())
+                return;
             ClientManager.Kill();
 
             EventManager.FireEvent("OnSwitchToClientless");
@@ -240,17 +244,32 @@ namespace RSBot.General
         {
             await Task.Run(async () =>
             {
-                if (!Game.Clientless)
+                if (Game.Clientless)
+                    return;
+
+                var started = false;
+                Game.Clientless = true;
+                try
                 {
-                    Game.Clientless = true;
                     Log.StatusLang("StartingClientless");
                     EventManager.FireEvent("OnClientlessProcessStarted");
 
                     var userAuthenticated = await HandleRegionalAuth();
-
-                    if (userAuthenticated)
+                    if (!userAuthenticated)
                     {
-                        Game.Start();
+                        Log.Warn("Regional auth failed!");
+                        return;
+                    }
+
+                    Game.Start();
+                    started = true;
+                }
+                finally
+                {
+                    if (!started)
+                    {
+                        Game.Clientless = false;
+                        EventManager.FireEvent("OnClientDisconnected");
                     }
                 }
             });
@@ -258,13 +277,14 @@ namespace RSBot.General
 
         public static async Task DisconnectAsync()
         {
+            var proxy = Kernel.Proxy;
             await Task.Run(() =>
             {
                 Game.Clientless = false;
-
+                AutoLogin.Pending = false;
+                EventManager.FireEvent("OnAutoLoginAborted");
                 EventManager.FireEvent("OnAutoReloginOngoing");
-
-                Kernel.Proxy.Shutdown();
+                proxy?.Shutdown();
             });
         }
 

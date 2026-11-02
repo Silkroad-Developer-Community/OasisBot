@@ -1,4 +1,4 @@
-﻿using System;
+using System;
 using System.Drawing;
 using System.Text;
 using System.Threading;
@@ -31,6 +31,11 @@ public partial class PendingWindow : UIWindowBase
     /// </summary>
     private CancellationTokenSource _clientlessQueueTaskTokenSource;
 
+    private readonly object _pendingLock = new();
+
+    // Each transition invalidates UI callbacks posted by an older queue state.
+    private int _pendingGeneration;
+
     public PendingWindow()
     {
         InitializeComponent();
@@ -59,42 +64,133 @@ public partial class PendingWindow : UIWindowBase
         var timestamp = packet.ReadInt();
         var begin = packet.ReadUShort();
 
-        Log.StatusLang("PendingQueue", Serverlist.Joining?.Name, begin, end);
-        labelPending.Text = $"{begin} / {end}";
-        PrintTime(labelAvgWaitingTime, timestamp);
-        LogPending(begin, end);
-
-        if (GlobalConfig.Profile.Bot.EnableQueueNotification)
+        var proxy = Kernel.Proxy;
+        int generation;
+        lock (_pendingLock)
+            generation = _pendingGeneration;
+        RunOnUi(() =>
         {
-            var queue = GlobalConfig.Profile.Bot.QueueLeft;
-            if (begin <= queue && _queueNotifyIndex == 0)
+            lock (_pendingLock)
             {
-                notifyIcon.Visible = true;
-                notifyIcon.BalloonTipTitle = "Pending Queue Notification";
-                notifyIcon.BalloonTipText = $"{begin} / {end}";
-                notifyIcon.ShowBalloonTip(2000);
-            }
+                if (
+                    generation != _pendingGeneration
+                    || !AutoLogin.Pending
+                    || !ReferenceEquals(Kernel.Proxy, proxy)
+                    || proxy == null
+                    || proxy.IsConnectedToAgentserver
+                )
+                    return;
+                Log.StatusLang("PendingQueue", Serverlist.Joining?.Name, begin, end);
+                labelPending.Text = $"{begin} / {end}";
+                PrintTime(labelAvgWaitingTime, timestamp);
+                LogPending(begin, end);
 
-            if (++_queueNotifyIndex > 3)
-                _queueNotifyIndex = 0;
-        }
+                if (GlobalConfig.Profile.Bot.EnableQueueNotification)
+                {
+                    var queue = GlobalConfig.Profile.Bot.QueueLeft;
+                    if (begin <= queue && _queueNotifyIndex == 0)
+                    {
+                        notifyIcon.Visible = true;
+                        notifyIcon.BalloonTipTitle = "Pending Queue Notification";
+                        notifyIcon.BalloonTipText = $"{begin} / {end}";
+                        notifyIcon.ShowBalloonTip(2000);
+                    }
+
+                    if (++_queueNotifyIndex > 3)
+                        _queueNotifyIndex = 0;
+                }
+            }
+        });
     }
 
+    private static void RunOnUi(Action action)
+    {
+        var view = View.Instance;
+        if (view.IsDisposed || view.Disposing)
+            return;
+        if (view.InvokeRequired)
+        {
+            try
+            {
+                view.BeginInvoke(action);
+            }
+            catch (InvalidOperationException) when (view.IsDisposed || view.Disposing || !view.IsHandleCreated) { }
+        }
+        else
+            action();
+    }
+
+    /// <summary>
+    ///     Clears queue state immediately and hides its UI unless a new queue has started.
+    /// </summary>
+    internal void End()
+    {
+        int generation;
+        lock (_pendingLock)
+        {
+            generation = ++_pendingGeneration;
+            AutoLogin.Pending = false;
+            StopClientlessQueueTask();
+        }
+        RunOnUi(() =>
+        {
+            lock (_pendingLock)
+            {
+                if (generation != _pendingGeneration)
+                    return;
+                Hide();
+                notifyIcon.Visible = false;
+                Log.StatusLang("Ready");
+            }
+        });
+    }
+
+    /// <summary>
+    ///     Publishes queue state and schedules UI updates that can be invalidated by End().
+    /// </summary>
     internal void Start(int count, int timestamp)
     {
-        AutoLogin.Pending = true;
-        _startedTick = Kernel.TickCount;
+        var proxy = Kernel.Proxy;
+        int generation;
+        lock (_pendingLock)
+        {
+            if (!IsCurrentGatewaySession(proxy))
+                return;
 
-        Log.StatusLang("PendingQueue", Serverlist.Joining?.Name, count, count);
+            generation = ++_pendingGeneration;
+            AutoLogin.Pending = true;
+            StopClientlessQueueTask();
+        }
+        RunOnUi(() =>
+        {
+            lock (_pendingLock)
+            {
+                if (generation != _pendingGeneration || !IsCurrentGatewaySession(proxy))
+                    return;
 
-        labelPending.Text = $"{count} / {count}";
-        labelServerName.Text = labelServerName.Text.Replace("{SERVER}", Serverlist.Joining?.Name);
+                _startedTick = Kernel.TickCount;
+                _queueNotifyIndex = 0;
+                Log.StatusLang("PendingQueue", Serverlist.Joining?.Name, count, count);
 
-        PrintTime(labelAvgWaitingTime, timestamp);
-        LogPending(count, count);
+                labelPending.Text = $"{count} / {count}";
+                labelServerName.Text = labelServerName.Text.Replace("{SERVER}", Serverlist.Joining?.Name);
 
-        StartClientlessQueueTask();
+                PrintTime(labelAvgWaitingTime, timestamp);
+                LogPending(count, count);
+
+                StartClientlessQueueTask();
+                if (!GlobalConfig.Get<bool>("RSBot.General.AutoHidePendingWindow") && !Visible)
+                    ShowAtTop(View.Instance);
+            }
+        });
     }
+
+    private static bool IsCurrentGatewaySession(Proxy proxy) =>
+        proxy != null
+        && ReferenceEquals(Kernel.Proxy, proxy)
+        && proxy.IsConnectedToGatewayserver
+        && !proxy.IsConnectedToAgentserver
+        && !proxy.IsSwitchingToAgentserver;
 
     private void StartClientlessQueueTask()
     {
@@ -103,15 +199,25 @@ public partial class PendingWindow : UIWindowBase
         if (!Game.Clientless)
             return;
 
-        _clientlessQueueTaskTokenSource = new CancellationTokenSource();
-        var token = _clientlessQueueTaskTokenSource.Token;
+        var source = new CancellationTokenSource();
+        var token = source.Token;
+
+        Interlocked.Exchange(ref _clientlessQueueTaskTokenSource, source);
+        var proxy = Kernel.Proxy;
 
         Task.Run(
             async () =>
             {
                 try
                 {
-                    while (!token.IsCancellationRequested)
+                    while (
+                        !token.IsCancellationRequested
+                        && Game.Clientless
+                        && AutoLogin.Pending
+                        && ReferenceEquals(Kernel.Proxy, proxy)
+                        && proxy != null
+                        && !proxy.IsConnectedToAgentserver
+                    )
                     {
                         ClientlessManager.RequestServerList();
 
@@ -133,26 +239,26 @@ public partial class PendingWindow : UIWindowBase
 
     internal void StopClientlessQueueTask()
     {
-        if (_clientlessQueueTaskTokenSource != null)
-        {
-            _clientlessQueueTaskTokenSource.Cancel();
-            _clientlessQueueTaskTokenSource.Dispose();
-            _clientlessQueueTaskTokenSource = null;
-        }
+        var source = Interlocked.Exchange(ref _clientlessQueueTaskTokenSource, null);
+        if (source == null)
+            return;
+        source.Cancel();
+        source.Dispose();
     }
 
     private void OnClock()
     {
-        if (!AutoLogin.Pending || !Visible)
+        if (!AutoLogin.Pending)
             return;
-
-        PrintTime(labelMyWaitingTime, Kernel.TickCount - _startedTick);
+        RunOnUi(() =>
+        {
+            if (AutoLogin.Pending && Visible)
+                PrintTime(labelMyWaitingTime, Kernel.TickCount - _startedTick);
+        });
     }
 
     private void PrintTime(Label label, int millisecond)
     {
-        //label.RunInUIThread(() =>
-        //{
         var text = new StringBuilder();
 
         var translatedHours = LanguageManager.GetLang("Xhours");
@@ -170,7 +276,6 @@ public partial class PendingWindow : UIWindowBase
             text.AppendFormat(translatedSeconds, timespan.Seconds);
 
         label.Text = text.ToString();
-        //});
     }
 
     private void LogPending(int count, int count2)

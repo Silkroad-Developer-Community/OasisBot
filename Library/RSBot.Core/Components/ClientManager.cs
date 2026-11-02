@@ -1,4 +1,4 @@
-﻿using System;
+using System;
 using System.Diagnostics;
 using System.Globalization;
 using System.IO;
@@ -39,8 +39,37 @@ public class ClientManager
     /// <returns>Has successfully started <c>true</c>; otherwise <c>false</c></returns>
     public static async Task<bool> Start()
     {
-        var silkroadDirectory = GlobalConfig.Profile.SilkroadDirectory;
-        var path = Path.Combine(silkroadDirectory, GlobalConfig.Profile.SilkroadExecutable);
+        var sessionProxy = Kernel.Proxy;
+        VtcClientLayout vtcLayout = null;
+        if (Game.ClientType == GameClientType.VTC_Game)
+        {
+            try
+            {
+                if (sessionProxy == null)
+                    return false;
+                vtcLayout = await sessionProxy.WaitForVtcProtectionAsync().ConfigureAwait(false);
+            }
+            catch (Exception error)
+            {
+                Log.Error("VTC game startup: " + error.Message);
+                return false;
+            }
+        }
+        var silkroadDirectory = GlobalConfig.Get<string>("RSBot.SilkroadDirectory");
+        var path = Path.Combine(silkroadDirectory, GlobalConfig.Get<string>("RSBot.SilkroadExecutable"));
+        if (vtcLayout != null)
+        {
+            try
+            {
+                vtcLayout.ValidateForGame(path);
+            }
+            catch (Exception error)
+            {
+                Log.Error(error.Message);
+                sessionProxy?.Shutdown();
+                return false;
+            }
+        }
 
         string libraryDllName = "Client.Library.dll";
         string fullPath = Path.Combine(Kernel.BasePath, libraryDllName);
@@ -72,6 +101,19 @@ public class ClientManager
             args = $"-LOGIN:{login} -PASSWORD:{password}";
         }
 
+        if (specialClient)
+        {
+            try
+            {
+                ClientLoaderFile.Ensure(fullPath, Path.Combine(silkroadDirectory, "dsound.dll"));
+            }
+            catch (Exception error) when (error is IOException || error is UnauthorizedAccessException)
+            {
+                Log.Error("Could not prepare client loader: " + error.Message);
+                return false;
+            }
+        }
+
         if (
             !CreateProcess(
                 null,
@@ -79,7 +121,7 @@ public class ClientManager
                 IntPtr.Zero,
                 IntPtr.Zero,
                 false,
-                CREATE_SUSPENDED,
+                vtcLayout != null ? VtcClientStartup.DebugOnlyThisProcess : CREATE_SUSPENDED,
                 IntPtr.Zero,
                 silkroadDirectory,
                 ref si,
@@ -88,34 +130,40 @@ public class ClientManager
         )
             return false;
 
+        using var vtcStartup = vtcLayout != null ? new VtcClientStartup(pi) : null;
         PrepareTempConfigFile(pi.dwProcessId, divisionIndex);
 
         if (specialClient)
         {
-            try
-            {
-                File.Copy(
-                    Path.Combine(Kernel.BasePath, libraryDllName),
-                    Path.Combine(silkroadDirectory, "dsound.dll"),
-                    true
-                );
-            }
-            catch (UnauthorizedAccessException)
-            {
-                Log.Error("Run as administrator!");
-            }
-            catch (IOException)
-            {
-                Log.Debug("DLL is using, can't replace");
-            }
-
             Process sroProcess = Process.GetProcessById((int)pi.dwProcessId);
 
-            if (
-                Game.ClientType == GameClientType.VTC_Game
-                || Game.ClientType == GameClientType.Turkey
-                || Game.ClientType == GameClientType.Taiwan
-            )
+            if (Game.ClientType == GameClientType.VTC_Game)
+            {
+                string error;
+                if (
+                    !vtcStartup.TryPrepare(sroProcess, vtcLayout, out error)
+                    || !VtcXigncodeDisablePatch.TryInstall(sroProcess, pi.hProcess, vtcLayout, out error)
+                    || !VtcGatewayRedirectPatch.TryInstall(
+                        sroProcess,
+                        pi.hProcess,
+                        vtcLayout,
+                        Game.ReferenceManager.DivisionInfo.Divisions[divisionIndex].GatewayServers,
+                        Game.ReferenceManager.GatewayInfo.Port,
+                        sessionProxy.Port,
+                        out error
+                    )
+                )
+                {
+                    Log.Error(error);
+
+                    vtcStartup.Dispose();
+                    sessionProxy?.Shutdown();
+                    return false;
+                }
+
+                Log.Debug("VTC: game XIGNCODE disabled; the session host owns initialization and Probe commands.");
+            }
+            else if (Game.ClientType == GameClientType.Turkey || Game.ClientType == GameClientType.Taiwan)
             {
                 WaitForXigncodeUnpack(sroProcess, pi.hThread);
                 ApplyXigncodePatch(sroProcess, pi);
@@ -129,7 +177,18 @@ public class ClientManager
 
             BypassLauncherCheck(sroProcess, pi);
 
-            ResumeThread(pi.hThread);
+            if (vtcStartup != null)
+            {
+                if (!vtcStartup.TryResume(out var error))
+                {
+                    Log.Error(error);
+                    vtcStartup.Dispose();
+                    sessionProxy?.Shutdown();
+                    return false;
+                }
+            }
+            else
+                ResumeThread(pi.hThread);
 
             _process = sroProcess;
         }
