@@ -1,4 +1,4 @@
-﻿using System;
+using System;
 using System.Collections.Generic;
 using System.ComponentModel;
 using System.Diagnostics;
@@ -23,6 +23,7 @@ public class ReferenceManager
     public Dictionary<string, RefText> TextData { get; } = new(70000);
     public Dictionary<uint, RefObjChar> CharacterData { get; } = new(20000);
     public Dictionary<uint, RefObjItem> ItemData { get; } = new(30000);
+    public Dictionary<ushort, RefRegionCode> RegionCodes { get; } = new(4096);
     public Dictionary<byte, RefLevel> LevelData { get; } = new(150);
     public Dictionary<uint, RefQuest> QuestData { get; } = new(2048);
     public Dictionary<uint, RefSkill> SkillData { get; } = new(40000);
@@ -135,7 +136,19 @@ public class ReferenceManager
     private void LoadMapInfo()
     {
         RegionInfoManager.Load();
+        LoadRegionCodes();
         NavMeshManager.Initialize(Game.DataPk2);
+    }
+
+    private void LoadRegionCodes()
+    {
+        var regions = new List<RefRegionCode>(4096);
+        LoadReferenceFile($"{ServerDep}\\regioncode.txt", regions);
+
+        RegionCodes.Clear();
+        // The client keeps the first active entry when region IDs are duplicated.
+        foreach (var region in regions)
+            RegionCodes.TryAdd(region.RegionID, region);
     }
 
     private void LoadLevelData()
@@ -481,6 +494,14 @@ public class ReferenceManager
 
         if (ItemData.TryGetValue(refObjID, out var refItem))
             return refItem;
+
+        return null;
+    }
+
+    public RefRegionCode GetRefRegionCode(ushort regionId)
+    {
+        if (RegionCodes.TryGetValue(regionId, out var region))
+            return region;
 
         return null;
     }
@@ -857,6 +878,7 @@ public class ReferenceManager
         builder.AppendFormat("TextData: {0}\n", TextData.Count);
         builder.AppendFormat("CharacterData: {0}\n", CharacterData.Count);
         builder.AppendFormat("ItemData: {0}\n", ItemData.Count);
+        builder.AppendFormat("RegionCodes: {0}\n", RegionCodes.Count);
         builder.AppendFormat("SkillData: {0}\n", SkillData.Count);
         builder.AppendFormat("SkillMasteryData: {0}\n", SkillMasteryData.Count);
         builder.AppendFormat("QuestData: {0}\n", QuestData.Count);

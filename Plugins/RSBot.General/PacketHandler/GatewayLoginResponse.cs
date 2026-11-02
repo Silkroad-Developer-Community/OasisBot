@@ -44,12 +44,12 @@ internal class GatewayLoginResponse : IPacketHandler
                 packet.ReadUInt(); //Token
                 packet.ReadString(); //IP
                 packet.ReadUShort(); //Port
-                GlobalConfig.Set("RSBot.JSRO.login", packet.ReadString()); //Login
+                GlobalConfig.Profile.Jsro.Login = packet.ReadString(); //Login
                 packet.ReadByte(); //Channel
             }
 
             var selectedAccount = Accounts.SavedAccounts?.Find(p =>
-                p.Username == GlobalConfig.Get<string>("RSBot.General.AutoLoginAccountUsername")
+                p.Username == GlobalConfig.Profile.Bot.AutoLoginAccountUsername
             );
 
             if (Game.ClientType == GameClientType.Global && selectedAccount.Channel == 0x02)
@@ -58,8 +58,10 @@ internal class GatewayLoginResponse : IPacketHandler
                 packet.ReadString(); //IP
                 packet.ReadUShort(); //Port
                 packet.ReadByte(); //Channel
-                GlobalConfig.Set("RSBot.JCPlanet.login", packet.ReadString()); //Login
+                GlobalConfig.Profile.JcPlanet.Login = packet.ReadString(); //Login
             }
+
+            GlobalConfig.Save();
 
             return;
         }
@@ -104,7 +106,7 @@ internal class GatewayLoginResponse : IPacketHandler
                     SynchronizationContext.SetSynchronizationContext(new WindowsFormsSynchronizationContext());
 
                     View.PendingWindow.Start(count, timestamp);
-                    if (!GlobalConfig.Get<bool>("RSBot.General.AutoHidePendingWindow"))
+                    if (!GlobalConfig.Profile.Bot.AutoHidePendingWindow)
                         View.PendingWindow.ShowAtTop(View.Instance);
                 });
 

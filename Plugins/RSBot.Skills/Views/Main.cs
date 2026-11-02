@@ -1,7 +1,3 @@
-using System;
-using System.ComponentModel;
-using System.Linq;
-using System.Windows.Forms;
 using RSBot.Core;
 using RSBot.Core.Client.ReferenceObjects;
 using RSBot.Core.Components;
@@ -10,6 +6,11 @@ using RSBot.Core.Extensions;
 using RSBot.Core.Objects;
 using RSBot.Core.Objects.Skill;
 using SDUI.Controls;
+using System;
+using System.ComponentModel;
+using System.Linq;
+using System.Windows.Forms;
+using static System.Windows.Forms.VisualStyles.VisualStyleElement.Button;
 using CheckBox = SDUI.Controls.CheckBox;
 using ListViewExtensions = RSBot.Core.Extensions.ListViewExtensions;
 
@@ -107,62 +108,231 @@ public partial class Main : DoubleBufferedControl
     /// </summary>
     private void LoadSettings()
     {
-        const string key = "RSBot.Skills.";
-
         foreach (var checkbox in panelPlayerSkills.Controls.OfType<CheckBox>())
-            checkbox.Checked = PlayerConfig.Get(key + checkbox.Name, checkbox.Checked);
+        {
+            switch (checkbox.Name)
+            {
+                case "checkHideLowerLevelSkills":
+                    checkbox.Checked = PlayerConfig.Profile.Skills.HideLowerLevelSkills;
+                    break;
+                case "checkShowAttacks":
+                    checkbox.Checked = PlayerConfig.Profile.Skills.ShowAttacks;
+                    break;
+                case "checkShowBuffs":
+                    checkbox.Checked = PlayerConfig.Profile.Skills.ShowBuffs;
+                    break;
+            }
+        }
 
         foreach (var checkbox in groupBoxAttackingSkills.Controls.OfType<CheckBox>())
-            checkbox.Checked = PlayerConfig.Get(key + checkbox.Name, checkbox.Checked);
+        {
+            switch (checkbox.Name)
+            {
+                case "checkUseSkillsInOrder":
+                    checkbox.Checked = PlayerConfig.Profile.Skills.UseSkillsInOrder;
+                    break;
+                case "checkBoxNoAttack":
+                    checkbox.Checked = PlayerConfig.Profile.Skills.DoNotAttack;
+                    break;
+            }
+        }
 
         foreach (var checkbox in groupBoxAutomatedResurrection.Controls.OfType<CheckBox>())
-            checkbox.Checked = PlayerConfig.Get(key + checkbox.Name, checkbox.Checked);
+        {
+            switch (checkbox.Name)
+            {
+                case "checkAcceptResurrection":
+                    checkbox.Checked = PlayerConfig.Profile.Skills.AcceptResurrection;
+                    break;
+                case "checkResurrectParty":
+                    checkbox.Checked = PlayerConfig.Profile.Skills.ResurrectPartyMembers;
+                    break;
+            }
+        }
 
         foreach (var checkbox in groupBoxAdvancedBuff.Controls.OfType<CheckBox>())
-            checkbox.Checked = PlayerConfig.Get(key + checkbox.Name, checkbox.Checked);
+        {
+            switch (checkbox.Name)
+            {
+                case "checkCastBuffsBetweenAttacks":
+                    checkbox.Checked = PlayerConfig.Profile.Skills.CastBuffsBetweenAttacks;
+                    break;
+                case "checkCastBuffsDuringWalkBack":
+                    checkbox.Checked = PlayerConfig.Profile.Skills.CastBuffsDuringWalkBack;
+                    break;
+                case "checkCastBuffsInTowns":
+                    checkbox.Checked = PlayerConfig.Profile.Skills.CastBuffsInTowns;
+                    break;
+            }
+        }
 
         foreach (var checkbox in grpMasteryUpdate.Controls.OfType<CheckBox>())
-            checkbox.Checked = PlayerConfig.Get(key + checkbox.Name, checkbox.Checked);
+        {
+            switch (checkbox.Name)
+            {
+                case "checkLearnMastery":
+                    checkbox.Checked = PlayerConfig.Profile.Skills.AutoLearnMastery;
+                    break;
+                case "checkLearnMasteryBotStopped":
+                    checkbox.Checked = PlayerConfig.Profile.Skills.LearnMasteryWhenBotStopped;
+                    break;
+            }
+        }
 
         foreach (var num in grpMasteryUpdate.Controls.OfType<NumUpDown>())
-            num.Value = PlayerConfig.Get(key + num.Name, num.Value);
+        {
+            switch (num.Name)
+            {
+                case "numMasteryGap":
+                    num.Value = (decimal)PlayerConfig.Profile.Skills.MasteryGap;
+                    break;
+            }
+        }
 
         foreach (var num in groupBoxAutomatedResurrection.Controls.OfType<NumUpDown>())
-            num.Value = PlayerConfig.Get(key + num.Name, num.Value);
+        {
+            switch (num.Name)
+            {
+                case "numResRadius":
+                    num.Value = (decimal)PlayerConfig.Profile.Skills.ResRadius;
+                    break;
+                case "numResDelay":
+                    num.Value = (decimal)PlayerConfig.Profile.Skills.ResDelaySeconds;
+                    break;
+            }
+        }
 
         foreach (var checkbox in groupAdvancedSetup.Controls.OfType<CheckBox>())
-            checkbox.Checked = PlayerConfig.Get(key + checkbox.Name, checkbox.Checked);
+        {
+            switch (checkbox.Name)
+            {
+                case "checkUseTeleportSkill":
+                    checkbox.Checked = PlayerConfig.Profile.Skills.UseTeleportSkill;
+                    break;
+                case "checkWarlockMode":
+                    checkbox.Checked = PlayerConfig.Profile.Skills.WarlockMode;
+                    break;
+                case "checkUseDefaultAttack":
+                    checkbox.Checked = PlayerConfig.Profile.Skills.UseDefaultAttack;
+                    break;
+            }
+        }
     }
 
     /// <summary>
     ///     Saves the settings.
     /// </summary>
     private void ApplySettings()
-    {
-        const string key = "RSBot.Skills.";
+    {       
         foreach (var checkbox in panelPlayerSkills.Controls.OfType<CheckBox>())
-            PlayerConfig.Set(key + checkbox.Name, checkbox.Checked);
+        {
+            switch (checkbox.Name)
+            {
+                case "checkHideLowerLevelSkills":
+                    PlayerConfig.Profile.Skills.HideLowerLevelSkills = checkbox.Checked;
+                    break;
+                case "checkShowAttacks":
+                    PlayerConfig.Profile.Skills.ShowAttacks = checkbox.Checked;
+                    break;
+                case "checkShowBuffs":
+                    PlayerConfig.Profile.Skills.ShowBuffs = checkbox.Checked;
+                    break;
+            }
+        }
 
         foreach (var checkbox in groupBoxAttackingSkills.Controls.OfType<CheckBox>())
-            PlayerConfig.Set(key + checkbox.Name, checkbox.Checked);
+        {
+            switch (checkbox.Name)
+            {
+                case "checkUseSkillsInOrder":
+                    PlayerConfig.Profile.Skills.UseSkillsInOrder = checkbox.Checked;
+                    break;
+                case "checkBoxNoAttack":
+                    PlayerConfig.Profile.Skills.DoNotAttack = checkbox.Checked;
+                    break;
+            }
+        }
 
         foreach (var checkbox in groupBoxAutomatedResurrection.Controls.OfType<CheckBox>())
-            PlayerConfig.Set(key + checkbox.Name, checkbox.Checked);
+        {
+            switch(checkbox.Name)
+            {
+                case "checkAcceptResurrection":
+                    PlayerConfig.Profile.Skills.AcceptResurrection = checkbox.Checked;
+                    break;
+                case "checkResurrectParty":
+                    PlayerConfig.Profile.Skills.ResurrectPartyMembers = checkbox.Checked;
+                    break;
+            }
+        }
 
         foreach (var checkbox in groupBoxAdvancedBuff.Controls.OfType<CheckBox>())
-            PlayerConfig.Set(key + checkbox.Name, checkbox.Checked);
+        {
+            switch (checkbox.Name)
+            {
+                case "checkCastBuffsBetweenAttacks":
+                    PlayerConfig.Profile.Skills.CastBuffsBetweenAttacks = checkbox.Checked;
+                    break;
+                case "checkCastBuffsDuringWalkBack":
+                    PlayerConfig.Profile.Skills.CastBuffsDuringWalkBack = checkbox.Checked;
+                    break;
+                case "checkCastBuffsInTowns":
+                    PlayerConfig.Profile.Skills.CastBuffsInTowns = checkbox.Checked;
+                    break;
+            }
+        }
 
         foreach (var checkbox in grpMasteryUpdate.Controls.OfType<CheckBox>())
-            PlayerConfig.Set(key + checkbox.Name, checkbox.Checked);
+        {
+            switch (checkbox.Name)
+            {
+                case "checkLearnMastery":
+                    PlayerConfig.Profile.Skills.AutoLearnMastery = checkbox.Checked;
+                    break;
+                case "checkLearnMasteryBotStopped":
+                    PlayerConfig.Profile.Skills.LearnMasteryWhenBotStopped = checkbox.Checked;
+                    break;
+            }
+        }
 
         foreach (var num in grpMasteryUpdate.Controls.OfType<NumUpDown>())
-            PlayerConfig.Set(key + num.Name, num.Value);
+        {
+            switch (num.Name)
+            {
+                case "numMasteryGap":
+                    PlayerConfig.Profile.Skills.MasteryGap = (int)num.Value;
+                    break;
+            }
+        }
 
         foreach (var num in groupBoxAutomatedResurrection.Controls.OfType<NumUpDown>())
-            PlayerConfig.Set(key + num.Name, num.Value);
+        {
+            switch (num.Name)
+            {
+                case "numResRadius":
+                    PlayerConfig.Profile.Skills.ResRadius = (ushort)num.Value;
+                    break;
+                case "numResDelay":
+                    PlayerConfig.Profile.Skills.ResDelaySeconds = (ushort)num.Value;
+                    break;
+            }
+        }
 
         foreach (var checkbox in groupAdvancedSetup.Controls.OfType<CheckBox>())
-            PlayerConfig.Set(key + checkbox.Name, checkbox.Checked);
+        {
+            switch (checkbox.Name)
+            {
+                case "checkUseTeleportSkill":
+                    PlayerConfig.Profile.Skills.UseTeleportSkill = checkbox.Checked;
+                    break;
+                case "checkWarlockMode":
+                    PlayerConfig.Profile.Skills.WarlockMode = checkbox.Checked;
+                    break;
+                case "checkUseDefaultAttack":
+                    PlayerConfig.Profile.Skills.UseDefaultAttack = checkbox.Checked;
+                    break;
+            }
+        }
     }
 
     /// <summary>
@@ -192,7 +362,7 @@ public partial class Main : DoubleBufferedControl
     /// </summary>
     private void LoadMasteries()
     {
-        var selectedMastery = PlayerConfig.Get<string>("RSBot.Skills.selectedMastery");
+        var selectedMastery = PlayerConfig.Profile.Skills.SelectedMastery;
         comboLearnMastery.BeginUpdate();
         comboLearnMastery.Items.Clear();
 
@@ -216,7 +386,7 @@ public partial class Main : DoubleBufferedControl
         comboTeleportSkill.BeginUpdate();
         comboTeleportSkill.Items.Clear();
 
-        var selectedTeleportSkill = PlayerConfig.Get<uint>("RSBot.Skills.TeleportSkill");
+        var selectedTeleportSkill = PlayerConfig.Profile.Skills.TeleportSkillId;
         foreach (
             var skill in Game.Player.Skills.KnownSkills.Where(s =>
                 s.CanBeCasted && s.Record.Action_ActionDuration == 0 && s.Record.Params[2] == 500
@@ -248,7 +418,7 @@ public partial class Main : DoubleBufferedControl
             listAttackingSkills.BeginUpdate();
             listAttackingSkills.Items.Clear();
 
-            var skillArray = PlayerConfig.GetArray<uint>("RSBot.Skills.Attacks_" + index);
+            var skillArray = PlayerConfig.Profile.Skills.AttackSkillsByRarity[index];
             foreach (var skillId in skillArray)
             {
                 var skillInfo = Game.Player.Skills.GetSkillInfoById(skillId);
@@ -277,7 +447,7 @@ public partial class Main : DoubleBufferedControl
 
             Game.Player.TryGetAbilitySkills(out var abilitySkills);
 
-            var buffs = PlayerConfig.GetArray<uint>("RSBot.Skills.Buffs");
+            var buffs = PlayerConfig.Profile.Skills.BuffSkills;
             foreach (var buffId in buffs)
             {
                 var buffInfo = Game.Player.Skills.GetSkillInfoById(buffId);
@@ -308,7 +478,7 @@ public partial class Main : DoubleBufferedControl
         {
             comboImbue.Items.Clear();
 
-            var selectedImbue = PlayerConfig.Get<int>("RSBot.Skills.Imbue");
+            var selectedImbue = PlayerConfig.Profile.Skills.ImbueSkillId;
 
             comboImbue.SelectedIndex = comboImbue.Items.Add("None");
 
@@ -350,7 +520,7 @@ public partial class Main : DoubleBufferedControl
                     continue;
 
                 var index = comboResurrectionSkill.Items.Add(skill);
-                var resurrectionSkillId = PlayerConfig.Get<int>("RSBot.Skills.ResurrectionSkill");
+                var resurrectionSkillId = PlayerConfig.Profile.Skills.ResurrectionSkillId;
                 if (skill.Id == resurrectionSkillId)
                     comboResurrectionSkill.SelectedIndex = index;
             }

@@ -50,7 +50,7 @@ public class Server : NetBase
 
             try
             {
-                var bindIp = GlobalConfig.Get("RSBot.Network.BindIp", "0.0.0.0");
+                var bindIp = GlobalConfig.Profile.Bot.BindIp;
                 if (!string.IsNullOrWhiteSpace(bindIp) && bindIp != "0.0.0.0")
                     _socket.Bind(new IPEndPoint(IPAddress.Parse(bindIp), 0));
 

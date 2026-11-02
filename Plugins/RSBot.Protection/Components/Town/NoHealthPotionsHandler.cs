@@ -41,7 +41,7 @@ public class NoHealthPotionsHandler : AbstractTownHandler
 
     private static void CheckForHpPotions()
     {
-        if (!PlayerConfig.Get<bool>("RSBot.Protection.checkNoHPPotions"))
+        if (!PlayerConfig.Profile.Protection.CheckNoHpPotions)
             return;
 
         if (PlayerInTownScriptRegion())
@@ -53,7 +53,7 @@ public class NoHealthPotionsHandler : AbstractTownHandler
         var typeIdFilter = new TypeIdFilter(3, 3, 1, 1);
         if (
             Game.Player.Inventory.GetSumAmount(typeIdFilter)
-            > PlayerConfig.Get<int>("RSBot.Protection.numHPPotionsLeft")
+            > PlayerConfig.Profile.Protection.MinHpPotionsLeft
         )
             return;
 

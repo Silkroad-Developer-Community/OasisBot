@@ -44,9 +44,9 @@ internal class LootBundle : IBundle
     {
         Config = new LootConfig
         {
-            UseAbilityPet = PlayerConfig.Get("RSBot.Items.Pickup.EnableAbilityPet", true),
-            DontPickupWhileBotting = PlayerConfig.Get("RSBot.Items.Pickup.DontPickupWhileBotting", false),
-            DontPickupInBerzerk = PlayerConfig.Get("RSBot.Items.Pickup.DontPickupInBerzerk", true),
+            UseAbilityPet = PlayerConfig.Profile.Pickup.UseAbilityPet,
+            DontPickupWhileBotting = !PlayerConfig.Profile.Pickup.PickupWhileBotting,
+            DontPickupInBerzerk = !PlayerConfig.Profile.Pickup.PickupInBerzerk,
         };
     }
 

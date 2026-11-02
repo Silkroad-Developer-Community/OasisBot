@@ -198,7 +198,7 @@ public partial class Main : DoubleBufferedControl
         ShoppingManager.ShoppingList.Clear();
         foreach (ListViewGroup grp in listShoppingList.Groups)
         {
-            var values = new List<string>(grp.Items.Count);
+            var values = GetShoppingGroup(grp.Name);
 
             foreach (ListViewItem item in grp.Items)
             {
@@ -215,9 +215,8 @@ public partial class Main : DoubleBufferedControl
 
                 values.Add(packageItem.RefPackageItemCodeName + "|" + amount);
             }
-
-            PlayerConfig.SetArray("RSBot.Shopping." + grp.Name, values);
         }
+        PlayerConfig.Save();
     }
 
     /// <summary>
@@ -230,7 +229,9 @@ public partial class Main : DoubleBufferedControl
 
         foreach (ListViewGroup group in listShoppingList.Groups)
         {
-            var values = PlayerConfig.GetArray<string>("RSBot.Shopping." + group.Name);
+            var values = GetShoppingGroup(group.Name);
+            if (values == null)
+                continue;
 
             foreach (var value in values)
             {
@@ -591,21 +592,21 @@ public partial class Main : DoubleBufferedControl
 
         Invoke(() =>
         {
-            checkEnable.Checked = PlayerConfig.Get("RSBot.Shopping.Enabled", true);
-            checkRepairGear.Checked = PlayerConfig.Get("RSBot.Shopping.RepairGear", true);
-            checkSellItemsFromPet.Checked = PlayerConfig.Get("RSBot.Shopping.SellPetItems", true);
-            checkPickupGold.Checked = PlayerConfig.Get("RSBot.Items.Pickup.Gold", true);
-            checkPickupRare.Checked = PlayerConfig.Get("RSBot.Items.Pickup.Rare", true);
-            checkPickupBlue.Checked = PlayerConfig.Get("RSBot.Items.Pickup.Blue", true);
-            checkEnableAbilityPet.Checked = PlayerConfig.Get("RSBot.Items.Pickup.EnableAbilityPet", true);
-            checkStoreItemsFromPet.Checked = PlayerConfig.Get("RSBot.Shopping.StorePetItems", true);
-            checkDontPickupInBerzerk.Checked = PlayerConfig.Get("RSBot.Items.Pickup.DontPickupInBerzerk", true);
-            cbJustpickmyitems.Checked = PlayerConfig.Get("RSBot.Items.Pickup.JustPickMyItems", false);
-            cbDontPickupWhileBotting.Checked = PlayerConfig.Get<bool>("RSBot.Items.Pickup.DontPickupWhileBotting");
+            checkEnable.Checked = PlayerConfig.Profile.Shopping.Enabled;
+            checkRepairGear.Checked = PlayerConfig.Profile.Shopping.RepairGear;
+            checkSellItemsFromPet.Checked = PlayerConfig.Profile.Shopping.SellPetItems;
+            checkPickupGold.Checked = PlayerConfig.Profile.Pickup.PickupGold;
+            checkPickupRare.Checked = PlayerConfig.Profile.Pickup.PickupRareItems;
+            checkPickupBlue.Checked = PlayerConfig.Profile.Pickup.PickupBlueItems;
+            checkEnableAbilityPet.Checked = PlayerConfig.Profile.Inventory.PickupFilter.EnableAbilityPet;
+            checkStoreItemsFromPet.Checked = PlayerConfig.Profile.Shopping.StorePetItems;
+            checkDontPickupInBerzerk.Checked = PlayerConfig.Profile.Inventory.PickupFilter.DontPickupInBerzerk;
+            cbJustpickmyitems.Checked = PlayerConfig.Profile.Pickup.JustPickMyItems;
+            cbDontPickupWhileBotting.Checked = PlayerConfig.Profile.Inventory.PickupFilter.DontPickupWhileBotting;
 
-            checkQuestItems.Checked = PlayerConfig.Get<bool>("RSBot.Items.Pickup.Quest", true);
-            checkAllEquips.Checked = PlayerConfig.Get<bool>("RSBot.Items.Pickup.AnyEquips");
-            checkEverything.Checked = PlayerConfig.Get<bool>("RSBot.Items.Pickup.Everything");
+            checkQuestItems.Checked = PlayerConfig.Profile.Pickup.PickupQuestItems;
+            checkAllEquips.Checked = PlayerConfig.Profile.Pickup.PickupAnyEquips;
+            checkEverything.Checked = PlayerConfig.Profile.Pickup.PickupEverything;
 
             ShoppingManager.Enabled = checkEnable.Checked;
             ShoppingManager.RepairGear = checkRepairGear.Checked;
@@ -743,16 +744,18 @@ public partial class Main : DoubleBufferedControl
             return;
 
         ShoppingManager.RepairGear = checkRepairGear.Checked;
-        PlayerConfig.Set("RSBot.Shopping.RepairGear", checkRepairGear.Checked);
+        PlayerConfig.Profile.Shopping.RepairGear = checkRepairGear.Checked;
 
         ShoppingManager.Enabled = checkEnable.Checked;
-        PlayerConfig.Set("RSBot.Shopping.Enabled", checkEnable.Checked);
+        PlayerConfig.Profile.Shopping.Enabled = checkEnable.Checked;
 
-        PlayerConfig.Set("RSBot.Shopping.StorePetItems", checkSellItemsFromPet.Checked);
+        PlayerConfig.Profile.Shopping.StorePetItems = checkSellItemsFromPet.Checked;
         ShoppingManager.StorePetItems = checkStoreItemsFromPet.Checked;
 
-        PlayerConfig.Set("RSBot.Shopping.SellPetItems", checkSellItemsFromPet.Checked);
+        PlayerConfig.Profile.Shopping.SellPetItems = checkSellItemsFromPet.Checked;
         ShoppingManager.SellPetItems = checkSellItemsFromPet.Checked;
+
+        PlayerConfig.Save();
     }
 
     /// <summary>
@@ -764,6 +767,21 @@ public partial class Main : DoubleBufferedControl
     {
         PopulateProductList(comboStore.SelectedIndex, txtShopSearch.Text);
     }
+
+    /// <summary>
+    /// Returns the shopping group based on the group name.
+    /// <param name="groupName">The group name.</param>
+    /// </summary>
+    private List<string> GetShoppingGroup(string groupName) =>
+        groupName switch
+        {
+            "groupPotion" => PlayerConfig.Profile.Shopping.PotionGroup,
+            "groupStable" => PlayerConfig.Profile.Shopping.StableGroup,
+            "groupProtector" => PlayerConfig.Profile.Shopping.ProtectorGroup,
+            "groupWeapon" => PlayerConfig.Profile.Shopping.WeaponGroup,
+            "groupAccessory" => PlayerConfig.Profile.Shopping.AccessoryGroup,
+            _ => null,
+        };
 
     #endregion Shopping manager
 
@@ -930,17 +948,19 @@ public partial class Main : DoubleBufferedControl
         if (_loadingSettings)
             return;
 
-        PlayerConfig.Set("RSBot.Items.Pickup.Everything", checkEverything.Checked);
-        PlayerConfig.Set("RSBot.Items.Pickup.AnyEquips", checkAllEquips.Checked);
-        PlayerConfig.Set("RSBot.Items.Pickup.Quest", checkQuestItems.Checked);
-        PlayerConfig.Set("RSBot.Items.Pickup.DontPickupWhileAttacking", cbDontPickupWhileBotting.Checked);
-        PlayerConfig.Set("RSBot.Items.Pickup.DontPickupWhileBotting", cbDontPickupWhileBotting.Checked);
-        PlayerConfig.Set("RSBot.Items.Pickup.JustPickMyItems", cbJustpickmyitems.Checked);
-        PlayerConfig.Set("RSBot.Items.Pickup.DontPickupInBerzerk", checkDontPickupInBerzerk.Checked);
-        PlayerConfig.Set("RSBot.Items.Pickup.EnableAbilityPet", checkEnableAbilityPet.Checked);
-        PlayerConfig.Set("RSBot.Items.Pickup.Blue", checkPickupBlue.Checked);
-        PlayerConfig.Set("RSBot.Items.Pickup.Rare", checkPickupRare.Checked);
-        PlayerConfig.Set("RSBot.Items.Pickup.Gold", checkPickupGold.Checked);
+        PlayerConfig.Profile.Pickup.PickupEverything = checkEverything.Checked;
+        PlayerConfig.Profile.Pickup.PickupAnyEquips = checkAllEquips.Checked;
+        PlayerConfig.Profile.Pickup.PickupQuestItems = checkQuestItems.Checked;
+        PlayerConfig.Profile.Pickup.PickupWhileAttacking = !cbDontPickupWhileBotting.Checked;
+        PlayerConfig.Profile.Pickup.PickupWhileBotting = !cbDontPickupWhileBotting.Checked;
+        PlayerConfig.Profile.Pickup.JustPickMyItems = cbJustpickmyitems.Checked;
+        PlayerConfig.Profile.Pickup.PickupInBerzerk = !checkDontPickupInBerzerk.Checked;
+        PlayerConfig.Profile.Pickup.UseAbilityPet = checkEnableAbilityPet.Checked;
+        PlayerConfig.Profile.Pickup.PickupBlueItems = checkPickupBlue.Checked;
+        PlayerConfig.Profile.Pickup.PickupRareItems = checkPickupRare.Checked;
+        PlayerConfig.Profile.Pickup.PickupGold = checkPickupGold.Checked;
+
+        PlayerConfig.Save();
     }
     #endregion Pickup
 }

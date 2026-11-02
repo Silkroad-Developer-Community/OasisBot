@@ -961,7 +961,7 @@ public class Player : SpawnedBionic
             return;
         }
 
-        if (!PlayerConfig.Get<bool>("RSBot.Protection.checkNoArrows"))
+        if (!PlayerConfig.Profile.Protection.CheckNoArrows)
         {
             Kernel.Bot.Stop();
             return;

@@ -33,9 +33,57 @@ public partial class Main : DoubleBufferedControl
     private void LoadSettings()
     {
         foreach (var check in panelLiveFilters.Controls.OfType<CheckBox>())
-            check.Checked = PlayerConfig.Get($"RSBot.Statistics.{check.Name}", true);
+        {
+            switch(check.Name)
+            {
+                case "SPPerHour":
+                    check.Checked = PlayerConfig.Profile.Statistics.SPPerHour;
+                    break;
+                case "ItemsPerHour":
+                    check.Checked = PlayerConfig.Profile.Statistics.ItemsPerHour;
+                    break;
+                case "KillsPerHour":
+                    check.Checked = PlayerConfig.Profile.Statistics.KillsPerHour;
+                    break;
+                case "GoldPerHour":
+                    check.Checked = PlayerConfig.Profile.Statistics.GoldPerHour;
+                    break;
+                case "EXPPerHour":
+                    check.Checked = PlayerConfig.Profile.Statistics.EXPPerHour;
+                    break;
+            }
+        }
+
         foreach (var check in panelStaticFilters.Controls.OfType<CheckBox>())
-            check.Checked = PlayerConfig.Get($"RSBot.Statistics.{check.Name}", true);
+        {
+            switch(check.Name)
+            {
+                case "SPGained":
+                    check.Checked = PlayerConfig.Profile.Statistics.SPGained;
+                    break;
+                case "ItemsPicked":
+                    check.Checked = PlayerConfig.Profile.Statistics.ItemsPicked;
+                    break;
+                case "LevelUps":
+                    check.Checked = PlayerConfig.Profile.Statistics.LevelUps;
+                    break;
+                case "Kills":
+                    check.Checked = PlayerConfig.Profile.Statistics.Kills;
+                    break;
+                case "GoldGained":
+                    check.Checked = PlayerConfig.Profile.Statistics.GoldGained;
+                    break;
+                case "EXPGained":
+                    check.Checked = PlayerConfig.Profile.Statistics.EXPGained;
+                    break;
+                case "Deaths":
+                    check.Checked = PlayerConfig.Profile.Statistics.Deaths;
+                    break;
+                case "BottingTime":
+                    check.Checked = PlayerConfig.Profile.Statistics.BottingTime;
+                    break;
+            }
+        }
     }
 
     /// <summary>
@@ -47,9 +95,57 @@ public partial class Main : DoubleBufferedControl
             return;
 
         foreach (CheckBox check in panelLiveFilters.Controls)
-            PlayerConfig.Set($"RSBot.Statistics.{check.Name}", check.Checked);
+        {
+            switch (check.Name)
+            {
+                case "SPPerHour":
+                    PlayerConfig.Profile.Statistics.SPPerHour = check.Checked;
+                    break;
+                case "ItemsPerHour":
+                    PlayerConfig.Profile.Statistics.ItemsPerHour = check.Checked;
+                    break;
+                case "KillsPerHour":
+                    PlayerConfig.Profile.Statistics.KillsPerHour = check.Checked;
+                    break;
+                case "GoldPerHour":
+                    PlayerConfig.Profile.Statistics.GoldPerHour = check.Checked;
+                    break;
+                case "EXPPerHour":
+                    PlayerConfig.Profile.Statistics.EXPPerHour = check.Checked;
+                    break;
+            }
+        }
         foreach (CheckBox check in panelStaticFilters.Controls)
-            PlayerConfig.Set($"RSBot.Statistics.{check.Name}", check.Checked);
+        {
+            switch (check.Name)
+            {
+                case "SPGained":
+                    PlayerConfig.Profile.Statistics.SPGained = check.Checked;
+                    break;
+                case "ItemsPicked":
+                    PlayerConfig.Profile.Statistics.ItemsPicked = check.Checked;
+                    break;
+                case "LevelUps":
+                    PlayerConfig.Profile.Statistics.LevelUps = check.Checked;
+                    break;
+                case "Kills":
+                    PlayerConfig.Profile.Statistics.Kills = check.Checked;
+                    break;
+                case "GoldGained":
+                    PlayerConfig.Profile.Statistics.GoldGained = check.Checked;
+                    break;
+                case "EXPGained":
+                    PlayerConfig.Profile.Statistics.EXPGained = check.Checked;
+                    break;
+                case "Deaths":
+                    PlayerConfig.Profile.Statistics.Deaths = check.Checked;
+                    break;
+                case "BottingTime":
+                    PlayerConfig.Profile.Statistics.BottingTime = check.Checked;
+                    break;
+            }
+        }
+        PlayerConfig.Save();
     }
 
     /// <summary>

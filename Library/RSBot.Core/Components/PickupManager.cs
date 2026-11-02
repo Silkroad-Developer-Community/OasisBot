@@ -40,7 +40,7 @@ public class PickupManager
     /// <value>
     ///     <c>true</c> if [pickup gold]; otherwise, <c>false</c>.
     /// </value>
-    public static bool PickupGold => PlayerConfig.Get("RSBot.Items.Pickup.Gold", true);
+    public static bool PickupGold => PlayerConfig.Profile.Pickup.PickupGold;
 
     /// <summary>
     ///     Gets or sets a value indicating whether [pickup rare items].
@@ -48,7 +48,7 @@ public class PickupManager
     /// <value>
     ///     <c>true</c> if [pickup rare items]; otherwise, <c>false</c>.
     /// </value>
-    public static bool PickupRareItems => PlayerConfig.Get("RSBot.Items.Pickup.Rare", true);
+    public static bool PickupRareItems => PlayerConfig.Profile.Pickup.PickupRareItems;
 
     /// <summary>
     ///     Gets or sets a value indicating whether [pickup rare items].
@@ -56,7 +56,7 @@ public class PickupManager
     /// <value>
     ///     <c>true</c> if [pickup rare items]; otherwise, <c>false</c>.
     /// </value>
-    public static bool PickupBlueItems => PlayerConfig.Get("RSBot.Items.Pickup.Blue", true);
+    public static bool PickupBlueItems => PlayerConfig.Profile.Pickup.PickupBlueItems;
 
     /// <summary>
     ///     Gets or sets a value indicating whether [pickup quest items].
@@ -64,7 +64,7 @@ public class PickupManager
     /// <value>
     ///     <c>true</c> if [pickup quest items]; otherwise, <c>false</c>.
     /// </value>
-    public static bool PickupQuestItems => PlayerConfig.Get("RSBot.Items.Pickup.Quest", true);
+    public static bool PickupQuestItems => PlayerConfig.Profile.Pickup.PickupQuestItems;
 
     /// <summary>
     ///     Gets or sets a value indicating whether [pickup clean equips].
@@ -72,7 +72,7 @@ public class PickupManager
     /// <value>
     ///     <c>true</c> if [pickup clean equips]; otherwise, <c>false</c>.
     /// </value>
-    public static bool PickupAnyEquips => PlayerConfig.Get("RSBot.Items.Pickup.AnyEquips", true);
+    public static bool PickupAnyEquips => PlayerConfig.Profile.Pickup.PickupAnyEquips;
 
     /// <summary>
     ///     Gets or sets a value indicating whether [pickup everything].
@@ -80,7 +80,7 @@ public class PickupManager
     /// <value>
     ///     <c>true</c> if [pickup everything]; otherwise, <c>false</c>.
     /// </value>
-    public static bool PickupEverything => PlayerConfig.Get("RSBot.Items.Pickup.Everything", true);
+    public static bool PickupEverything => PlayerConfig.Profile.Pickup.PickupEverything;
 
     /// <summary>
     ///     Gets or sets a value indicating whether [use ability pet].
@@ -88,7 +88,7 @@ public class PickupManager
     /// <value>
     ///     <c>true</c> if [use ability pet]; otherwise, <c>false</c>.
     /// </value>
-    public static bool UseAbilityPet => PlayerConfig.Get("RSBot.Items.Pickup.EnableAbilityPet", true);
+    public static bool UseAbilityPet => PlayerConfig.Profile.Pickup.UseAbilityPet;
 
     /// <summary>
     ///     Gets or sets a value indicating whether [just pick my items].
@@ -96,7 +96,7 @@ public class PickupManager
     /// <value>
     ///     <c>true</c> if [use ability pet]; otherwise, <c>false</c>.
     /// </value>
-    public static bool JustPickMyItems => PlayerConfig.Get("RSBot.Items.Pickup.JustPickMyItems", false);
+    public static bool JustPickMyItems => PlayerConfig.Profile.Pickup.JustPickMyItems;
 
     /// <summary>
     ///     Runs the specified center position.
@@ -269,7 +269,7 @@ public class PickupManager
 
     public static void LoadFilter()
     {
-        var config = PlayerConfig.GetArray<string>("RSBot.Shopping.Pickup");
+        var config = PlayerConfig.Profile.Shopping.PickupList;
 
         foreach (var item in config)
         {
@@ -283,11 +283,11 @@ public class PickupManager
 
     public static void SaveFilter()
     {
-        var array = PickupFilter.Select(p => $"{p.CodeName}|{p.PickOnlyChar}").ToArray();
-        if (array.Length == 0)
+        var array = PickupFilter.Select(p => $"{p.CodeName}|{p.PickOnlyChar}").ToList();
+        if (array.Count == 0)
             return;
 
-        PlayerConfig.SetArray("RSBot.Shopping.Pickup", array);
+        PlayerConfig.Profile.Shopping.PickupList = array;
     }
 
     /// <summary>

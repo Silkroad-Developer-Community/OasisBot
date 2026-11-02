@@ -30,11 +30,11 @@ public class CosHGPRecoveryHandler
         if (Game.Player.Growth == null)
             return;
 
-        var use = PlayerConfig.Get<bool>("RSBot.Protection.checkUseHGP");
+        var use = PlayerConfig.Profile.Protection.UsePetHgp;
         if (!use)
             return;
 
-        var min = PlayerConfig.Get("RSBot.Protection.numPetMinHGP", 90);
+        var min = PlayerConfig.Profile.Protection.MinPetHgpPercent;
 
         var percent = 100.0 * Game.Player.Growth.CurrentHungerPoints / Game.Player.Growth.MaxHungerPoints;
         if (percent < min)
@@ -49,11 +49,11 @@ public class CosHGPRecoveryHandler
         if (Game.Player.Fellow == null)
             return;
 
-        var use = PlayerConfig.Get<bool>("RSBot.Protection.checkUseHGP");
+        var use = PlayerConfig.Profile.Protection.UsePetHgp;
         if (!use)
             return;
 
-        var min = PlayerConfig.Get("RSBot.Protection.numPetMinHGP", 90);
+        var min = PlayerConfig.Profile.Protection.MinPetHgpPercent;
 
         var percent = 100.0 * Game.Player.Fellow.Satiety / 36000;
         if (percent < min)

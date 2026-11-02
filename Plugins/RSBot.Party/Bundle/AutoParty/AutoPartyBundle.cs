@@ -4,6 +4,7 @@ using System.Linq;
 using RSBot.Core;
 using RSBot.Core.Components;
 using RSBot.Core.Event;
+using RSBot.Core.Objects;
 using RSBot.Core.Objects.Party;
 using RSBot.Core.Objects.Spawn;
 using RSBot.Party.Bundle.PartyMatching.Objects;
@@ -60,27 +61,27 @@ internal class AutoPartyBundle
     {
         Config = new AutoPartyConfig
         {
-            PlayerList = PlayerConfig.GetArray<string>("RSBot.Party.AutoPartyList"),
-            InviteAll = PlayerConfig.Get<bool>("RSBot.Party.InviteAll"),
-            AcceptAll = PlayerConfig.Get<bool>("RSBot.Party.AcceptAll"),
-            AcceptFromList = PlayerConfig.Get<bool>("RSBot.Party.AcceptList"),
-            InviteFromList = PlayerConfig.Get<bool>("RSBot.Party.InviteList"),
-            OnlyAtTrainingPlace = PlayerConfig.Get<bool>("RSBot.Party.AtTrainingPlace"),
-            ExperienceAutoShare = PlayerConfig.Get<bool>("RSBot.Party.EXPAutoShare", true),
-            ItemAutoShare = PlayerConfig.Get<bool>("RSBot.Party.ItemAutoShare", true),
-            AllowInvitations = PlayerConfig.Get<bool>("RSBot.Party.AllowInvitations", true),
-            AcceptIfBotIsStopped = PlayerConfig.Get<bool>("RSBot.Party.AcceptIfBotStopped"),
-            LeaveIfMasterNot = PlayerConfig.Get<bool>("RSBot.Party.LeaveIfMasterNot"),
-            LeaveIfMasterNotName = PlayerConfig.Get<string>("RSBot.Party.LeaveIfMasterNotName"),
+            PlayerList = PlayerConfig.Profile.Party.AutoPartyList,
+            InviteAll = PlayerConfig.Profile.Party.InviteAll,
+            AcceptAll = PlayerConfig.Profile.Party.AcceptAll,
+            AcceptFromList = PlayerConfig.Profile.Party.AcceptFromListOnly,
+            InviteFromList = PlayerConfig.Profile.Party.InviteFromListOnly,
+            OnlyAtTrainingPlace = PlayerConfig.Profile.Party.AcceptOnlyAtTrainingPlace,
+            ExperienceAutoShare = PlayerConfig.Profile.Party.ExpAutoShare,
+            ItemAutoShare = PlayerConfig.Profile.Party.ItemAutoShare,
+            AllowInvitations = PlayerConfig.Profile.Party.AllowInvitations,
+            AcceptIfBotIsStopped = PlayerConfig.Profile.Party.AcceptIfBotStopped,
+            LeaveIfMasterNot = PlayerConfig.Profile.Party.LeaveIfMasterNotPresent,
+            LeaveIfMasterNotName = PlayerConfig.Profile.Party.MasterCharacterName,
             CenterPosition =
                 (Kernel.Bot?.Botbase != null)
                     ? Kernel.Bot.Botbase.Area.Position
-                    : (Game.Player?.Position ?? new RSBot.Core.Objects.Position(0, 0, 0)),
-            AutoJoinByName = PlayerConfig.Get("RSBot.Party.AutoJoin.ByName", false),
-            AutoJoinByTitle = PlayerConfig.Get("RSBot.Party.AutoJoin.ByTitle", false),
-            AutoJoinByNameContent = PlayerConfig.Get("RSBot.Party.AutoJoin.Name", string.Empty),
-            AutoJoinByTitleContent = PlayerConfig.Get("RSBot.Party.AutoJoin.Title", string.Empty),
-            AlwaysFollowThePartyMaster = PlayerConfig.Get("RSBot.Party.AlwaysFollowPartyMaster", false),
+                    : (Game.Player?.Position ?? new Position(0, 0, 0)),
+            AutoJoinByName = PlayerConfig.Profile.Party.AutoJoinByName,
+            AutoJoinByTitle = PlayerConfig.Profile.Party.AutoJoinByTitle,
+            AutoJoinByNameContent = PlayerConfig.Profile.Party.AutoJoinTargetName,
+            AutoJoinByTitleContent = PlayerConfig.Profile.Party.AutoJoinTargetTitle,
+            AlwaysFollowThePartyMaster = PlayerConfig.Profile.Party.AlwaysFollowPartyMaster,
         };
 
         ApplyPartySettingsFromConfig();

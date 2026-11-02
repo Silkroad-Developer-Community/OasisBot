@@ -17,5 +17,5 @@ internal class View
         }
     }
 
-    public static QuestSidebarElement SidebarElement { get; internal set; } = null;
+    public static QuestSidebarElement SidebarElement { get; internal set; }
 }

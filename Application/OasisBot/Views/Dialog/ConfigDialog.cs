@@ -19,27 +19,21 @@ public partial class ConfigDialog : UIWindowBase
     {
         LanguageManager.Translate(this, Kernel.Language);
 
-        var values = GlobalConfig.GetArray<string>("RSBot.Network.Proxy", '|', StringSplitOptions.TrimEntries);
-        if (values.Length != 6)
-            return;
+        var proxy = GlobalConfig.Profile.Bot.Proxy;
 
         try
         {
-            bool.TryParse(values[0], out var isActive);
+            var isActive = proxy.IsActive;
             checkBoxOnOf.Checked = isActive;
-            textBoxProxyIp.Text = values[1];
+            textBoxProxyIp.Text = proxy.Ip;
 
-            if (!int.TryParse(values[2], out var proxyPort))
-                return;
+            var proxyPort = proxy.Port;
+            if (proxyPort > 0)
+                textBoxPort.Text = proxyPort.ToString();
+            textBoxId.Text = proxy.Username;
+            textBoxPw.Text = proxy.Password;
 
-            textBoxPort.Text = proxyPort.ToString();
-            textBoxId.Text = values[3];
-            textBoxPw.Text = values[4];
-
-            if (!byte.TryParse(values[5], out var version))
-                return;
-
-            comboBoxProxyVersion.SelectedIndex = version == 4 ? 0 : 1;
+            comboBoxProxyVersion.SelectedIndex = proxy.Version == 4 ? 0 : 1;
         }
         catch { }
     }
@@ -65,12 +59,13 @@ public partial class ConfigDialog : UIWindowBase
         }
 
         StringBuilder builder = new();
-        builder.AppendFormat("{0}|", checkBoxOnOf.Checked);
-        builder.AppendFormat("{0}|", textBoxProxyIp.Text);
-        builder.AppendFormat("{0}|", textBoxPort.Text);
-        builder.AppendFormat("{0}|", textBoxId.Text);
-        builder.AppendFormat("{0}|", textBoxPw.Text);
-        builder.AppendFormat("{0}", comboBoxProxyVersion.SelectedIndex == 0 ? 4 : 5);
-        GlobalConfig.Set("RSBot.Network.Proxy", builder.ToString());
+        GlobalConfig.Profile.Bot.Proxy.IsActive = checkBoxOnOf.Checked;
+        GlobalConfig.Profile.Bot.Proxy.Ip = textBoxProxyIp.Text;
+        GlobalConfig.Profile.Bot.Proxy.Port = int.Parse(textBoxPort.Text);
+        GlobalConfig.Profile.Bot.Proxy.Username = textBoxId.Text;
+        GlobalConfig.Profile.Bot.Proxy.Password = textBoxPw.Text;
+        GlobalConfig.Profile.Bot.Proxy.Version = (byte)(comboBoxProxyVersion.SelectedIndex == 0 ? 4 : 5);
+
+        GlobalConfig.Save();
     }
 }

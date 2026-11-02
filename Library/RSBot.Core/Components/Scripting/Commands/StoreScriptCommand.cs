@@ -57,7 +57,7 @@ internal class StoreScriptCommand : IScriptCommand
             Log.Notify("[Script] storing items...");
             ShoppingManager.StoreItems(arguments[0]);
 
-            if (PlayerConfig.Get("RSBot.Inventory.AutoSort", false))
+            if (PlayerConfig.Profile.Inventory.AutoSort)
                 ShoppingManager.SortItems(arguments[0]);
 
             return true;

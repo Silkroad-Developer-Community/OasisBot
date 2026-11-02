@@ -59,23 +59,72 @@ public partial class Main : DoubleBufferedControl
     /// </summary>
     private void LoadSettings()
     {
-        const string key = "RSBot.Training.";
-
         foreach (var checkbox in groupBoxAdvanced.Controls.OfType<CheckBox>())
-            checkbox.Checked = PlayerConfig.Get(key + checkbox.Name, checkbox.Checked);
+        {
+            switch (checkbox.Name)
+            {
+                case "checkBoxDontFollowMobs":
+                    checkbox.Checked = PlayerConfig.Profile.Training.AttackWeakerFirst;
+                    break;
+                case "checkAttackWeakerFirst":
+                    checkbox.Checked = PlayerConfig.Profile.Training.DontFollowMobs;
+                    break;
+                case "checkBoxDimensionPillar":
+                    checkbox.Checked = PlayerConfig.Profile.Training.IgnoreDimensionPillar;
+                    break;
+            }
+        }
 
         foreach (var checkbox in groupBoxBerserk.Controls.OfType<CheckBox>())
-            checkbox.Checked = PlayerConfig.Get(key + checkbox.Name, checkbox.Checked);
+        {
+            switch (checkbox.Name)
+            {
+                case "checkBerzerkWhenFull":
+                    checkbox.Checked = PlayerConfig.Profile.Training.BerserkWhenFull;
+                    break;
+                case "checkBerserkOnMonsterRarity":
+                    checkbox.Checked = PlayerConfig.Profile.Training.BerserkOnMonsterRarity;
+                    break;
+                case "checkBerzerkMonsterAmount":
+                    checkbox.Checked = PlayerConfig.Profile.Training.BerserkOnMonsterAmount;
+                    break;
+                case "checkBerzerkAvoidance":
+                    checkbox.Checked = PlayerConfig.Profile.Training.BerserkAvoidance;
+                    break;
+            }
+        }
 
         foreach (var num in groupBoxBerserk.Controls.OfType<NumUpDown>())
-            num.Value = PlayerConfig.Get(key + num.Name, num.Value);
+        {
+            switch (num.Name)
+            {
+                case "numBerzerkMonsterAmount":
+                    num.Value = (decimal)PlayerConfig.Profile.Training.MinBerserkMonsterAmount;
+                    break;
+            }
+        }
 
         foreach (var checkbox in groupBoxWalkback.Controls.OfType<CheckBox>())
-            checkbox.Checked = PlayerConfig.Get(key + checkbox.Name, checkbox.Checked);
+        {
+            switch (checkbox.Name)
+            {
+                case "checkCastBuffs":
+                    checkbox.Checked = PlayerConfig.Profile.Training.CastBuffs;
+                    break;
+                case "checkUseMount":
+                    checkbox.Checked = PlayerConfig.Profile.Training.UseMount;
+                    break;
+                case "checkUseSpeedDrug":
+                    checkbox.Checked = PlayerConfig.Profile.Training.UseSpeedDrug;
+                    break;
+                case "checkBoxUseReverse":
+                    checkbox.Checked = PlayerConfig.Profile.Training.UseReverseScroll;
+                    break;
+            }
+        }
 
-        radioCenter.Checked = PlayerConfig.Get(key + radioCenter.Name, false);
-        radioWalkAround.Checked = PlayerConfig.Get(key + radioWalkAround.Name, true);
-
+        radioCenter.Checked = PlayerConfig.Profile.Training.ReturnToCenter;
+        radioWalkAround.Checked = PlayerConfig.Profile.Training.WalkAround;
         LoadAvoidance();
     }
 
@@ -84,22 +133,74 @@ public partial class Main : DoubleBufferedControl
     /// </summary>
     private void ApplySettings()
     {
-        const string key = "RSBot.Training.";
-
         foreach (var checkbox in groupBoxAdvanced.Controls.OfType<CheckBox>())
-            PlayerConfig.Set(key + checkbox.Name, checkbox.Checked);
+        {
+            switch (checkbox.Name)
+            {
+                case "checkBoxDontFollowMobs":
+                    PlayerConfig.Profile.Training.AttackWeakerFirst = checkbox.Checked;
+                    break;
+                case "checkAttackWeakerFirst":
+                    PlayerConfig.Profile.Training.DontFollowMobs = checkbox.Checked;
+                    break;
+                case "checkBoxDimensionPillar":
+                    PlayerConfig.Profile.Training.IgnoreDimensionPillar = checkbox.Checked;
+                    break;
+            }
+        }
 
         foreach (var checkbox in groupBoxBerserk.Controls.OfType<CheckBox>())
-            PlayerConfig.Set(key + checkbox.Name, checkbox.Checked);
+        {
+            switch (checkbox.Name)
+            {
+                case "checkBerzerkWhenFull":
+                    PlayerConfig.Profile.Training.BerserkWhenFull = checkbox.Checked;
+                    break;
+                case "checkBerserkOnMonsterRarity":
+                    PlayerConfig.Profile.Training.BerserkOnMonsterRarity = checkbox.Checked;
+                    break;
+                case "checkBerzerkMonsterAmount":
+                    PlayerConfig.Profile.Training.BerserkOnMonsterAmount = checkbox.Checked;
+                    break;
+                case "checkBerzerkAvoidance":
+                    PlayerConfig.Profile.Training.BerserkAvoidance = checkbox.Checked;
+                    break;
+            }
+        }
 
         foreach (var num in groupBoxBerserk.Controls.OfType<NumUpDown>())
-            PlayerConfig.Set(key + num.Name, num.Value);
+        {
+            switch (num.Name)
+            {
+                case "numBerzerkMonsterAmount":
+                    PlayerConfig.Profile.Training.MinBerserkMonsterAmount = (byte)num.Value;
+                    break;
+            }
+        }
 
         foreach (var checkbox in groupBoxWalkback.Controls.OfType<CheckBox>())
-            PlayerConfig.Set(key + checkbox.Name, checkbox.Checked);
+        {
+            switch (checkbox.Name)
+            {
+                case "checkCastBuffs":
+                    PlayerConfig.Profile.Training.CastBuffs = checkbox.Checked;
+                    break;
+                case "checkUseMount":
+                    PlayerConfig.Profile.Training.UseMount = checkbox.Checked;
+                    break;
+                case "checkUseSpeedDrug":
+                    PlayerConfig.Profile.Training.UseSpeedDrug = checkbox.Checked;
+                    break;
+                case "checkBoxUseReverse":
+                    PlayerConfig.Profile.Training.UseReverseScroll = checkbox.Checked;
+                    break;
+            }
+        }
 
-        PlayerConfig.Set(key + radioCenter.Name, radioCenter.Checked);
-        PlayerConfig.Set(key + radioWalkAround.Name, radioWalkAround.Checked);
+        PlayerConfig.Profile.Training.ReturnToCenter = radioCenter.Checked;
+        PlayerConfig.Profile.Training.WalkAround = radioWalkAround.Checked;
+
+        PlayerConfig.Save();
     }
 
     /// <summary>
@@ -138,7 +239,8 @@ public partial class Main : DoubleBufferedControl
             return;
 
         txtWalkscript.Text = path;
-        PlayerConfig.Set("RSBot.Walkback.File", txtWalkscript.Text);
+        PlayerConfig.Profile.Training.WalkbackFile = path;
+        PlayerConfig.Save();
     }
 
     /// <summary>
@@ -176,9 +278,11 @@ public partial class Main : DoubleBufferedControl
             else if (item.Group == lvAvoidance.Groups["grpBerserk"])
                 berserk.Add((MonsterRarity)item.Tag);
 
-        PlayerConfig.SetArray("RSBot.Avoidance.Avoid", avoid);
-        PlayerConfig.SetArray("RSBot.Avoidance.Prefer", prefer);
-        PlayerConfig.SetArray("RSBot.Avoidance.Berserk", berserk);
+        PlayerConfig.Profile.Avoidance.AvoidMonsters = avoid;
+        PlayerConfig.Profile.Avoidance.PreferMonsters = prefer;
+        PlayerConfig.Profile.Avoidance.BerserkMonsters = berserk;
+
+        PlayerConfig.Save();
     }
 
     /// <summary>
@@ -186,9 +290,18 @@ public partial class Main : DoubleBufferedControl
     /// </summary>
     private void LoadAvoidance()
     {
-        var prefer = PlayerConfig.GetEnums<MonsterRarity>("RSBot.Avoidance.Prefer").ToLookup(p => "Prefer", p => p);
-        var avoid = PlayerConfig.GetEnums<MonsterRarity>("RSBot.Avoidance.Avoid").ToLookup(p => "Avoid", p => p);
-        var berserk = PlayerConfig.GetEnums<MonsterRarity>("RSBot.Avoidance.Berserk").ToLookup(p => "Berserk", p => p);
+        var prefer = (PlayerConfig.Profile.Avoidance.PreferMonsters ?? new List<MonsterRarity>()).ToLookup(
+            p => "Prefer",
+            p => p
+        );
+        var avoid = (PlayerConfig.Profile.Avoidance.AvoidMonsters ?? new List<MonsterRarity>()).ToLookup(
+            p => "Avoid",
+            p => p
+        );
+        var berserk = (PlayerConfig.Profile.Avoidance.BerserkMonsters ?? new List<MonsterRarity>()).ToLookup(
+            p => "Berserk",
+            p => p
+        );
 
         foreach (var group in avoid.Union(prefer).Union(berserk))
         foreach (var item in group)
@@ -212,10 +325,19 @@ public partial class Main : DoubleBufferedControl
     {
         var pos = Game.Player.Position;
 
-        PlayerConfig.Set("RSBot.Area.Region", pos.Region);
-        PlayerConfig.Set("RSBot.Area.X", pos.XOffset);
-        PlayerConfig.Set("RSBot.Area.Y", pos.YOffset);
-        PlayerConfig.Set("RSBot.Area.Z", pos.ZOffset);
+        var currentArea = PlayerConfig.Profile.Training.Areas.Find(a => a.IsActive);
+        if (currentArea == null)
+        {
+            currentArea = new Core.PlayerConfigProfile.TrainingAreaConfig { IsActive = true };
+            PlayerConfig.Profile.Training.Areas.Add(currentArea);
+        }
+
+        currentArea.Region = pos.Region;
+        currentArea.X = pos.XOffset;
+        currentArea.Y = pos.YOffset;
+        currentArea.Z = pos.ZOffset;
+
+        PlayerConfig.Save();
 
         EventManager.FireEvent("OnSetTrainingArea");
     }
@@ -252,7 +374,16 @@ public partial class Main : DoubleBufferedControl
         if (!int.TryParse(txtRadius.Text, out var result))
             return;
 
-        PlayerConfig.Set("RSBot.Area.Radius", result);
+        var currentArea = PlayerConfig.Profile.Training.Areas.Find(a => a.IsActive);
+
+        if (currentArea == null)
+        {
+            currentArea = new Core.PlayerConfigProfile.TrainingAreaConfig { Name = "Default", IsActive = true };
+            PlayerConfig.Profile.Training.Areas.Add(currentArea);
+        }
+
+        PlayerConfig.Profile.Training.Areas.Find(a => a.IsActive).Radius = result;
+        PlayerConfig.Save();
     }
 
     /// <summary>
@@ -303,7 +434,8 @@ public partial class Main : DoubleBufferedControl
             return;
 
         txtWalkscript.Text = diag.FileName;
-        PlayerConfig.Set("RSBot.Walkback.File", txtWalkscript.Text);
+        PlayerConfig.Profile.Training.WalkbackFile = txtWalkscript.Text;
+        PlayerConfig.Save();
         btnRemove.Visible = true;
     }
 
@@ -382,7 +514,7 @@ public partial class Main : DoubleBufferedControl
         txtRadius.Text = area.Radius.ToString();
         txtRegion.Text = area.Position.Region.Id.ToString();
         //Walkback
-        txtWalkscript.Text = PlayerConfig.Get<string>("RSBot.Walkback.File");
+        txtWalkscript.Text = PlayerConfig.Profile.Training.WalkbackFile;
         btnRemove.Visible = !string.IsNullOrEmpty(txtWalkscript.Text);
     }
 
@@ -418,7 +550,8 @@ public partial class Main : DoubleBufferedControl
     private void btnRemove_Click(object sender, EventArgs e)
     {
         txtWalkscript.Text = string.Empty;
-        PlayerConfig.Set("RSBot.Walkback.File", txtWalkscript.Text);
+        PlayerConfig.Profile.Training.WalkbackFile = txtWalkscript.Text;
+        PlayerConfig.Save();
         btnRemove.Visible = false;
     }
 

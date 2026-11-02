@@ -8,139 +8,139 @@ internal static class LureConfig
 {
     public static bool UseSpeedDrug
     {
-        get => PlayerConfig.Get("RSBot.Training.checkUseSpeedDrug", true);
-        set => PlayerConfig.Set("RSBot.Training.checkUseSpeedDrug", value);
+        get => PlayerConfig.Profile.Lure.UseSpeedDrug;
+        set => PlayerConfig.Profile.Lure.UseSpeedDrug = value;
     }
 
     public static bool UseHowlingShout
     {
-        get => PlayerConfig.Get("RSBot.Lure.UseHowlingShout", false) && Game.Player.Race == ObjectCountry.Europe;
-        set => PlayerConfig.Set("RSBot.Lure.UseHowlingShout", value);
+        get => PlayerConfig.Profile.Lure.UseHowlingShout && Game.Player.Race == ObjectCountry.Europe;
+        set => PlayerConfig.Profile.Lure.UseHowlingShout = value;
     }
 
     public static bool UseNormalAttack
     {
-        get => PlayerConfig.Get("RSBot.Lure.UseNormalAttack", false);
-        set => PlayerConfig.Set("RSBot.Lure.UseNormalAttack", value);
+        get => PlayerConfig.Profile.Lure.UseNormalAttack;
+        set => PlayerConfig.Profile.Lure.UseNormalAttack = value;
     }
 
     public static bool StopIfNumPartyMemberDead
     {
-        get => PlayerConfig.Get("RSBot.Lure.StopIfNumPartyMemberDead", false);
-        set => PlayerConfig.Set("RSBot.Lure.StopIfNumPartyMemberDead", value);
+        get => PlayerConfig.Profile.Lure.StopIfNumPartyMemberDead;
+        set => PlayerConfig.Profile.Lure.StopIfNumPartyMemberDead = value;
     }
 
     public static int NumPartyMemberDead
     {
-        get => PlayerConfig.Get("RSBot.Lure.NumPartyMemberDead", 3);
-        set => PlayerConfig.Set("RSBot.Lure.NumPartyMemberDead", value);
+        get => PlayerConfig.Profile.Lure.NumPartyMemberDead;
+        set => PlayerConfig.Profile.Lure.NumPartyMemberDead = value;
     }
 
     public static bool StopIfNumPartyMember
     {
-        get => PlayerConfig.Get("RSBot.Lure.StopIfNumPartyMember", false);
-        set => PlayerConfig.Set("RSBot.Lure.StopIfNumPartyMember", value);
+        get => PlayerConfig.Profile.Lure.StopIfNumPartyMember;
+        set => PlayerConfig.Profile.Lure.StopIfNumPartyMember = value;
     }
 
     public static int NumPartyMember
     {
-        get => PlayerConfig.Get("RSBot.Lure.NumPartyMember", 3);
-        set => PlayerConfig.Set("RSBot.Lure.NumPartyMember", value);
+        get => PlayerConfig.Profile.Lure.NumPartyMember;
+        set => PlayerConfig.Profile.Lure.NumPartyMember = value;
     }
 
     public static bool StopIfNumMonsterType
     {
-        get => PlayerConfig.Get("RSBot.Lure.StopIfNumMonsterType", false);
-        set => PlayerConfig.Set("RSBot.Lure.StopIfNumMonsterType", value);
+        get => PlayerConfig.Profile.Lure.StopIfNumMonsterType;
+        set => PlayerConfig.Profile.Lure.StopIfNumMonsterType = value;
     }
 
     public static MonsterRarity SelectedMonsterType
     {
-        get => PlayerConfig.GetEnum("RSBot.Lure.SelectedMonsterType", MonsterRarity.General);
-        set => PlayerConfig.Set("RSBot.Lure.SelectedMonsterType", (byte)value);
+        get => PlayerConfig.Profile.Lure.SelectedMonsterType;
+        set => PlayerConfig.Profile.Lure.SelectedMonsterType = value;
     }
 
     public static int NumMonsterType
     {
-        get => PlayerConfig.Get("RSBot.Lure.NumMonsterType", 3);
-        set => PlayerConfig.Set("RSBot.Lure.NumMonsterType", value);
+        get => PlayerConfig.Profile.Lure.NumMonsterType;
+        set => PlayerConfig.Profile.Lure.NumMonsterType = value;
     }
 
     public static bool StopIfNumPartyMembersOnSpot
     {
-        get => PlayerConfig.Get("RSBot.Lure.StopIfNumPartyMembersOnSpot", false);
-        set => PlayerConfig.Set("RSBot.Lure.StopIfNumPartyMembersOnSpot", value);
+        get => PlayerConfig.Profile.Lure.StopIfNumPartyMembersOnSpot;
+        set => PlayerConfig.Profile.Lure.StopIfNumPartyMembersOnSpot = value;
     }
 
     public static int NumPartyMembersOnSpot
     {
-        get => PlayerConfig.Get("RSBot.Lure.NumPartyMembersOnSpot", 3);
-        set => PlayerConfig.Set("RSBot.Lure.NumPartyMembersOnSpot", value);
+        get => PlayerConfig.Profile.Lure.NumPartyMembersOnSpot;
+        set => PlayerConfig.Profile.Lure.NumPartyMembersOnSpot = value;
     }
 
     public static bool UseScript
     {
-        get => PlayerConfig.Get("RSBot.Lure.UseScript", false);
-        set => PlayerConfig.Set("RSBot.Lure.UseScript", value);
+        get => PlayerConfig.Profile.Lure.UseScript;
+        set => PlayerConfig.Profile.Lure.UseScript = value;
     }
 
     public static string SelectedScriptPath
     {
-        get => PlayerConfig.Get("RSBot.Lure.SelectedScriptPath", "");
-        set => PlayerConfig.Set("RSBot.Lure.SelectedScriptPath", value);
+        get => PlayerConfig.Profile.Lure.SelectedScriptPath;
+        set => PlayerConfig.Profile.Lure.SelectedScriptPath = value;
     }
 
     public static bool WalkRandomly
     {
-        get => PlayerConfig.Get("RSBot.Lure.WalkRandomly", true);
-        set => PlayerConfig.Set("RSBot.Lure.WalkRandomly", value);
+        get => PlayerConfig.Profile.Lure.WalkRandomly;
+        set => PlayerConfig.Profile.Lure.WalkRandomly = value;
     }
 
     public static bool StayAtCenter
     {
-        get => PlayerConfig.Get("RSBot.Lure.StayAtCenter", false);
-        set => PlayerConfig.Set("RSBot.Lure.StayAtCenter", value);
+        get => PlayerConfig.Profile.Lure.StayAtCenter;
+        set => PlayerConfig.Profile.Lure.StayAtCenter = value;
     }
 
     public static bool StayAtCenterFor
     {
-        get => PlayerConfig.Get("RSBot.Lure.StayAtCenterFor", false);
-        set => PlayerConfig.Set("RSBot.Lure.StayAtCenterFor", value);
+        get => PlayerConfig.Profile.Lure.StayAtCenterForN;
+        set => PlayerConfig.Profile.Lure.StayAtCenterForN = value;
     }
 
     public static int StayAtCenterForSeconds
     {
-        get => PlayerConfig.Get("RSBot.Lure.StayAtCenterForSeconds", 5);
-        set => PlayerConfig.Set("RSBot.Lure.StayAtCenterForSeconds", value);
+        get => PlayerConfig.Profile.Lure.StayAtCenterForSeconds;
+        set => PlayerConfig.Profile.Lure.StayAtCenterForSeconds = value;
     }
 
     public static bool NoHowlingAtCenter
     {
-        get => PlayerConfig.Get("RSBot.Lure.NoHowlingAtCenter", true);
-        set => PlayerConfig.Set("RSBot.Lure.NoHowlingAtCenter", value);
+        get => PlayerConfig.Profile.Lure.NoHowlingAtCenter;
+        set => PlayerConfig.Profile.Lure.NoHowlingAtCenter = value;
     }
 
     public static bool UseAttackingSkills
     {
-        get => PlayerConfig.Get("RSBot.Lure.UseAttackingSkills", false);
-        set => PlayerConfig.Set("RSBot.Lure.UseAttackingSkills", value);
+        get => PlayerConfig.Profile.Lure.UseAttackingSkills;
+        set => PlayerConfig.Profile.Lure.UseAttackingSkills = value;
     }
 
     public static string WalkscriptPath
     {
-        get => PlayerConfig.Get("RSBot.Walkback.File", "");
-        set => PlayerConfig.Set("RSBot.Walkback.File", value);
+        get => PlayerConfig.Profile.Lure.WalkbackPath;
+        set => PlayerConfig.Profile.Lure.WalkbackPath = value;
     }
 
     public static Area Area
     {
         get
         {
-            var region = PlayerConfig.Get<ushort>("RSBot.Lure.Area.Region");
-            var x = PlayerConfig.Get("RSBot.Lure.Area.X", 0f);
-            var y = PlayerConfig.Get("RSBot.Lure.Area.Y", 0f);
-            var z = PlayerConfig.Get("RSBot.Lure.Area.Z", 0f);
-            var r = PlayerConfig.Get("RSBot.Lure.Area.Radius", 50);
+            var region = PlayerConfig.Profile.Lure.Area.Region;
+            var x = PlayerConfig.Profile.Lure.Area.X;
+            var y = PlayerConfig.Profile.Lure.Area.Y;
+            var z = PlayerConfig.Profile.Lure.Area.Z;
+            var r = PlayerConfig.Profile.Lure.Area.Radius;
 
             return new Area
             {
@@ -151,11 +151,11 @@ internal static class LureConfig
         }
         set
         {
-            PlayerConfig.Set("RSBot.Lure.Area.Region", value.Position.Region);
-            PlayerConfig.Set("RSBot.Lure.Area.X", value.Position.XOffset);
-            PlayerConfig.Set("RSBot.Lure.Area.Y", value.Position.YOffset);
-            PlayerConfig.Set("RSBot.Lure.Area.Z", value.Position.ZOffset);
-            PlayerConfig.Set("RSBot.Lure.Area.Radius", value.Radius);
+            PlayerConfig.Profile.Lure.Area.Region = value.Position.Region;
+            PlayerConfig.Profile.Lure.Area.X = value.Position.XOffset;
+            PlayerConfig.Profile.Lure.Area.Y = value.Position.YOffset;
+            PlayerConfig.Profile.Lure.Area.Z = value.Position.ZOffset;
+            PlayerConfig.Profile.Lure.Area.Radius = value.Radius;
         }
     }
 }

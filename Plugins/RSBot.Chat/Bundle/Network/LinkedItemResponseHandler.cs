@@ -34,6 +34,7 @@ namespace RSBot.Chat.Bundle.Network
                 if (item == null)
                 {
                     Log.Debug($"[LinkedItemResponseHandler] Unknown item ID: {ID}");
+                    continue;
                 }
                 ushort amount = 1;
                 string itemName;

@@ -1,6 +1,6 @@
 [Setup]
 #define AppName "OasisBot"
-#define AppVersion "2.10.0"
+#define AppVersion "2.10.1"
 #define AppPublisher "Silkroad Developer Community"
 #define AppURL "https://github.com/Silkroad-Developer-Community/OasisBot"
 #define AppExeName "OasisBot.exe"

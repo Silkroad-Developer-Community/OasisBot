@@ -73,30 +73,30 @@ internal partial class Main : DoubleBufferedControl
         //Load and display config
 
         txtSilkroadPath.Text = Path.Combine(
-            GlobalConfig.Get<string>("RSBot.SilkroadDirectory"),
-            GlobalConfig.Get<string>("RSBot.SilkroadExecutable")
+            GlobalConfig.Profile.SilkroadDirectory,
+            GlobalConfig.Profile.SilkroadExecutable
         );
-        checkEnableStaticCaptcha.Checked = GlobalConfig.Get<bool>("RSBot.General.EnableStaticCaptcha");
-        checkEnableAutoLogin.Checked = GlobalConfig.Get<bool>("RSBot.General.EnableAutomatedLogin");
-        checkStartBot.Checked = GlobalConfig.Get<bool>("RSBot.General.StartBot");
-        checkUseReturnScroll.Checked = GlobalConfig.Get<bool>("RSBot.General.UseReturnScroll");
-        checkStayConnected.Checked = GlobalConfig.Get<bool>("RSBot.General.StayConnected");
-        checkBoxBotTrayMinimized.Checked = GlobalConfig.Get<bool>("RSBot.General.TrayWhenMinimize");
-        txtStaticCaptcha.Text = GlobalConfig.Get<string>("RSBot.General.StaticCaptcha");
-        checkEnableLoginDelay.Checked = GlobalConfig.Get<bool>("RSBot.General.EnableLoginDelay");
-        numLoginDelay.Value = GlobalConfig.Get("RSBot.General.LoginDelay", 3);
-        checkWaitAfterDC.Checked = GlobalConfig.Get<bool>("RSBot.General.EnableWaitAfterDC");
-        numWaitAfterDC.Value = GlobalConfig.Get("RSBot.General.WaitAfterDC", 3);
-        checkHideClient.Checked = GlobalConfig.Get<bool>("RSBot.General.HideOnStartClient");
-        checkCharAutoSelect.Checked = GlobalConfig.Get<bool>("RSBot.General.CharacterAutoSelect");
-        radioAutoSelectFirst.Checked = GlobalConfig.Get<bool>("RSBot.General.CharacterAutoSelectFirst", true);
-        radioAutoSelectHigher.Checked = GlobalConfig.Get<bool>("RSBot.General.CharacterAutoSelectHigher");
-        checkAutoHidePendingWindow.Checked = GlobalConfig.Get<bool>("RSBot.General.AutoHidePendingWindow");
-        checkEnableQueueLogs.Checked = GlobalConfig.Get<bool>("RSBot.General.PendingEnableQueueLogs");
-        checkEnableQueueNotification.Checked = GlobalConfig.Get<bool>("RSBot.General.EnableQueueNotification");
-        numQueueLeft.Value = GlobalConfig.Get("RSBot.General.QueueLeft", 30);
+        checkEnableStaticCaptcha.Checked = GlobalConfig.Profile.Bot.EnableStaticCaptcha;
+        checkEnableAutoLogin.Checked = GlobalConfig.Profile.Bot.EnableAutomatedLogin;
+        checkStartBot.Checked = GlobalConfig.Profile.Bot.StartBot;
+        checkUseReturnScroll.Checked = GlobalConfig.Profile.Bot.UseReturnScroll;
+        checkStayConnected.Checked = GlobalConfig.Profile.Bot.StayConnected;
+        checkBoxBotTrayMinimized.Checked = GlobalConfig.Profile.Bot.TrayWhenMinimize;
+        txtStaticCaptcha.Text = GlobalConfig.Profile.Bot.StaticCaptcha;
+        checkEnableLoginDelay.Checked = GlobalConfig.Profile.Bot.EnableLoginDelay;
+        numLoginDelay.Value = GlobalConfig.Profile.Bot.LoginDelay;
+        checkWaitAfterDC.Checked = GlobalConfig.Profile.Bot.EnableWaitAfterDC;
+        numWaitAfterDC.Value = GlobalConfig.Profile.Bot.WaitAfterDC;
+        checkHideClient.Checked = GlobalConfig.Profile.Bot.HideOnStartClient;
+        checkCharAutoSelect.Checked = GlobalConfig.Profile.Bot.CharacterAutoSelect;
+        radioAutoSelectFirst.Checked = GlobalConfig.Profile.Bot.CharacterAutoSelectFirst;
+        radioAutoSelectHigher.Checked = GlobalConfig.Profile.Bot.CharacterAutoSelectHigher;
+        checkAutoHidePendingWindow.Checked = GlobalConfig.Profile.Bot.AutoHidePendingWindow;
+        checkEnableQueueLogs.Checked = GlobalConfig.Profile.Bot.PendingEnableQueueLogs;
+        checkEnableQueueNotification.Checked = GlobalConfig.Profile.Bot.EnableQueueNotification;
+        numQueueLeft.Value = GlobalConfig.Profile.Bot.QueueLeft;
 
-        if (GlobalConfig.Get<bool>("RSBot.General.CharacterAutoSelect"))
+        if (GlobalConfig.Profile.Bot.CharacterAutoSelect)
         {
             radioAutoSelectFirst.Enabled = true;
             radioAutoSelectHigher.Enabled = true;
@@ -104,7 +104,7 @@ internal partial class Main : DoubleBufferedControl
 
         comboBoxClientType.SelectedIndex = (int)Game.ClientType;
 
-        if (!File.Exists(GlobalConfig.Get<string>("RSBot.SilkroadDirectory") + "\\media.pk2"))
+        if (!File.Exists(GlobalConfig.Profile.SilkroadDirectory + "\\media.pk2"))
             txtSilkroadPath.BackColor = Color.Red;
 
         if (!string.IsNullOrEmpty(Kernel.LaunchMode))
@@ -150,7 +150,7 @@ internal partial class Main : DoubleBufferedControl
         comboAccounts.Items.Clear();
         comboAccounts.Items.Add(LanguageManager.GetLang("NotSelected"));
 
-        var autoLoginUserName = GlobalConfig.Get<string>("RSBot.General.AutoLoginAccountUsername");
+        var autoLoginUserName = GlobalConfig.Profile.Bot.AutoLoginAccountUsername;
         foreach (var account in Accounts.SavedAccounts)
         {
             var index = comboAccounts.Items.Add(account);
@@ -203,7 +203,7 @@ internal partial class Main : DoubleBufferedControl
         _clientVisible = true;
         btnClientHideShow.Enabled = true;
 
-        if (GlobalConfig.Get<bool>("RSBot.General.HideOnStartClient"))
+        if (GlobalConfig.Profile.Bot.HideOnStartClient)
             ClientManager.SetVisible(false);
     }
 
@@ -399,7 +399,8 @@ internal partial class Main : DoubleBufferedControl
     /// <param name="e">The <see cref="EventArgs" /> instance containing the event data.</param>
     private void checkAutoStartBot_CheckedChanged(object sender, EventArgs e)
     {
-        GlobalConfig.Set("RSBot.General.StartBot", checkStartBot.Checked);
+        GlobalConfig.Profile.Bot.StartBot = checkStartBot.Checked;
+        GlobalConfig.Save();
     }
 
     /// <summary>
@@ -409,7 +410,8 @@ internal partial class Main : DoubleBufferedControl
     /// <param name="e">The <see cref="EventArgs" /> instance containing the event data.</param>
     private void checkUseReturnScroll_CheckedChanged(object sender, EventArgs e)
     {
-        GlobalConfig.Set("RSBot.General.UseReturnScroll", checkUseReturnScroll.Checked);
+        GlobalConfig.Profile.Bot.UseReturnScroll = checkUseReturnScroll.Checked;
+        GlobalConfig.Save();
     }
 
     /// <summary>
@@ -430,7 +432,8 @@ internal partial class Main : DoubleBufferedControl
     /// <param name="e">The <see cref="EventArgs" /> instance containing the event data.</param>
     private void checkEnableAutoLogin_CheckedChanged(object sender, EventArgs e)
     {
-        GlobalConfig.Set("RSBot.General.EnableAutomatedLogin", checkEnableAutoLogin.Checked.ToString());
+        GlobalConfig.Profile.Bot.EnableAutomatedLogin = checkEnableAutoLogin.Checked;
+        GlobalConfig.Save();
     }
 
     /// <summary>
@@ -442,7 +445,8 @@ internal partial class Main : DoubleBufferedControl
     {
         var selectedAccount = comboAccounts.SelectedIndex == 0 ? string.Empty : comboAccounts.SelectedItem.ToString();
 
-        GlobalConfig.Set("RSBot.General.AutoLoginAccountUsername", selectedAccount);
+        GlobalConfig.Profile.Bot.AutoLoginAccountUsername = selectedAccount;
+        GlobalConfig.Save();
 
         LoadCharacters();
     }
@@ -454,7 +458,8 @@ internal partial class Main : DoubleBufferedControl
     /// <param name="e">The <see cref="EventArgs" /> instance containing the event data.</param>
     private void txtStaticCaptcha_TextChanged(object sender, EventArgs e)
     {
-        GlobalConfig.Set("RSBot.General.StaticCaptcha", txtStaticCaptcha.Text);
+        GlobalConfig.Profile.Bot.StaticCaptcha = txtStaticCaptcha.Text;
+        GlobalConfig.Save();
     }
 
     /// <summary>
@@ -464,7 +469,8 @@ internal partial class Main : DoubleBufferedControl
     /// <param name="e">The <see cref="EventArgs" /> instance containing the event data.</param>
     private void checkEnableStaticCaptcha_CheckedChanged(object sender, EventArgs e)
     {
-        GlobalConfig.Set("RSBot.General.EnableStaticCaptcha", checkEnableStaticCaptcha.Checked.ToString());
+        GlobalConfig.Profile.Bot.EnableStaticCaptcha = checkEnableStaticCaptcha.Checked;
+        GlobalConfig.Save();
     }
 
     /// <summary>
@@ -564,7 +570,7 @@ internal partial class Main : DoubleBufferedControl
         if (!GeneralManager.IsClientless && GeneralManager.IsConnected)
         {
             var extraStr = LanguageManager.GetLang("KillClientWarnMsgBoxSplit1");
-            if (!GlobalConfig.Get<bool>("RSBot.General.StayConnected"))
+            if (!GlobalConfig.Profile.Bot.StayConnected)
                 extraStr = LanguageManager.GetLang("KillClientWarnMsgBoxSplit2");
 
             var title = LanguageManager.GetLang("Warning");
@@ -586,7 +592,8 @@ internal partial class Main : DoubleBufferedControl
     /// <param name="e">The <see cref="EventArgs" /> instance containing the event data.</param>
     private void checkStayConnected_CheckedChanged(object sender, EventArgs e)
     {
-        GlobalConfig.Set("RSBot.General.StayConnected", checkStayConnected.Checked);
+        GlobalConfig.Profile.Bot.StayConnected = checkStayConnected.Checked;
+        GlobalConfig.Save();
     }
 
     /// <summary>
@@ -594,7 +601,8 @@ internal partial class Main : DoubleBufferedControl
     /// </summary>
     private void checkBoxBotTrayMinimized_CheckedChanged(object sender, EventArgs e)
     {
-        GlobalConfig.Set("RSBot.General.TrayWhenMinimize", checkBoxBotTrayMinimized.Checked);
+        GlobalConfig.Profile.Bot.TrayWhenMinimize = checkBoxBotTrayMinimized.Checked;
+        GlobalConfig.Save();
     }
 
     private void btnClientHideShow_Click(object sender, EventArgs e)
@@ -635,7 +643,7 @@ internal partial class Main : DoubleBufferedControl
 
         var clientType = (GameClientType)comboBoxClientType.SelectedIndex;
 
-        GlobalConfig.Set("RSBot.Game.ClientType", clientType);
+        GlobalConfig.Profile.Bot.ClientType = clientType;
         Game.ClientType = clientType;
         GlobalConfig.Save();
 
@@ -656,7 +664,8 @@ internal partial class Main : DoubleBufferedControl
     /// </param>
     private void checkEnableLoginDelay_CheckedChanged(object sender, EventArgs e)
     {
-        GlobalConfig.Set("RSBot.General.EnableLoginDelay", checkEnableLoginDelay.Checked);
+        GlobalConfig.Profile.Bot.EnableLoginDelay = checkEnableLoginDelay.Checked;
+        GlobalConfig.Save();
     }
 
     /// <summary>
@@ -666,7 +675,8 @@ internal partial class Main : DoubleBufferedControl
     /// <param name="e">The <see cref="EventArgs" /> instance containing the event data.</param>
     private void numLoginDelay_ValueChanged(object sender, EventArgs e)
     {
-        GlobalConfig.Set("RSBot.General.LoginDelay", numLoginDelay.Value);
+        GlobalConfig.Profile.Bot.LoginDelay = numLoginDelay.Value;
+        GlobalConfig.Save();
     }
 
     /// <summary>
@@ -676,7 +686,8 @@ internal partial class Main : DoubleBufferedControl
     /// <param name="e">The <see cref="EventArgs" /> instance containing the event data.</param>
     private void checkWaitAfterDC_CheckedChanged(object sender, EventArgs e)
     {
-        GlobalConfig.Set("RSBot.General.EnableWaitAfterDC", checkWaitAfterDC.Checked);
+        GlobalConfig.Profile.Bot.EnableWaitAfterDC = checkWaitAfterDC.Checked;
+        GlobalConfig.Save();
     }
 
     /// <summary>
@@ -686,7 +697,8 @@ internal partial class Main : DoubleBufferedControl
     /// <param name="e">The <see cref="EventArgs" /> instance containing the event data.</param>
     private void numWaitAfterDC_ValueChanged(object sender, EventArgs e)
     {
-        GlobalConfig.Set("RSBot.General.WaitAfterDC", numWaitAfterDC.Value);
+        GlobalConfig.Profile.Bot.WaitAfterDC = numWaitAfterDC.Value;
+        GlobalConfig.Save();
     }
 
     /// <summary>
@@ -696,7 +708,8 @@ internal partial class Main : DoubleBufferedControl
     /// <param name="e"></param>
     private void checkHideClient_CheckedChanged(object sender, EventArgs e)
     {
-        GlobalConfig.Set("RSBot.General.HideOnStartClient", checkHideClient.Checked);
+        GlobalConfig.Profile.Bot.HideOnStartClient = checkHideClient.Checked;
+        GlobalConfig.Save();
     }
 
     /// <summary>
@@ -706,7 +719,7 @@ internal partial class Main : DoubleBufferedControl
     /// <param name="e"></param>
     private void checkCharAutoSelect_CheckedChanged(object sender, EventArgs e)
     {
-        if (!GlobalConfig.Get<bool>("RSBot.General.CharacterAutoSelect"))
+        if (!GlobalConfig.Profile.Bot.CharacterAutoSelect)
         {
             radioAutoSelectFirst.Enabled = true;
             radioAutoSelectHigher.Enabled = true;
@@ -717,7 +730,8 @@ internal partial class Main : DoubleBufferedControl
             radioAutoSelectHigher.Enabled = false;
         }
 
-        GlobalConfig.Set("RSBot.General.CharacterAutoSelect", checkCharAutoSelect.Checked);
+        GlobalConfig.Profile.Bot.CharacterAutoSelect = checkCharAutoSelect.Checked;
+        GlobalConfig.Save();
     }
 
     /// <summary>
@@ -727,7 +741,8 @@ internal partial class Main : DoubleBufferedControl
     /// <param name="e"></param>
     private void radioAutoSelectFirst_CheckedChanged(object sender, EventArgs e)
     {
-        GlobalConfig.Set("RSBot.General.CharacterAutoSelectFirst", radioAutoSelectFirst.Checked);
+        GlobalConfig.Profile.Bot.CharacterAutoSelectFirst = radioAutoSelectFirst.Checked;
+        GlobalConfig.Save();
     }
 
     /// <summary>
@@ -737,7 +752,8 @@ internal partial class Main : DoubleBufferedControl
     /// <param name="e"></param>
     private void radioAutoSelectHigher_CheckedChanged(object sender, EventArgs e)
     {
-        GlobalConfig.Set("RSBot.General.CharacterAutoSelectHigher", radioAutoSelectHigher.Checked);
+        GlobalConfig.Profile.Bot.CharacterAutoSelectHigher = radioAutoSelectHigher.Checked;
+        GlobalConfig.Save();
     }
 
     /// <summary>
@@ -747,7 +763,8 @@ internal partial class Main : DoubleBufferedControl
     /// <param name="e"></param>
     private void checkDontShowPendingOnStartClient_CheckedChanged(object sender, EventArgs e)
     {
-        GlobalConfig.Set("RSBot.General.AutoHidePendingWindow", checkAutoHidePendingWindow.Checked);
+        GlobalConfig.Profile.Bot.AutoHidePendingWindow = checkAutoHidePendingWindow.Checked;
+        GlobalConfig.Save();
     }
 
     /// <summary>
@@ -757,7 +774,8 @@ internal partial class Main : DoubleBufferedControl
     /// <param name="e"></param>
     private void checkEnableQueueLogs_CheckedChanged(object sender, EventArgs e)
     {
-        GlobalConfig.Set("RSBot.General.PendingEnableQueueLogs", checkEnableQueueLogs.Checked);
+        GlobalConfig.Profile.Bot.PendingEnableQueueLogs = checkEnableQueueLogs.Checked;
+        GlobalConfig.Save();
     }
 
     /// <summary>
@@ -783,7 +801,8 @@ internal partial class Main : DoubleBufferedControl
     /// <param name="e"></param>
     private void checkEnableQueueNotification_CheckedChanged(object sender, EventArgs e)
     {
-        GlobalConfig.Set("RSBot.General.EnableQueueNotification", checkEnableQueueNotification.Checked);
+        GlobalConfig.Profile.Bot.EnableQueueNotification = checkEnableQueueNotification.Checked;
+        GlobalConfig.Save();
     }
 
     /// <summary>
@@ -793,7 +812,8 @@ internal partial class Main : DoubleBufferedControl
     /// <param name="e"></param>
     private void numQueueLeft_ValueChanged(object sender, EventArgs e)
     {
-        GlobalConfig.Set("RSBot.General.QueueLeft", numQueueLeft.Value);
+        GlobalConfig.Profile.Bot.QueueLeft = numQueueLeft.Value;
+        GlobalConfig.Save();
     }
 
     /// <summary>

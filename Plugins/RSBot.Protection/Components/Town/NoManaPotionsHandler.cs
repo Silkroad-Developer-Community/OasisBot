@@ -41,7 +41,7 @@ public class NoManaPotionsHandler : AbstractTownHandler
 
     private static void CheckForMpPotions()
     {
-        if (!PlayerConfig.Get<bool>("RSBot.Protection.checkNoMPPotions"))
+        if (!PlayerConfig.Profile.Protection.CheckNoMpPotions)
             return;
 
         if (PlayerInTownScriptRegion())
@@ -53,7 +53,7 @@ public class NoManaPotionsHandler : AbstractTownHandler
         var typeIdFilter = new TypeIdFilter(3, 3, 1, 2);
         if (
             Game.Player.Inventory.GetSumAmount(typeIdFilter)
-            > PlayerConfig.Get<int>("RSBot.Protection.numMPPotionsLeft")
+            > PlayerConfig.Profile.Protection.MinMpPotionsLeft
         )
             return;
 

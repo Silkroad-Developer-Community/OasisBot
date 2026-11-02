@@ -14,7 +14,7 @@ public partial class ExitDialog : UIWindowBase
 
     private void checkDontAskAgain_CheckedChanged(object sender, EventArgs e)
     {
-        GeneralConfig.Set("RSBot.showExitDialog", !checkDontAskAgain.Checked);
+        GeneralConfig.Profile.ShowExitDialog = !checkDontAskAgain.Checked;
         GeneralConfig.Save();
     }
 

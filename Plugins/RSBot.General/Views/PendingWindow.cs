@@ -64,9 +64,9 @@ public partial class PendingWindow : UIWindowBase
         PrintTime(labelAvgWaitingTime, timestamp);
         LogPending(begin, end);
 
-        if (GlobalConfig.Get("RSBot.General.EnableQuqueNotification", false))
+        if (GlobalConfig.Profile.Bot.EnableQueueNotification)
         {
-            var queue = GlobalConfig.Get("RSBot.General.QueueLeft", 30);
+            var queue = GlobalConfig.Profile.Bot.QueueLeft;
             if (begin <= queue && _queueNotifyIndex == 0)
             {
                 notifyIcon.Visible = true;
@@ -175,7 +175,7 @@ public partial class PendingWindow : UIWindowBase
 
     private void LogPending(int count, int count2)
     {
-        if (GlobalConfig.Get<bool>("RSBot.General.PendingEnableQueueLogs"))
+        if (GlobalConfig.Profile.Bot.PendingEnableQueueLogs)
             Log.NotifyLang("PendingQueue", Serverlist.Joining?.Name, count, count2);
     }
 

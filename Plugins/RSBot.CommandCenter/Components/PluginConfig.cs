@@ -5,7 +5,15 @@ namespace RSBot.CommandCenter.Components;
 
 internal class PluginConfig
 {
-    public static bool Enabled => PlayerConfig.Get("RSBot.CommandCenter.Enabled", true);
+    public static bool Enabled
+    {
+        get
+        {
+            var enabled = PlayerConfig.Profile.EnableCommandCenter;
+            PlayerConfig.Save();
+            return enabled;
+        }
+    }
 
     public static Dictionary<string, string> GetEmoteToCommandMapping()
     {
@@ -13,10 +21,25 @@ internal class PluginConfig
 
         foreach (var emoticon in Emoticons.Items)
         {
-            var actionName = PlayerConfig.Get(
-                $"RSBot.CommandCenter.MappedEmotes.{emoticon.Name}",
-                Emoticons.GetEmoticonDefaultCommand(emoticon.Name)
-            );
+            string actionName = string.Empty;
+            switch (emoticon.Type)
+            {
+                case EmoticonType.Yes:
+                    actionName = PlayerConfig.Profile.Commands.EmoticonYes;
+                    break;
+                case EmoticonType.No:
+                    actionName = PlayerConfig.Profile.Commands.EmoticonNo;
+                    break;
+                case EmoticonType.Rush:
+                    actionName = PlayerConfig.Profile.Commands.EmoticonRush;
+                    break;
+                case EmoticonType.Greeting:
+                    actionName = PlayerConfig.Profile.Commands.EmoticonGreeting;
+                    break;
+                case EmoticonType.Smile:
+                    actionName = PlayerConfig.Profile.Commands.EmoticonSmile;
+                    break;
+            }
 
             result.Add(emoticon.Name, actionName);
         }

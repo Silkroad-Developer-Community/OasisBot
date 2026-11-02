@@ -647,7 +647,7 @@ public partial class Main : DoubleBufferedControl
     /// <param name="e"></param>
     private void Main_Load(object sender, EventArgs e)
     {
-        _autoSelectUnqiue = PlayerConfig.Get("RSBot.Map.AutoSelectUnique", false);
+        _autoSelectUnqiue = PlayerConfig.Profile.AutoSelectUniqueOnMap;
         checkBoxAutoSelectUniques.Checked = _autoSelectUnqiue;
 
         checkBoxAutoSelectUniques.Enabled = Game.Player != null;
@@ -670,7 +670,7 @@ public partial class Main : DoubleBufferedControl
     /// </summary>
     public void InitUniqueObjects()
     {
-        _autoSelectUnqiue = PlayerConfig.Get("RSBot.Map.AutoSelectUnique", false);
+        _autoSelectUnqiue = PlayerConfig.Profile.AutoSelectUniqueOnMap;
 
         checkBoxAutoSelectUniques.Enabled = true;
         timerUniqueChecker.Enabled = _autoSelectUnqiue;
@@ -681,7 +681,8 @@ public partial class Main : DoubleBufferedControl
     /// </summary>
     private void checkBoxAutoSelectUniques_CheckedChanged(object sender, EventArgs e)
     {
-        PlayerConfig.Set("RSBot.Map.AutoSelectUnique", checkBoxAutoSelectUniques.Checked);
+        PlayerConfig.Profile.AutoSelectUniqueOnMap = checkBoxAutoSelectUniques.Checked;
+        PlayerConfig.Save();
         _autoSelectUnqiue = checkBoxAutoSelectUniques.Checked;
 
         timerUniqueChecker.Enabled = _autoSelectUnqiue;

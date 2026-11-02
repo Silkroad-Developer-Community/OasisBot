@@ -275,9 +275,9 @@ public partial class Main : DoubleBufferedControl
 
         Bundle.Container.Refresh();
 
-        checkAutoExpAutoShare.Checked = PlayerConfig.Get<bool>("RSBot.Party.EXPAutoShare", true);
-        checkAutoItemAutoShare.Checked = PlayerConfig.Get<bool>("RSBot.Party.ItemAutoShare", true);
-        checkAutoAllowInvitations.Checked = PlayerConfig.Get<bool>("RSBot.Party.AllowInvitations", true);
+        checkAutoExpAutoShare.Checked = PlayerConfig.Profile.Party.ExpAutoShare;
+        checkAutoItemAutoShare.Checked = PlayerConfig.Profile.Party.ItemAutoShare;
+        checkAutoAllowInvitations.Checked = PlayerConfig.Profile.Party.AllowInvitations;
         checkAcceptAtTrainingPlace.Checked = Bundle.Container.AutoParty.Config.OnlyAtTrainingPlace;
         checkInviteAll.Checked = Bundle.Container.AutoParty.Config.InviteAll;
         checkInviteFromList.Checked = Bundle.Container.AutoParty.Config.InviteFromList;
@@ -287,17 +287,17 @@ public partial class Main : DoubleBufferedControl
         checkBoxLeaveIfMasterNot.Checked = Bundle.Container.AutoParty.Config.LeaveIfMasterNot;
         textBoxLeaveIfMasterNotName.Text = Bundle.Container.AutoParty.Config.LeaveIfMasterNotName;
         textBoxLeaveIfMasterNotName.Enabled = !checkBoxLeaveIfMasterNot.Checked;
-        checkBoxFollowMaster.Checked = PlayerConfig.Get("RSBot.Party.AlwaysFollowPartyMaster", false);
+        checkBoxFollowMaster.Checked = PlayerConfig.Profile.Party.AlwaysFollowPartyMaster;
 
         checkAcceptIfBotStopped.Checked = Bundle.Container.AutoParty.Config.AcceptIfBotIsStopped;
         checkBoxListenMasterCommands.Checked = Bundle.Container.Commands.Config.ListenOnlyMaster;
         checkBoxListenCommandsOnlyList.Checked = Bundle.Container.Commands.Config.ListenFromList;
 
-        var autoPartyList = PlayerConfig.GetArray<string>("RSBot.Party.AutoPartyList");
+        var autoPartyList = PlayerConfig.Profile.Party.AutoPartyList;
         foreach (var item in autoPartyList)
             listAutoParty.Items.Add(item);
 
-        var playerList = PlayerConfig.GetArray<string>("RSBot.Party.Commands.PlayersList");
+        var playerList = PlayerConfig.Profile.Party.CommandAllowedPlayers;
         foreach (var item in playerList)
             listCommandPlayers.Items.Add(item);
 
@@ -817,7 +817,8 @@ public partial class Main : DoubleBufferedControl
     private void checkHideLowerLevelSkills_CheckedChanged(object sender, EventArgs e)
     {
         LoadPartyBuffSkills();
-        PlayerConfig.Set("RSBot.Party.Buffing.HideLowerLevelSkills", checkHideLowerLevelSkills.Checked);
+        PlayerConfig.Profile.Party.Buffing.HideLowerSkills = checkHideLowerLevelSkills.Checked;
+        PlayerConfig.Save();
     }
 
     private void listViewGroups_SelectedIndexChanged(object sender, EventArgs e)
@@ -830,7 +831,8 @@ public partial class Main : DoubleBufferedControl
 
         _selectedBuffingGroup = listViewGroups.SelectedItems[0];
 
-        PlayerConfig.Set("RSBot.Party.Buffing.SelectedGroup", _selectedBuffingGroup.Text);
+        PlayerConfig.Profile.Party.Buffing.SelectedGroup = _selectedBuffingGroup.Text;
+        PlayerConfig.Save();
         RefreshGroupMembers();
     }
 
@@ -1123,10 +1125,10 @@ public partial class Main : DoubleBufferedControl
 
     private void buttonAutoJoinConfig_Click(object sender, EventArgs e)
     {
-        checkBoxJoinByName.Checked = PlayerConfig.Get("RSBot.Party.AutoJoin.ByName", false);
-        checkBoxJoinByTitle.Checked = PlayerConfig.Get("RSBot.Party.AutoJoin.ByTitle", false);
-        textBoxJoinByName.Text = PlayerConfig.Get("RSBot.Party.AutoJoin.Name", string.Empty);
-        textBoxJoinByTitle.Text = PlayerConfig.Get("RSBot.Party.AutoJoin.Title", string.Empty);
+        checkBoxJoinByName.Checked = PlayerConfig.Profile.Party.AutoJoinByName;
+        checkBoxJoinByTitle.Checked = PlayerConfig.Profile.Party.AutoJoinByTitle;
+        textBoxJoinByName.Text = PlayerConfig.Profile.Party.AutoJoinTargetName;
+        textBoxJoinByTitle.Text = PlayerConfig.Profile.Party.AutoJoinTargetTitle;
         topPartyPanel.Height = 120;
 
         buttonAutoJoinConfig.Color = ColorScheme.BackColor;

@@ -59,7 +59,10 @@ public class NpcTalk
             return;
         }
 
-        if (Game.ClientType >= GameClientType.Vietnam && Game.ClientType <= GameClientType.Chinese)
+        if (
+            (Game.ClientType >= GameClientType.Vietnam && Game.ClientType <= GameClientType.Chinese)
+            || Game.ClientType == GameClientType.Rigid
+        )
         {
             if ((Flag & 1) != 0)
                 CustomName = packet.ReadString();
@@ -85,7 +88,6 @@ public class NpcTalk
             || Game.ClientType == GameClientType.Taiwan
             || Game.ClientType == GameClientType.Japanese
             || Game.ClientType == GameClientType.RuSro
-            || Game.ClientType == GameClientType.Rigid
         )
         {
             if ((Flag & 1) != 0)

@@ -35,6 +35,14 @@ public class Game
     public static ushort Port { get; private set; }
 
     /// <summary>
+    ///     Gets or sets the joined servername.
+    /// </summary>
+    /// <value>
+    ///     The Servername.
+    /// </value>
+    public static string JoinedServer { get; set; }
+
+    /// <summary>
     ///     Gets or sets the Media.pk2 reader.
     /// </summary>
     /// <value>
@@ -137,8 +145,8 @@ public class Game
 
         Kernel.Proxy?.Shutdown();
 
-        var divisionIndex = GlobalConfig.Get<int>("RSBot.DivisionIndex");
-        var severIndex = GlobalConfig.Get<int>("RSBot.GatewayIndex");
+        var divisionIndex = GlobalConfig.Profile.DivisionIndex;
+        var severIndex = GlobalConfig.Profile.GatewayIndex;
 
         Port = NetworkUtilities.GetFreePort(33673, 39999, 1);
 
@@ -158,8 +166,8 @@ public class Game
     /// <returns></returns>
     public static bool InitializeArchiveFiles()
     {
-        var directory = GlobalConfig.Get<string>("RSBot.SilkroadDirectory");
-        var pk2Key = GlobalConfig.Get<string>("RSBot.Pk2Key", "169841");
+        var directory = GlobalConfig.Profile.SilkroadDirectory;
+        var pk2Key = GlobalConfig.Profile.Pk2Key;
 
         try
         {
@@ -181,7 +189,7 @@ public class Game
     /// </summary>
     public static void Initialize()
     {
-        ClientType = GlobalConfig.GetEnum("RSBot.Game.ClientType", GameClientType.Vietnam);
+        ClientType = GlobalConfig.Profile.Bot.ClientType;
         ReferenceManager = new ReferenceManager();
         Party = new Party();
 

@@ -17,8 +17,8 @@
     <Company>Silkroad Developer Community</Company>
     <OutputType>Exe</OutputType>
     <ApplicationIcon>app.ico</ApplicationIcon>
-    <InformationalVersion>2.10.0</InformationalVersion>
-    <AssemblyVersion>2.10.0</AssemblyVersion>
+    <InformationalVersion>2.10.1</InformationalVersion>
+    <AssemblyVersion>2.10.1</AssemblyVersion>
     <PlatformTarget>x86</PlatformTarget>
     <UseWPF>False</UseWPF>
   </PropertyGroup>
