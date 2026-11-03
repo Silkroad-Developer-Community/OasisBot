@@ -2,7 +2,6 @@
 {
     public class StatisticsConfig
     {
-        public bool EnableStatistics { get; set; } = true;
         public bool SPPerHour { get; set; } = true;
         public bool ItemsPerHour { get; set; } = true;
         public bool KillsPerHour { get; set; } = true;

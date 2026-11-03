@@ -22,10 +22,8 @@ namespace RSBot.Core.PlayerConfigProfile
         public string AutoJoinTargetName { get; set; } = string.Empty;
         public bool AutoJoinByTitle { get; set; } = false;
         public string AutoJoinTargetTitle { get; set; } = string.Empty;
-        public bool AutoReformMatching { get; set; } = false;
 
         public bool AlwaysFollowPartyMaster { get; set; } = false;
-        public bool FollowAtTrainingPlaceOnly { get; set; } = false;
         public bool LeaveIfMasterNotPresent { get; set; } = false;
         public string MasterCharacterName { get; set; } = string.Empty;
         public bool ListenCommandsFromMaster { get; set; } = false;
@@ -46,7 +44,6 @@ namespace RSBot.Core.PlayerConfigProfile
 
     public class PartyBuffingConfig
     {
-        public string GroupName { get; set; } = "Default";
         public string SelectedGroup { get; set; } = "Default";
         public List<string> Groups { get; set; } = new() { "Default" };
         public bool HideLowerSkills { get; set; } = true;

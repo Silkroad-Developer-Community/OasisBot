@@ -598,11 +598,11 @@ public partial class Main : DoubleBufferedControl
             checkPickupGold.Checked = PlayerConfig.Profile.Pickup.PickupGold;
             checkPickupRare.Checked = PlayerConfig.Profile.Pickup.PickupRareItems;
             checkPickupBlue.Checked = PlayerConfig.Profile.Pickup.PickupBlueItems;
-            checkEnableAbilityPet.Checked = PlayerConfig.Profile.Inventory.PickupFilter.EnableAbilityPet;
+            checkEnableAbilityPet.Checked = PlayerConfig.Profile.Pickup.UseAbilityPet;
             checkStoreItemsFromPet.Checked = PlayerConfig.Profile.Shopping.StorePetItems;
-            checkDontPickupInBerzerk.Checked = PlayerConfig.Profile.Inventory.PickupFilter.DontPickupInBerzerk;
+            checkDontPickupInBerzerk.Checked = !PlayerConfig.Profile.Pickup.PickupInBerzerk;
             cbJustpickmyitems.Checked = PlayerConfig.Profile.Pickup.JustPickMyItems;
-            cbDontPickupWhileBotting.Checked = PlayerConfig.Profile.Inventory.PickupFilter.DontPickupWhileBotting;
+            cbDontPickupWhileBotting.Checked = !PlayerConfig.Profile.Pickup.PickupWhileBotting;
 
             checkQuestItems.Checked = PlayerConfig.Profile.Pickup.PickupQuestItems;
             checkAllEquips.Checked = PlayerConfig.Profile.Pickup.PickupAnyEquips;
