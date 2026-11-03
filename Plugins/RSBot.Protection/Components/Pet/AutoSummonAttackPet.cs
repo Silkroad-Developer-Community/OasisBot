@@ -37,7 +37,7 @@ public class AutoSummonAttackPet
         if (Game.Player.Growth != null || Game.Player.Fellow != null)
             return;
 
-        if (!PlayerConfig.Get<bool>("RSBot.Protection.checkAutoSummonAttackPet"))
+        if (!PlayerConfig.Profile.Protection.AutoSummonAttackPet)
             return;
 
         //if (Game.Player.State.BattleState != BattleState.InPeace)
@@ -56,7 +56,7 @@ public class AutoSummonAttackPet
         if (Game.Player.Growth != null || Game.Player.Fellow != null)
             return;
 
-        if (!PlayerConfig.Get<bool>("RSBot.Protection.checkAutoSummonAttackPet"))
+        if (!PlayerConfig.Profile.Protection.AutoSummonAttackPet)
             return;
 
         if (Game.Player.State.BattleState != BattleState.InPeace)

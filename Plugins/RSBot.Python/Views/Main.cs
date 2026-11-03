@@ -1,17 +1,18 @@
-﻿using System;
-using System.ComponentModel;
-using System.Diagnostics;
-using System.IO;
-using System.Threading.Tasks;
-using System.Windows.Forms;
-using Python.Runtime;
+﻿using Python.Runtime;
 using RSBot.Core.Event;
 using RSBot.Core.Network;
+using RSBot.Core.Objects;
 using RSBot.Python.Components.API.GUI;
 using RSBot.Python.Components.API.ModuleLoader;
 using RSBot.Python.Components.Loader;
 using RSBot.Python.Plugins;
 using SDUI.Controls;
+using System;
+using System.ComponentModel;
+using System.Diagnostics;
+using System.IO;
+using System.Threading.Tasks;
+using System.Windows.Forms;
 
 namespace RSBot.Python.Views;
 
@@ -40,6 +41,7 @@ public partial class Main : DoubleBufferedControl
         EventManager.SubscribeEvent("OnServerPacketReceive", OnServerPacketReceive);
         EventManager.SubscribeEvent("OnEnterGame", OnEnterGame);
         EventManager.SubscribeEvent("OnAgentServerDisconnected", OnAgentServerDisconnected);
+        EventManager.SubscribeEvent("OnMessageReceived", OnMessageReceived);
     }
 
     private void WireEvents()
@@ -171,6 +173,11 @@ public partial class Main : DoubleBufferedControl
     private void OnAgentServerDisconnected()
     {
         _pyPlugins.CallPluginEvent("on_disconnect", AppendLog);
+    }
+
+    private void OnMessageReceived(string message, string sender, ChatType type)
+    {
+        _pyPlugins.CallPluginEvent("on_message_received", AppendLog, message, sender, type);
     }
 
     private async void timerEventLoop_Tick(object sender, EventArgs e)

@@ -58,15 +58,15 @@ namespace RSBot.General
 
             ClientManager.Kill();
 
-            if (GlobalConfig.Get<bool>("RSBot.General.EnableAutomatedLogin"))
+            if (GlobalConfig.Profile.Bot.EnableAutomatedLogin)
             {
                 var reloginSeq = Interlocked.Increment(ref _reloginSeq);
 
                 EventManager.FireEvent("OnAutoReloginStarted");
 
                 int delay = 10000;
-                if (GlobalConfig.Get("RSBot.General.EnableWaitAfterDC", false))
-                    delay = GlobalConfig.Get<int>("RSBot.General.WaitAfterDC") * 60 * 1000;
+                if (GlobalConfig.Profile.Bot.EnableWaitAfterDC)
+                    delay = (int)GlobalConfig.Profile.Bot.WaitAfterDC * 60 * 1000;
 
                 Log.Warn($"Attempting relogin in {delay / 1000} seconds...");
                 await Task.Delay(delay);
@@ -96,7 +96,7 @@ namespace RSBot.General
 
             if (!Kernel.Proxy.IsConnectedToAgentserver && !Kernel.Proxy.IsSwitchingToAgentserver)
             {
-                if (GlobalConfig.Get<bool>("RSBot.General.EnableAutomatedLogin"))
+                if (GlobalConfig.Profile.Bot.EnableAutomatedLogin)
                 {
                     var reloginSeq = Interlocked.Increment(ref _reloginSeq);
 
@@ -118,8 +118,8 @@ namespace RSBot.General
                     Kernel.Proxy.Shutdown();
 
                     int delay = 10000;
-                    if (GlobalConfig.Get("RSBot.General.EnableWaitAfterDC", false))
-                        delay = GlobalConfig.Get<int>("RSBot.General.WaitAfterDC") * 60 * 1000;
+                    if (GlobalConfig.Profile.Bot.EnableWaitAfterDC)
+                        delay = (int)GlobalConfig.Profile.Bot.WaitAfterDC * 60 * 1000;
 
                     Log.Warn($"Attempting relogin in {delay / 1000} seconds...");
                     await Task.Delay(delay);
@@ -165,8 +165,8 @@ namespace RSBot.General
             while (!Game.Ready)
                 await Task.Delay(100);
 
-            var startBot = GlobalConfig.Get<bool>("RSBot.General.StartBot");
-            var useReturnScroll = GlobalConfig.Get<bool>("RSBot.General.UseReturnScroll");
+            var startBot = GlobalConfig.Profile.Bot.StartBot;
+            var useReturnScroll = GlobalConfig.Profile.Bot.UseReturnScroll;
 
             if (useReturnScroll)
                 Game.Player.UseReturnScroll();
@@ -182,7 +182,7 @@ namespace RSBot.General
             if (Game.Clientless)
                 return;
 
-            if (!GlobalConfig.Get<bool>("RSBot.General.StayConnected"))
+            if (!GlobalConfig.Profile.Bot.StayConnected)
             {
                 Kernel.Proxy.Shutdown();
             }
@@ -223,8 +223,9 @@ namespace RSBot.General
 
         public static void ChangeSilkroadPath(string path)
         {
-            GlobalConfig.Set("RSBot.SilkroadDirectory", Path.GetDirectoryName(path));
-            GlobalConfig.Set("RSBot.SilkroadExecutable", Path.GetFileName(path));
+            GlobalConfig.Profile.SilkroadDirectory = Path.GetDirectoryName(path);
+            GlobalConfig.Profile.SilkroadExecutable = Path.GetFileName(path);
+            GlobalConfig.Save();
         }
 
         public static void GoClientless()

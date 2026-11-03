@@ -1,4 +1,5 @@
-﻿using System.Linq;
+using System;
+using System.Linq;
 using RSBot.Core;
 using RSBot.Core.Objects;
 
@@ -12,7 +13,7 @@ internal class AvoidanceBundle : IBundle
     /// <value>
     ///     The avoidance list.
     /// </value>
-    public MonsterRarity[] AvoidanceList => PlayerConfig.GetEnums<MonsterRarity>("RSBot.Avoidance.Avoid");
+    public MonsterRarity[] AvoidanceList => PlayerConfig.Profile.Avoidance.AvoidMonsters?.ToArray() ?? Array.Empty<MonsterRarity>();
 
     /// <summary>
     ///     Gets the preferance list.
@@ -20,7 +21,7 @@ internal class AvoidanceBundle : IBundle
     /// <value>
     ///     The preferance list.
     /// </value>
-    public MonsterRarity[] PreferanceList => PlayerConfig.GetEnums<MonsterRarity>("RSBot.Avoidance.Prefer");
+    public MonsterRarity[] PreferanceList => PlayerConfig.Profile.Avoidance.PreferMonsters?.ToArray() ?? Array.Empty<MonsterRarity>();
 
     /// <summary>
     ///     Gets the berserk list.
@@ -28,7 +29,7 @@ internal class AvoidanceBundle : IBundle
     /// <value>
     ///     The berserk list.
     /// </value>
-    public MonsterRarity[] BerserkerList => PlayerConfig.GetEnums<MonsterRarity>("RSBot.Avoidance.Berserk");
+    public MonsterRarity[] BerserkerList => PlayerConfig.Profile.Avoidance.BerserkMonsters?.ToArray() ?? Array.Empty<MonsterRarity>();
 
     /// <summary>
     ///     Invokes this instance.
@@ -50,19 +51,19 @@ internal class AvoidanceBundle : IBundle
     /// </summary>
     /// <param name="rarity">The rarity.</param>
     /// <returns></returns>
-    public bool AvoidMonster(MonsterRarity rarity) => AvoidanceList.Contains(rarity);
+    public bool AvoidMonster(MonsterRarity rarity) => AvoidanceList.Any(r => r == rarity || (rarity != 0 && (r & rarity) == rarity));
 
     /// <summary>
     ///     Prefers the monster.
     /// </summary>
     /// <param name="rarity">The rarity.</param>
     /// <returns></returns>
-    public bool PreferMonster(MonsterRarity rarity) => PreferanceList.Contains(rarity);
+    public bool PreferMonster(MonsterRarity rarity) => PreferanceList.Any(r => r == rarity || (rarity != 0 && (r & rarity) == rarity));
 
     /// <summary>
     ///     Use Berserk on monster.
     /// </summary>
     /// <param name="rarity">The rarity.</param>
     /// <returns></returns>
-    public bool UseBerserkOnMonster(MonsterRarity rarity) => BerserkerList.Contains(rarity);
+    public bool UseBerserkOnMonster(MonsterRarity rarity) => BerserkerList.Any(r => r == rarity || (rarity != 0 && (r & rarity) == rarity));
 }

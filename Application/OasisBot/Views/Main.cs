@@ -11,6 +11,7 @@ using RSBot.Core;
 using RSBot.Core.Client;
 using RSBot.Core.Components;
 using RSBot.Core.Event;
+using RSBot.Core.PlayerConfigProfile;
 using RSBot.Core.Plugins;
 using RSBot.Views.Dialog;
 using SDUI;
@@ -90,7 +91,7 @@ public partial class Main : UIWindow
         if (BackColor.IsDark() == WindowsHelper.IsDark())
             return;
 
-        var detectDarkLight = GeneralConfig.Get("RSBot.Theme.Auto", true);
+        var detectDarkLight = GeneralConfig.Profile.AutoTheme;
         if (!detectDarkLight)
             return;
 
@@ -106,7 +107,7 @@ public partial class Main : UIWindow
     /// <param name="color">The color</param>
     private void SetThemeColor(Color color)
     {
-        GlobalConfig.Set("SDUI.Color", color.ToArgb());
+        GlobalConfig.Profile.ThemeColor = color.ToArgb();
         ColorScheme.BackColor = color;
         RefreshTheme();
     }
@@ -227,7 +228,7 @@ public partial class Main : UIWindow
         }
 
         Kernel.Bot?.SetBotbase(newBotbase.Value);
-        GlobalConfig.Set("RSBot.BotName", newBotbase.Value.Name);
+        GlobalConfig.Profile.Bot.BotbaseName = newBotbase.Value.Name;
 
         if (Game.Player != null)
             EventManager.FireEvent("OnLoadCharacter");
@@ -267,7 +268,7 @@ public partial class Main : UIWindow
             control.Dock = DockStyle.Fill;
 
             windowPageControl.Controls.Add(control);
-            if (control.Name == "RSBot.Python" && !GlobalConfig.Get("RSBot.ShowPythonPlugins", true))
+            if (control.Name == "RSBot.Python" && !GlobalConfig.Profile.ShowPythonPlugins)
                 windowPageControl.Controls.Remove(control);
         }
 
@@ -304,12 +305,12 @@ public partial class Main : UIWindow
         foreach (var item in info.Divisions[comboDivision.SelectedIndex].GatewayServers)
             comboServer.Items.Add(item);
 
-        var gatewayIndex = GlobalConfig.Get<int>("RSBot.GatewayIndex");
+        var gatewayIndex = GlobalConfig.Profile.GatewayIndex;
 
         if (comboServer.Items.Count > 0)
             comboServer.SelectedIndex = comboServer.Items.Count - 1 >= gatewayIndex ? gatewayIndex : 0;
 
-        GlobalConfig.Set("RSBot.GatewayIndex", comboServer.SelectedIndex.ToString());
+        GlobalConfig.Profile.GatewayIndex = comboServer.SelectedIndex;
     }
 
     private void Main_Shown(object sender, EventArgs e)
@@ -391,7 +392,7 @@ public partial class Main : UIWindow
     private void menuSidebar_Click(object sender, EventArgs e)
     {
         menuSidebar.Checked = !menuSidebar.Checked;
-        GlobalConfig.Set("RSBot.ShowSidebar", menuSidebar.Checked.ToString());
+        GlobalConfig.Profile.ShowSidebar = menuSidebar.Checked;
 
         ConfigureSidebar();
     }
@@ -403,7 +404,7 @@ public partial class Main : UIWindow
     /// <param name="e">The <see cref="EventArgs" /> instance containing the event data.</param>
     private void comboDivision_SelectedIndexChanged(object sender, EventArgs e)
     {
-        GlobalConfig.Set("RSBot.DivisionIndex", comboDivision.SelectedIndex.ToString());
+        GlobalConfig.Profile.DivisionIndex = comboDivision.SelectedIndex;
 
         if (Game.ReferenceManager.DivisionInfo != null)
             PopulateServerCombobox(Game.ReferenceManager.DivisionInfo);
@@ -416,7 +417,7 @@ public partial class Main : UIWindow
     /// <param name="e">The <see cref="EventArgs" /> instance containing the event data.</param>
     private void comboServer_SelectedIndexChanged(object sender, EventArgs e)
     {
-        GlobalConfig.Set("RSBot.GatewayIndex", comboServer.SelectedIndex.ToString());
+        GlobalConfig.Profile.GatewayIndex = comboServer.SelectedIndex;
     }
 
     /// <summary>
@@ -426,8 +427,8 @@ public partial class Main : UIWindow
     /// <param name="e">The <see cref="EventArgs" /> instance containing the event data.</param>
     private void Main_Load(object sender, EventArgs e)
     {
-        menuSidebar.Checked = GlobalConfig.Get("RSBot.ShowSidebar", true);
-        pyPluginsToolStripMenuItem.Checked = GlobalConfig.Get("RSBot.ShowPythonPlugins", true);
+        menuSidebar.Checked = GlobalConfig.Profile.ShowSidebar;
+        pyPluginsToolStripMenuItem.Checked = GlobalConfig.Profile.ShowPythonPlugins;
 
         foreach (var item in LanguageManager.GetLanguages())
         {
@@ -490,7 +491,7 @@ public partial class Main : UIWindow
 
         dropdown.Checked = true;
 
-        GeneralConfig.Set("RSBot.Language", Kernel.Language);
+        GeneralConfig.Profile.Language = Kernel.Language;
         GeneralConfig.Save();
         GlobalConfig.Save();
     }
@@ -590,10 +591,26 @@ public partial class Main : UIWindow
         if (!Kernel.Bot.Running)
         {
             var pos = Game.Player.Position;
-            PlayerConfig.Set("RSBot.Area.Region", pos.Region);
-            PlayerConfig.Set("RSBot.Area.X", pos.XOffset);
-            PlayerConfig.Set("RSBot.Area.Y", pos.YOffset);
-            PlayerConfig.Set("RSBot.Area.Z", pos.ZOffset);
+
+            var currentArea = PlayerConfig.Profile.Training.Areas.Find(a => a.IsActive);
+
+            if(currentArea == null)
+            {
+                currentArea = new TrainingAreaConfig
+                {
+                    IsActive = true
+                };
+                PlayerConfig.Profile.Training.Areas.Add(currentArea);
+            }
+
+
+            currentArea.Region = pos.Region;
+            currentArea.X = pos.XOffset;
+            currentArea.Y = pos.YOffset;
+            currentArea.Z = pos.ZOffset;
+            
+
+            PlayerConfig.Save();
 
             EventManager.FireEvent("OnSetTrainingArea");
 
@@ -617,7 +634,7 @@ public partial class Main : UIWindow
     /// <param name="e">The <see cref="FormClosingEventArgs" /> instance containing the event data.</param>
     private void Main_FormClosing(object sender, FormClosingEventArgs e)
     {
-        if (Kernel.Proxy == null || !Kernel.Proxy.ClientConnected || !GeneralConfig.Get("RSBot.showExitDialog", true))
+        if (Kernel.Proxy == null || !Kernel.Proxy.ClientConnected || !GeneralConfig.Profile.ShowExitDialog)
         {
             GlobalConfig.Save();
             PlayerConfig.Save();
@@ -663,7 +680,7 @@ public partial class Main : UIWindow
     /// <param name="e">The <see cref="EventArgs" /> instance containing the event data.</param>
     private void menuItemExit_Click(object sender, EventArgs e)
     {
-        if (Kernel.Proxy == null || !Kernel.Proxy.ClientConnected || !GeneralConfig.Get("RSBot.showExitDialog", true))
+        if (Kernel.Proxy == null || !Kernel.Proxy.ClientConnected || !GeneralConfig.Profile.ShowExitDialog)
         {
             GlobalConfig.Save();
             PlayerConfig.Save();
@@ -692,7 +709,7 @@ public partial class Main : UIWindow
         if (WindowState != FormWindowState.Minimized)
             return;
 
-        if (!GlobalConfig.Get<bool>("RSBot.General.TrayWhenMinimize"))
+        if (!GlobalConfig.Profile.TrayWhenMinimize)
             return;
 
         notifyIcon.Visible = true;
@@ -729,7 +746,7 @@ public partial class Main : UIWindow
     /// <param name="e">The <see cref="EventArgs" /> instance containing the event data.</param>
     private void darkToolStripMenuItem_Click(object sender, EventArgs e)
     {
-        GeneralConfig.Set("RSBot.Theme.Auto", false);
+        GeneralConfig.Profile.AutoTheme = false;
         GeneralConfig.Save();
         SetThemeColor(DarkThemeColor);
     }
@@ -741,7 +758,7 @@ public partial class Main : UIWindow
     /// <param name="e">The <see cref="EventArgs" /> instance containing the event data.</param>
     private void lightToolStripMenuItem_Click(object sender, EventArgs e)
     {
-        GeneralConfig.Set("RSBot.Theme.Auto", false);
+        GeneralConfig.Profile.AutoTheme = false;
         GeneralConfig.Save();
         SetThemeColor(LightThemeColor);
     }
@@ -755,7 +772,7 @@ public partial class Main : UIWindow
     {
         if (WindowsHelper.IsModern)
         {
-            GeneralConfig.Set("RSBot.Theme.Auto", true);
+            GeneralConfig.Profile.AutoTheme = true;
             GeneralConfig.Save();
             SystemEvents_UserPreferenceChanged(null, new UserPreferenceChangedEventArgs(UserPreferenceCategory.Color));
 
@@ -777,11 +794,11 @@ public partial class Main : UIWindow
     /// <param name="e">The <see cref="EventArgs" /> instance containing the event data.</param>
     private void coloredToolStripMenuItem_Click(object sender, EventArgs e)
     {
-        var colorDialog = new ColorDialog { CustomColors = GlobalConfig.GetArray<int>("SDUI.CustomColors") };
+        var colorDialog = new ColorDialog { CustomColors = GlobalConfig.Profile.CustomColors };
 
         if (colorDialog.ShowDialog() == DialogResult.OK)
         {
-            GlobalConfig.SetArray("SDUI.CustomColors", colorDialog.CustomColors);
+            GlobalConfig.Profile.CustomColors = colorDialog.CustomColors;
             SetThemeColor(colorDialog.Color);
         }
     }
@@ -802,12 +819,12 @@ public partial class Main : UIWindow
         if (dialog.SelectedProfile == ProfileManager.SelectedProfile)
             return;
 
-        var oldSroPath = GlobalConfig.Get("RSBot.SilkroadDirectory", "");
+        var oldSroPath = GlobalConfig.Profile.SilkroadDirectory;
 
         //We need this to check if the sro directories are different
-        var tempNewConfig = new Config(ProfileManager.GetProfileFile(dialog.SelectedProfile));
+        var tempNewSroPath = GlobalConfig.GetSilkroadDirectoryFromProfile(ProfileManager.GetProfileFile(dialog.SelectedProfile));
 
-        if (oldSroPath != tempNewConfig.Get("RSBot.SilkroadDirectory", ""))
+        if (oldSroPath != tempNewSroPath)
             if (
                 MessageBox.Show(
                     "This profile references to a different client, do you want to restart the bot?",
@@ -844,7 +861,7 @@ public partial class Main : UIWindow
     {
         const string title = "IP Bind";
 
-        var currentBind = GlobalConfig.Get("RSBot.Network.BindIp", "0.0.0.0");
+        var currentBind = GlobalConfig.Profile.Bot.BindIp;
 
         const string message =
             "Use your custom interface ip for connect to game.\nEnter your interface Ip:\t(default: 0.0.0.0)";
@@ -861,13 +878,15 @@ public partial class Main : UIWindow
             return;
         }
 
-        GlobalConfig.Set("RSBot.Network.BindIp", ipAddress.ToString());
+        GlobalConfig.Profile.Bot.BindIp = ipAddress.ToString();
+        GlobalConfig.Save();
     }
 
     private void pyPluginsToolStripMenuItem_Click(object sender, EventArgs e)
     {
         pyPluginsToolStripMenuItem.Checked = !pyPluginsToolStripMenuItem.Checked;
-        GlobalConfig.Set("RSBot.ShowPythonPlugins", pyPluginsToolStripMenuItem.Checked.ToString());
+        GlobalConfig.Profile.ShowPythonPlugins = pyPluginsToolStripMenuItem.Checked;
+        GlobalConfig.Save();
         foreach (var plugin in Kernel.PluginManager.ExtensionsViews.Values)
         {
             if (plugin.InternalName == "RSBot.Python")
@@ -940,7 +959,7 @@ public partial class Main : UIWindow
             botsToolStripMenuItem.DropDown.Items.Add(item);
         }
 
-        SelectBotbase(GlobalConfig.Get("RSBot.BotName", "RSBot.Training"));
+        SelectBotbase(GlobalConfig.Profile.Bot.BotbaseName);
     }
 
     /// <summary>
@@ -1011,7 +1030,7 @@ public partial class Main : UIWindow
         foreach (var divInfo in info.Divisions)
             comboDivision.Items.Add(divInfo.Name);
 
-        var divisionIndex = GlobalConfig.Get<int>("RSBot.DivisionIndex");
+        var divisionIndex = GlobalConfig.Profile.DivisionIndex;
 
         if (comboDivision.Items.Count >= info.Divisions.Count)
             comboDivision.SelectedIndex = comboDivision.SelectedIndex =

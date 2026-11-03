@@ -46,7 +46,7 @@ internal class GlobalIdentificationRequest : IPacketHandler
         else if (serviceName == "AgentServer")
         {
             var selectedAccount = Accounts.SavedAccounts.Find(p =>
-                p.Username == GlobalConfig.Get<string>("RSBot.General.AutoLoginAccountUsername")
+                p.Username == GlobalConfig.Profile.Bot.AutoLoginAccountUsername
             );
             if (selectedAccount == null)
             {
@@ -62,18 +62,18 @@ internal class GlobalIdentificationRequest : IPacketHandler
 
             if (Game.ClientType == GameClientType.RuSro)
             {
-                response.WriteString(GlobalConfig.Get<string>("RSBot.RuSro.login"));
-                response.WriteString(Sha256.ComputeHash(GlobalConfig.Get<string>("RSBot.RuSro.password")));
+                response.WriteString(GlobalConfig.Profile.RuSro.Login);
+                response.WriteString(Sha256.ComputeHash(GlobalConfig.Profile.RuSro.Password));
             }
             else if (Game.ClientType == GameClientType.Japanese)
             {
-                response.WriteString(GlobalConfig.Get<string>("RSBot.JSRO.login"));
-                response.WriteString(Sha256.ComputeHash(GlobalConfig.Get<string>("RSBot.JSRO.token")));
+                response.WriteString(GlobalConfig.Profile.Jsro.Login);
+                response.WriteString(Sha256.ComputeHash(GlobalConfig.Profile.Jsro.Token));
             }
             else
             {
                 if (Game.ClientType == GameClientType.Global && selectedAccount.Channel == 0x02)
-                    response.WriteString(GlobalConfig.Get<string>("RSBot.JCPlanet.login"));
+                    response.WriteString(GlobalConfig.Profile.JcPlanet.Login);
                 else
                     response.WriteString(selectedAccount.Username);
 

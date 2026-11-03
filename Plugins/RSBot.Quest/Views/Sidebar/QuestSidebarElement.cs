@@ -43,7 +43,7 @@ public partial class QuestSidebarElement : DoubleBufferedControl
             return;
         }
 
-        TrackedQuests = PlayerConfig.GetArray<uint>("RSBot.QuestLog.TrackedQuests").ToList();
+        TrackedQuests = PlayerConfig.Profile.Quests.TrackedQuests;
         if (!TrackedQuests.Contains(questId))
             TrackedQuests.Add(questId);
 
@@ -54,7 +54,8 @@ public partial class QuestSidebarElement : DoubleBufferedControl
             Tag = questId,
         };
 
-        PlayerConfig.SetArray("RSBot.QuestLog.TrackedQuests", TrackedQuests);
+        PlayerConfig.Profile.Quests.TrackedQuests = TrackedQuests;
+        PlayerConfig.Save();
 
         pQuests.BeginInvoke(() =>
         {
@@ -66,7 +67,7 @@ public partial class QuestSidebarElement : DoubleBufferedControl
 
     public void RemoveQuest(uint questId)
     {
-        TrackedQuests = PlayerConfig.GetArray<uint>("RSBot.QuestLog.TrackedQuests").ToList();
+        TrackedQuests = PlayerConfig.Profile.Quests.TrackedQuests;
 
         pQuests.BeginInvoke(() =>
         {
@@ -75,7 +76,8 @@ public partial class QuestSidebarElement : DoubleBufferedControl
 
         TrackedQuests.Remove(questId);
 
-        PlayerConfig.SetArray("RSBot.QuestLog.TrackedQuests", TrackedQuests);
+        PlayerConfig.Profile.Quests.TrackedQuests = TrackedQuests;
+        PlayerConfig.Save();
 
         Refresh();
     }
@@ -89,7 +91,7 @@ public partial class QuestSidebarElement : DoubleBufferedControl
             return;
         }
 
-        TrackedQuests = PlayerConfig.GetArray<uint>("RSBot.QuestLog.TrackedQuests").ToList();
+        TrackedQuests = PlayerConfig.Profile.Quests.TrackedQuests;
 
         lock (TrackedQuests)
         {

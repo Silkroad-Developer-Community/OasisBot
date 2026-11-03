@@ -31,21 +31,21 @@ internal class VigorRecoveryHandler
         if ((Game.Player.BadEffect & BadEffect.Zombie) == BadEffect.Zombie)
             return;
 
-        var useManaPotion = PlayerConfig.Get<bool>("RSBot.Protection.checkUseVigorMP");
+        var useManaPotion = PlayerConfig.Profile.Protection.UseVigorMp;
         if (useManaPotion)
         {
-            var minMana = PlayerConfig.Get("RSBot.Protection.numPlayerMPVigorPotionMin", 50);
+            var minMana = PlayerConfig.Profile.Protection.MinPlayerMpVigorPercent;
 
             var manaPercent = 100.0 * Game.Player.Mana / Game.Player.MaximumMana;
             if (manaPercent <= minMana && Game.Player.UseVigorPotion())
                 return;
         }
 
-        var useHealthPotion = PlayerConfig.Get<bool>("RSBot.Protection.checkUseVigorHP");
+        var useHealthPotion = PlayerConfig.Profile.Protection.UseVigorHp;
         if (!useHealthPotion)
             return;
 
-        var minHealth = PlayerConfig.Get("RSBot.Protection.numPlayerHPVigorPotionMin", 50);
+        var minHealth = PlayerConfig.Profile.Protection.MinPlayerHpVigorPercent;
 
         var healthPercent = 100.0 * Game.Player.Health / Game.Player.MaximumHealth;
         if (healthPercent <= minHealth)

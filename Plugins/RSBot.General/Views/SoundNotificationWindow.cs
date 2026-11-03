@@ -172,35 +172,39 @@ public partial class SoundNotificationWindow : UIWindowBase
             return;
         }
 
-        Core.Objects.NotificationSounds tmp = Game.Player.NotificationSounds;
+        var alarms = PlayerConfig.Profile.Alarms;
 
-        tmp.UpdatePlayerSettings("RSBot.Sounds.PathUniqueAlarmGeneral", txtUniqueAppearedGeneral.Text);
-        tmp.UpdatePlayerSettings("RSBot.Sounds.PlayUniqueAlarmGeneral", chkUniqueAppearedGeneral.Checked);
-        tmp.UpdatePlayerSettings("RSBot.Sounds.RegexUniqueAlarmGeneral", txtRegex.Text);
+        alarms.PlayGeneral = chkUniqueAppearedGeneral.Checked;
+        alarms.AlarmPathGeneral = txtUniqueAppearedGeneral.Text;
+        alarms.RegexGeneral = txtRegex.Text;
 
-        tmp.UpdatePlayerSettings("RSBot.Sounds.PathAlarmUniqueInRange", txtUniqueInRange.Text);
-        tmp.UpdatePlayerSettings("RSBot.Sounds.PlayAlarmUniqueInRange", chkUniqueInRange.Checked);
+        alarms.PlayAlarmUniqueInRange = chkUniqueInRange.Checked;
+        alarms.AlarmPathUniqueInRange = txtUniqueInRange.Text;
 
-        tmp.UpdatePlayerSettings("RSBot.Sounds.PathUniqueAlarmTigerGirl", txtTigerGirl.Text);
-        tmp.UpdatePlayerSettings("RSBot.Sounds.PlayUniqueAlarmTigerGirl", chkTigerGirl.Checked);
+        alarms.PlayTigerGirl = chkTigerGirl.Checked;
+        alarms.AlarmPathTigerGirl = txtTigerGirl.Text;
 
-        tmp.UpdatePlayerSettings("RSBot.Sounds.PathUniqueAlarmCerberus", txtCerberus.Text);
-        tmp.UpdatePlayerSettings("RSBot.Sounds.PlayUniqueAlarmCerberus", chkCerberus.Checked);
+        alarms.PlayCerberus = chkCerberus.Checked;
+        alarms.AlarmPathCerberus = txtCerberus.Text;
 
-        tmp.UpdatePlayerSettings("RSBot.Sounds.PathUniqueAlarmCaptainIvy", txtIvy.Text);
-        tmp.UpdatePlayerSettings("RSBot.Sounds.PlayUniqueAlarmCaptainIvy", chkIvy.Checked);
+        alarms.PlayCaptainIvy = chkIvy.Checked;
+        alarms.AlarmPathCaptainIvy = txtIvy.Text;
 
-        tmp.UpdatePlayerSettings("RSBot.Sounds.PathUniqueAlarmUruchi", txtUruchi.Text);
-        tmp.UpdatePlayerSettings("RSBot.Sounds.PlayUniqueAlarmUruchi", chkUruchi.Checked);
+        alarms.PlayUruchi = chkUruchi.Checked;
+        alarms.AlarmPathUruchi = txtUruchi.Text;
 
-        tmp.UpdatePlayerSettings("RSBot.Sounds.PathUniqueAlarmIsyutaru", txtIsyutaru.Text);
-        tmp.UpdatePlayerSettings("RSBot.Sounds.PlayUniqueAlarmIsyutaru", chkIsyutaru.Checked);
+        alarms.PlayIsyutaru = chkIsyutaru.Checked;
+        alarms.AlarmPathIsyutaru = txtIsyutaru.Text;
 
-        tmp.UpdatePlayerSettings("RSBot.Sounds.PathUniqueAlarmLordYarkan", txtLordYarkan.Text);
-        tmp.UpdatePlayerSettings("RSBot.Sounds.PlayUniqueAlarmLordYarkan", chkLordYarkan.Checked);
+        alarms.PlayLordYarkan = chkLordYarkan.Checked;
+        alarms.AlarmPathLordYarkan = txtLordYarkan.Text;
 
-        tmp.UpdatePlayerSettings("RSBot.Sounds.PathUniqueAlarmDemonShaitan", txtDemonChaitan.Text);
-        tmp.UpdatePlayerSettings("RSBot.Sounds.PlayUniqueAlarmDemonShaitan", chkDemonChaitan.Checked);
+        alarms.PlayDemonShaitan = chkDemonChaitan.Checked;
+        alarms.AlarmPathDemonShaitan = txtDemonChaitan.Text;
+
+        PlayerConfig.Save();
+
+        Game.Player.NotificationSounds.LoadPlayerSettings();
     }
 
     /// <summary>

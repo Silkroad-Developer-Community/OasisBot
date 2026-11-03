@@ -47,7 +47,7 @@ public class DurabilityLowHandler : AbstractTownHandler
         if (!Kernel.Bot.Running)
             return;
 
-        if (!PlayerConfig.Get<bool>("RSBot.Protection.checkDurability"))
+        if (!PlayerConfig.Profile.Protection.CheckDurability)
             return;
 
         if (Kernel.TickCount - _lastTick < 10000)
@@ -69,7 +69,7 @@ public class DurabilityLowHandler : AbstractTownHandler
             if (item == null || !item.Record.IsEquip || item.Durability > 6)
                 continue;
 
-            var itemsToUse = PlayerConfig.GetArray<string>("RSBot.Inventory.AutoUseAccordingToPurpose");
+            var itemsToUse = PlayerConfig.Profile.Inventory.AutoUseAccordingToPurpose;
             var inventoryItem = Game.Player.Inventory.GetItem(
                 new TypeIdFilter(3, 3, 13, 7),
                 p => itemsToUse.Contains(p.Record.CodeName)

@@ -1,4 +1,6 @@
-﻿namespace RSBot.Party.Bundle.Commands;
+﻿using System.Collections.Generic;
+
+namespace RSBot.Party.Bundle.Commands;
 
 internal class CommandsConfig
 {
@@ -8,7 +10,7 @@ internal class CommandsConfig
     /// <value>
     ///     The player list.
     /// </value>
-    public string[] PlayerList { get; set; }
+    public List<string> PlayerList { get; set; }
 
     /// <summary>
     ///     Gets or sets a value indicating whether [listen from list].

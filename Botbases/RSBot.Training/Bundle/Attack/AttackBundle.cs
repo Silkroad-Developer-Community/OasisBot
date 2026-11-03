@@ -32,7 +32,7 @@ internal class AttackBundle : IBundle
             return;
         }
 
-        bool dontFollowMobs = PlayerConfig.Get<bool>("RSBot.Training.checkBoxDontFollowMobs");
+        bool dontFollowMobs = PlayerConfig.Profile.Training.DontFollowMobs;
         if (dontFollowMobs && !Container.Bot.Area.IsInSight(Game.SelectedEntity))
         {
             Log.Debug("Deselecting entity because it moved far away from training area!");
@@ -67,7 +67,7 @@ internal class AttackBundle : IBundle
         //if (Game.Player.InAction && !SkillManager.IsLastCastedBasic)
         //  return;
 
-        var useTeleportSkill = PlayerConfig.Get("RSBot.Skills.checkUseTeleportSkill", false);
+        var useTeleportSkill = PlayerConfig.Profile.Skills.UseTeleportSkill;
         if (useTeleportSkill && CastTeleportation())
             return;
 
@@ -85,7 +85,7 @@ internal class AttackBundle : IBundle
             if (Game.Player.InAction)
                 return;
 
-            if (PlayerConfig.Get("RSBot.Skills.checkUseDefaultAttack", true))
+            if (PlayerConfig.Profile.Skills.UseDefaultAttack)
                 SkillManager.CastAutoAttack();
 
             return;

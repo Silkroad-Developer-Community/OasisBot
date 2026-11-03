@@ -29,7 +29,7 @@ namespace RSBot.Inventory
         /// </summary>
         public static bool ToggleItemAtTrainplaceByCodeName(string codeName)
         {
-            var items = PlayerConfig.GetArray<string>("RSBot.Inventory.ItemsAtTrainplace").ToList();
+            var items = PlayerConfig.Profile.Inventory.ItemsAtTrainplace;
             bool isEnabled;
 
             if (items.Contains(codeName))
@@ -43,7 +43,8 @@ namespace RSBot.Inventory
                 isEnabled = true;
             }
 
-            PlayerConfig.SetArray("RSBot.Inventory.ItemsAtTrainplace", items);
+            PlayerConfig.Profile.Inventory.ItemsAtTrainplace = items;
+            PlayerConfig.Save();
             return isEnabled;
         }
 
@@ -52,7 +53,7 @@ namespace RSBot.Inventory
         /// </summary>
         public static bool ToggleAutoUseByCodeName(string codeName)
         {
-            var items = PlayerConfig.GetArray<string>("RSBot.Inventory.AutoUseAccordingToPurpose").ToList();
+            var items = PlayerConfig.Profile.Inventory.AutoUseAccordingToPurpose;
             bool isNowEnabled;
 
             if (items.Contains(codeName))
@@ -66,14 +67,15 @@ namespace RSBot.Inventory
                 isNowEnabled = true;
             }
 
-            PlayerConfig.SetArray("RSBot.Inventory.AutoUseAccordingToPurpose", items);
+            PlayerConfig.Profile.Inventory.AutoUseAccordingToPurpose = items;
+            PlayerConfig.Save();
             return isNowEnabled;
         }
 
         public static List<string> GetItemsAtTrainplace() =>
-            PlayerConfig.GetArray<string>("RSBot.Inventory.ItemsAtTrainplace").ToList();
+            PlayerConfig.Profile.Inventory.ItemsAtTrainplace;
 
         public static List<string> GetItemsByPurpose() =>
-            PlayerConfig.GetArray<string>("RSBot.Inventory.AutoUseAccordingToPurpose").ToList();
+            PlayerConfig.Profile.Inventory.AutoUseAccordingToPurpose;
     }
 }

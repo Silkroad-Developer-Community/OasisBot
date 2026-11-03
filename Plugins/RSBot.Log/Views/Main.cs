@@ -81,7 +81,7 @@ public partial class Main : DoubleBufferedControl
     /// </summary>
     private void LoadConfig()
     {
-        checkEnabled.Checked = GlobalConfig.Get("RSBot.Log.logEnabled", true);
+        checkEnabled.Checked = GlobalConfig.Profile.Bot.EnableLog;
     }
 
     /// <summary>
@@ -91,7 +91,7 @@ public partial class Main : DoubleBufferedControl
     /// <param name="e">The <see cref="EventArgs" /> instance containing the event data.</param>
     private void checkEnabled_CheckedChanged(object sender, EventArgs e)
     {
-        GlobalConfig.Set("RSBot.Log.logEnabled", checkEnabled.Checked.ToString());
+        GlobalConfig.Profile.Bot.EnableLog = checkEnabled.Checked;
     }
 
     /// <summary>

@@ -751,8 +751,8 @@ public static class ShoppingManager
 
     public static void LoadFilters()
     {
-        var configSell = PlayerConfig.GetArray<string>("RSBot.Shopping.Sell");
-        var configStore = PlayerConfig.GetArray<string>("RSBot.Shopping.Store");
+        var configSell = PlayerConfig.Profile.Shopping.SellList;
+        var configStore = PlayerConfig.Profile.Shopping.StoreList;
 
         foreach (var item in configSell)
             SellFilter.Add(item);
@@ -763,8 +763,8 @@ public static class ShoppingManager
 
     public static void SaveFilters()
     {
-        PlayerConfig.SetArray("RSBot.Shopping.Sell", SellFilter);
-        PlayerConfig.SetArray("RSBot.Shopping.Store", StoreFilter);
+        PlayerConfig.Profile.Shopping.SellList = SellFilter;
+        PlayerConfig.Profile.Shopping.StoreList = StoreFilter;
     }
 
     /// <summary>

@@ -1,8 +1,7 @@
-﻿using System;
+using System;
 using System.Collections.Generic;
 using System.Threading.Tasks;
 using RSBot.Core;
-using RSBot.Core.Components;
 using RSBot.Core.Event;
 using RSBot.Core.Objects.Party;
 
@@ -98,22 +97,24 @@ namespace RSBot.Party
 
         public static string[] GetBuffingGroups()
         {
-            return PlayerConfig.GetArray<string>("RSBot.Party.Buffing.Groups");
+            return PlayerConfig.Profile.Party.Buffing.Groups.ToArray();
         }
 
         public static void SaveBuffingGroups(IEnumerable<string> buffs)
         {
-            PlayerConfig.SetArray("RSBot.Party.Buffing.Groups", buffs);
+            PlayerConfig.Profile.Party.Buffing.Groups.Clear();
+            PlayerConfig.Profile.Party.Buffing.Groups.AddRange(buffs);
+            PlayerConfig.Save();
         }
 
         public static string GetBuffingMembers()
         {
-            return PlayerConfig.Get("RSBot.Party.Buffing", string.Empty);
+            return PlayerConfig.Profile.Party.Buffing.Members;
         }
 
         public static void SaveBuffingPartyMembers(string members)
         {
-            PlayerConfig.Set("RSBot.Party.Buffing", members);
+            PlayerConfig.Profile.Party.Buffing.Members = members;
             PlayerConfig.Save();
 
             EventManager.FireEvent("OnPartyBuffSettingsChanged");
@@ -121,21 +122,25 @@ namespace RSBot.Party
 
         public static void SaveAutoPartyPlayerList(IEnumerable<string> players)
         {
-            PlayerConfig.SetArray("RSBot.Party.AutoPartyList", players);
+            PlayerConfig.Profile.Party.AutoPartyList.Clear();
+            PlayerConfig.Profile.Party.AutoPartyList.AddRange(players);
+            PlayerConfig.Save();
 
             Bundle.Container.Refresh();
         }
 
         public static void SaveCommandPlayersList(IEnumerable<string> players)
         {
-            PlayerConfig.SetArray("RSBot.Party.Commands.PlayersList", players);
+            PlayerConfig.Profile.Party.CommandAllowedPlayers.Clear();
+            PlayerConfig.Profile.Party.CommandAllowedPlayers.AddRange(players);
+            PlayerConfig.Save();
 
             Bundle.Container.Refresh();
         }
 
         public static string GetSelectedGroup()
         {
-            return PlayerConfig.Get("RSBot.Party.Buffing.SelectedGroup", "Default");
+            return PlayerConfig.Profile.Party.Buffing.SelectedGroup;
         }
 
         public static void LeaveParty()
@@ -145,110 +150,128 @@ namespace RSBot.Party
 
         public static void SetPartyExpAutoShare(bool enabled)
         {
-            PlayerConfig.Set("RSBot.Party.EXPAutoShare", enabled);
+            PlayerConfig.Profile.Party.ExpAutoShare = enabled;
+            PlayerConfig.Save();
             Bundle.Container.AutoParty.Refresh();
         }
 
         public static void SetPartyItemAutoShare(bool enabled)
         {
-            PlayerConfig.Set("RSBot.Party.ItemAutoShare", enabled);
+            PlayerConfig.Profile.Party.ItemAutoShare = enabled;
+            PlayerConfig.Save();
             Bundle.Container.AutoParty.Refresh();
         }
 
         public static void SetPartyAllowInvites(bool enabled)
         {
-            PlayerConfig.Set("RSBot.Party.AllowInvitations", enabled);
+            PlayerConfig.Profile.Party.AllowInvitations = enabled;
+            PlayerConfig.Save();
             Bundle.Container.AutoParty.Refresh();
         }
 
         public static void SetPartyAutoAcceptInvitesAll(bool enabled)
         {
-            PlayerConfig.Set("RSBot.Party.AcceptAll", enabled);
+            PlayerConfig.Profile.Party.AcceptAll = enabled;
+            PlayerConfig.Save();
             Bundle.Container.AutoParty.Refresh();
         }
 
         public static void SetPartyAutoAcceptInvitesFromList(bool enabled)
         {
-            PlayerConfig.Set("RSBot.Party.AcceptList", enabled);
+            PlayerConfig.Profile.Party.AcceptFromListOnly = enabled;
+            PlayerConfig.Save();
             Bundle.Container.AutoParty.Refresh();
         }
 
         public static void SetPartyAutoInviteAll(bool enabled)
         {
-            PlayerConfig.Set("RSBot.Party.InviteAll", enabled);
+            PlayerConfig.Profile.Party.InviteAll = enabled;
+            PlayerConfig.Save();
             Bundle.Container.AutoParty.Refresh();
         }
 
         public static void SetPartyAutoInviteList(bool enabled)
         {
-            PlayerConfig.Set("RSBot.Party.InviteList", enabled);
+            PlayerConfig.Profile.Party.InviteFromListOnly = enabled;
+            PlayerConfig.Save();
             Bundle.Container.AutoParty.Refresh();
         }
 
         public static void SetPartyAutoAcceptAtTrainingPlace(bool enabled)
         {
-            PlayerConfig.Set("RSBot.Party.AtTrainingPlace", enabled);
+            PlayerConfig.Profile.Party.AcceptOnlyAtTrainingPlace = enabled;
+            PlayerConfig.Save();
             Bundle.Container.AutoParty.Refresh();
         }
 
         public static void SetPartyAutoAcceptIfBotStopped(bool enabled)
         {
-            PlayerConfig.Set("RSBot.Party.AcceptIfBotStopped", enabled);
+            PlayerConfig.Profile.Party.AcceptIfBotStopped = enabled;
+            PlayerConfig.Save();
             Bundle.Container.AutoParty.Refresh();
         }
 
         public static void SetPartyAutoLeaveIfMasterNot(bool enabled)
         {
-            PlayerConfig.Set("RSBot.Party.LeaveIfMasterNot", enabled);
+            PlayerConfig.Profile.Party.LeaveIfMasterNotPresent = enabled;
+            PlayerConfig.Save();
             Bundle.Container.AutoParty.Refresh();
         }
 
         public static void SetPartyAutoLeaveMaster(string masterName)
         {
-            PlayerConfig.Set("RSBot.Party.LeaveIfMasterNotName", masterName);
+            PlayerConfig.Profile.Party.MasterCharacterName = masterName;
+            PlayerConfig.Save();
             Bundle.Container.AutoParty.Refresh();
         }
 
         public static void SetPartyCommandListenFromMaster(bool enabled)
         {
-            PlayerConfig.Set("RSBot.Party.Commands.ListenFromMaster", enabled);
+            PlayerConfig.Profile.Party.ListenCommandsFromMaster = enabled;
+            PlayerConfig.Save();
             Bundle.Container.AutoParty.Refresh();
         }
 
         public static void SetPartyCommandListenFromList(bool enabled)
         {
-            PlayerConfig.Set("RSBot.Party.Commands.ListenOnlyList", enabled);
+            PlayerConfig.Profile.Party.ListenCommandsOnlyFromList = enabled;
+            PlayerConfig.Save();
             Bundle.Container.AutoParty.Refresh();
         }
 
         public static void SetFollowMaster(bool enabled)
         {
-            PlayerConfig.Set("RSBot.Party.AlwaysFollowPartyMaster", enabled);
+            PlayerConfig.Profile.Party.AlwaysFollowPartyMaster = enabled;
+            PlayerConfig.Save();
 
             Bundle.Container.Refresh();
         }
 
         public static void SetPartyAutoJoinByName(bool enabled)
         {
-            PlayerConfig.Set("RSBot.Party.AutoJoin.ByName", enabled);
+            PlayerConfig.Profile.Party.AutoJoinByName = enabled;
+            PlayerConfig.Save();
             Bundle.Container.AutoParty.Refresh();
         }
 
         public static void SetPartyAutoJoinByTitle(bool enabled)
         {
-            PlayerConfig.Set("RSBot.Party.AutoJoin.ByTitle", enabled);
+            PlayerConfig.Profile.Party.AutoJoinByTitle = enabled;
+            PlayerConfig.Save();
             Bundle.Container.AutoParty.Refresh();
         }
 
         public static void SetPartyAutoJoinName(string name)
         {
-            PlayerConfig.Set("RSBot.Party.AutoJoin.Name", name);
+            PlayerConfig.Profile.Party.AutoJoinTargetName = name;
+            PlayerConfig.Save();
             Bundle.Container.AutoParty.Refresh();
         }
 
         public static void SetPartyAutoJoinTitle(string title)
         {
-            PlayerConfig.Set("RSBot.Party.AutoJoin.Title", title);
+            PlayerConfig.Profile.Party.AutoJoinTargetTitle = title;
+            PlayerConfig.Save();
             Bundle.Container.AutoParty.Refresh();
         }
 
@@ -263,6 +286,7 @@ namespace RSBot.Party
             if (!Game.Ready)
                 return;
             Bundle.Container.PartyMatching.Config.AutoReform = false;
+            PlayerConfig.Save();
             Bundle.Container.PartyMatching.Delete();
         }
     }

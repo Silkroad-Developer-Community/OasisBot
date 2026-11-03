@@ -1,4 +1,5 @@
 ﻿using RSBot.Core.Objects;
+using System.Collections.Generic;
 
 namespace RSBot.Party.Bundle.AutoParty;
 
@@ -10,7 +11,7 @@ internal class AutoPartyConfig
     /// <value>
     ///     The player list.
     /// </value>
-    public string[] PlayerList { get; set; }
+    public List<string> PlayerList { get; set; }
 
     /// <summary>
     ///     Gets or sets a value indicating whether [invite from list].
