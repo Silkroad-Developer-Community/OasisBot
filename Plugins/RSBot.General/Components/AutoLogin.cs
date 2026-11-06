@@ -1,4 +1,4 @@
-﻿using System;
+using System;
 using System.Linq;
 using System.Text;
 using System.Threading;
@@ -51,9 +51,11 @@ internal static class AutoLogin
             return;
         }
 
-        var selectedAccount = Accounts.SavedAccounts?.Find(p =>
-            p.Username == GlobalConfig.Get<string>("RSBot.General.AutoLoginAccountUsername")
-        );
+        var autoLoginUsername = !string.IsNullOrEmpty(ProfileManager.SelectedAccount)
+            ? ProfileManager.SelectedAccount
+            : GlobalConfig.Get<string>("RSBot.General.AutoLoginAccountUsername");
+
+        var selectedAccount = Accounts.SavedAccounts?.Find(p => p.Username == autoLoginUsername);
         if (selectedAccount == null)
         {
             _busy = false;
