@@ -36,14 +36,14 @@ internal static class Program
 
     public class CommandLineOptions
     {
-        [Option('c', "character", Required = false, HelpText = "Set the character name to use.")]
-        public string Character { get; set; }
-
         [Option('p', "profile", Required = false, HelpText = "Set the profile name to use.")]
         public string Profile { get; set; }
 
         [Option('a', "account", Required = false, HelpText = "Set the account name to use.")]
         public string Account { get; set; }
+
+        [Option('c', "character", Required = false, HelpText = "Set the character name to use.")]
+        public string Character { get; set; }
 
         [Option("launch-client", Required = false, HelpText = "Start with client")]
         public bool LaunchClient { get; set; }
