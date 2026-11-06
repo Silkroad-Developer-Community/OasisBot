@@ -1,4 +1,4 @@
-﻿using System;
+using System;
 using Python.Runtime;
 using RSBot.Core;
 using RSBot.Core.Event;
@@ -65,7 +65,7 @@ namespace RSBot.Python.Components.API.Core.Training
                 var area = Kernel.Bot.Botbase.Area;
                 Position pos = new(x, y, region);
 
-                PlayerConfig.Set("RSBot.Area.Region", pos.Region);
+                PlayerConfig.Set("RSBot.Area.Region", pos.Region.Id);
                 PlayerConfig.Set("RSBot.Area.X", pos.XOffset);
                 PlayerConfig.Set("RSBot.Area.Y", pos.YOffset);
                 PlayerConfig.Set("RSBot.Area.Z", pos.ZOffset);
