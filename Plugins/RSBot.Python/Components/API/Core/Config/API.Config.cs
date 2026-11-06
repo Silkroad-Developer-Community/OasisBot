@@ -1,7 +1,8 @@
-﻿using System.IO;
+using System.IO;
 using System.Windows.Forms;
 using Python.Runtime;
 using RSBot.Core;
+using RSBot.Core.Components;
 using RSBot.Python.Components.API.Interface;
 using RSBot.Python.Views;
 
@@ -51,7 +52,7 @@ namespace RSBot.Python.Components.API.Core.Entity
             {
                 return Path.Combine(projectDir, "User", "Logs");
             }
-            return Path.Combine(projectDir, "User", "Logs", Game.Player.Name);
+            return Path.Combine(projectDir, "User", "Logs", $"{ProfileManager.SelectedProfile}-{Game.Player.Name}");
         }
 
         public string get_config_dir()
