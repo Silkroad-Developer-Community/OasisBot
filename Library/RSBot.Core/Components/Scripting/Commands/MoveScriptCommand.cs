@@ -67,6 +67,13 @@ internal class MoveScriptCommand : IScriptCommand
     public bool AbortsScriptOnFailure => true;
 
     /// <summary>
+    ///     An unreachable waypoint only counts as an error when the bot had to be stopped. When the character
+    ///     was returned to town by a scroll the run is finished cleanly, so the botbase keeps working and
+    ///     continues from the town.
+    /// </summary>
+    public bool FailureIsError { get; private set; } = true;
+
+    /// <summary>
     ///     Gets or sets flag if you must dismount for teleporting.
     /// </summary>
     public static bool MustDismount { get; set; }
@@ -113,6 +120,7 @@ internal class MoveScriptCommand : IScriptCommand
         try
         {
             IsBusy = true;
+            FailureIsError = true;
 
             while (Game.Player.InAction)
                 Thread.Sleep(100);
@@ -245,7 +253,9 @@ internal class MoveScriptCommand : IScriptCommand
         {
             // Retrying the same unreachable waypoint cannot succeed, and continuing with the next line
             // would only cascade the same failure through the whole script.
-            HandleTooFar(distance, pos);
+            // A successful return by scroll keeps the bot running and only ends the walk script, so the
+            // botbase can pick the character up in town; otherwise the bot is stopped.
+            FailureIsError = !HandleTooFar(distance, pos);
 
             return MoveResult.Abort;
         }
@@ -339,7 +349,8 @@ internal class MoveScriptCommand : IScriptCommand
     ///     stop the bot. Repeating the report on every script restart would only spam the log with the same
     ///     condition, so the warning is emitted once per "too far" episode.
     /// </summary>
-    private static void HandleTooFar(double distance, Position target)
+    /// <returns><c>true</c> when the character was returned to town by a scroll; otherwise <c>false</c>.</returns>
+    private static bool HandleTooFar(double distance, Position target)
     {
         var useScroll = PlayerConfig.Get<bool>("RSBot.Training.checkBoxReturnToTownWhenFar", false);
 
@@ -348,9 +359,16 @@ internal class MoveScriptCommand : IScriptCommand
             _farReported = true;
 
             Log.Warn(
-                $"[Script] The character is {Math.Round(distance, 1)} units away from the waypoint "
-                    + $"{target.Region}({target.Region.X},{target.Region.Y}) X={target.X}, Y={target.Y}; "
-                    + "the limit is 100."
+                string.Format(
+                    Lang(
+                        "ScriptWaypointTooFar",
+                        "The character is {0} units away from the waypoint {1}({2},{3}); the limit is 100."
+                    ),
+                    Math.Round(distance, 1),
+                    target.Region,
+                    target.Region.X,
+                    target.Region.Y
+                )
             );
         }
         else
@@ -362,11 +380,11 @@ internal class MoveScriptCommand : IScriptCommand
 
         if (!useScroll)
         {
-            Log.Notify("[Script] Stopping the bot: the walk script is out of reach.");
+            Log.Notify(Lang("ScriptStoppingBotOutOfReach", "Stopping the bot: the walk script is out of reach."));
 
             Kernel.Bot.Stop();
 
-            return;
+            return false;
         }
 
         var scroll = FindReturnScroll();
@@ -377,21 +395,37 @@ internal class MoveScriptCommand : IScriptCommand
             // where the scroll opens a destination menu.
             if (scroll.Use() || scroll.UseTo(3))
             {
-                Log.Notify("[Script] Returning to town by scroll: the walk script is out of reach.");
+                Log.Notify(
+                    Lang(
+                        "ScriptReturningByScroll",
+                        "Returning to town by scroll: the walk script is out of reach."
+                    )
+                );
 
-                return;
+                return true;
             }
 
-            Log.Warn("[Script] The return scroll could not be used.");
+            Log.Warn(Lang("ScriptScrollFailed", "The return scroll could not be used."));
         }
         else
         {
             LogScrollCandidates();
         }
 
-        Log.Warn("[Script] No usable return scroll found; stopping the bot.");
+        Log.Warn(Lang("ScriptNoScrollStopping", "No usable return scroll found; stopping the bot."));
 
         Kernel.Bot.Stop();
+
+        return false;
+    }
+
+    /// <summary>
+    ///     Resolves a user facing string from the language pack of the training botbase, which hosts the
+    ///     settings of this command. The fallback keeps the log readable when the pack is not loaded.
+    /// </summary>
+    private static string Lang(string key, string fallback)
+    {
+        return LanguageManager.GetLangBySpecificKey("RSBot.Training", key, fallback);
     }
 
     /// <summary>

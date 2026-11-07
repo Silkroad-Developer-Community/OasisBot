@@ -216,7 +216,7 @@ public class ScriptManager
                 // otherwise the remaining lines would fail one after another within milliseconds.
                 if (handler.AbortsScriptOnFailure)
                 {
-                    error = true;
+                    error = handler.FailureIsError;
 
                     break;
                 }

@@ -17,6 +17,13 @@ public interface IScriptCommand
     /// </summary>
     bool AbortsScriptOnFailure => false;
 
+    /// <summary>
+    ///     Gets a value indicating whether a failed execution counts as a script error. A command that
+    ///     recovered from the failure (for example by returning the character to town) reports the run as
+    ///     finished without error, so the botbase keeps working instead of treating the script as broken.
+    /// </summary>
+    bool FailureIsError => true;
+
     Dictionary<string, string> Arguments { get; }
 
     #endregion Properties
