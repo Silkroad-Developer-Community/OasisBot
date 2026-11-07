@@ -369,18 +369,88 @@ internal class MoveScriptCommand : IScriptCommand
             return;
         }
 
-        var scroll = Game.Player.Inventory.GetItem(new TypeIdFilter(3, 3, 3, 3));
+        var scroll = FindReturnScroll();
 
-        if (scroll != null && scroll.UseTo(3))
+        if (scroll != null)
         {
-            Log.Notify("[Script] Returning to town by scroll: the walk script is out of reach.");
+            // A plain return scroll is used without a target; UseTo is only a fallback for the clients
+            // where the scroll opens a destination menu.
+            if (scroll.Use() || scroll.UseTo(3))
+            {
+                Log.Notify("[Script] Returning to town by scroll: the walk script is out of reach.");
 
-            return;
+                return;
+            }
+
+            Log.Warn("[Script] The return scroll could not be used.");
+        }
+        else
+        {
+            LogScrollCandidates();
         }
 
         Log.Warn("[Script] No usable return scroll found; stopping the bot.");
 
         Kernel.Bot.Stop();
+    }
+
+    /// <summary>
+    ///     Finds a return scroll in the player inventory. The exact 3,3,3,3 filter comes first, then the
+    ///     items are matched by their code name, description and real name, because item type ids differ
+    ///     between clients and regions.
+    /// </summary>
+    private static InventoryItem FindReturnScroll()
+    {
+        var scroll = Game.Player.Inventory.GetItem(new TypeIdFilter(3, 3, 3, 3));
+        if (scroll != null)
+            return scroll;
+
+        return Game.Player.Inventory.GetItem(item =>
+        {
+            var record = item.Record;
+            if (record == null)
+                return false;
+
+            var text = string.Concat(
+                record.CodeName,
+                " ",
+                record.Desc1,
+                " ",
+                record.Desc2,
+                " ",
+                record.GetRealName()
+            );
+
+            return text.IndexOf("RETURN", StringComparison.OrdinalIgnoreCase) >= 0
+                || text.IndexOf("ВОЗВРАТ", StringComparison.OrdinalIgnoreCase) >= 0
+                || text.IndexOf("ВОЗВРАЩ", StringComparison.OrdinalIgnoreCase) >= 0;
+        });
+    }
+
+    /// <summary>
+    ///     Logs the scroll-like items of the inventory, so a missing return scroll can be diagnosed from
+    ///     the log without digging into the item database.
+    /// </summary>
+    private static void LogScrollCandidates()
+    {
+        foreach (var item in Game.Player.Inventory)
+        {
+            var record = item.Record;
+            if (record == null)
+                continue;
+
+            var text = string.Concat(record.CodeName, " ", record.Desc1, " ", record.GetRealName());
+            if (
+                text.IndexOf("SCROLL", StringComparison.OrdinalIgnoreCase) < 0
+                && text.IndexOf("СВИТОК", StringComparison.OrdinalIgnoreCase) < 0
+            )
+                continue;
+
+            Log.Debug(
+                $"[Script] Scroll candidate: {record.CodeName} ({record.GetRealName()}) "
+                    + $"type={record.TypeID1},{record.TypeID2},{record.TypeID3},{record.TypeID4}"
+            );
+        }
     }
 
     public void Stop()
