@@ -25,6 +25,7 @@ internal class MoveScriptCommand : IScriptCommand
 
     private static int _lastMoveRequestTick;
     private static int _lastSupportTick;
+    private static bool _farReported;
 
     /// <summary>
     ///     Outcome of a single move attempt.
@@ -124,7 +125,11 @@ internal class MoveScriptCommand : IScriptCommand
                 var result = ExecuteMove(arguments);
 
                 if (result == MoveResult.Ok)
+                {
+                    _farReported = false;
+
                     return true;
+                }
 
                 // An abort also covers an external Stop(): the command is no longer busy in that case.
                 if (result == MoveResult.Abort || !IsBusy)
@@ -240,11 +245,7 @@ internal class MoveScriptCommand : IScriptCommand
         {
             // Retrying the same unreachable waypoint cannot succeed, and continuing with the next line
             // would only cascade the same failure through the whole script.
-            Log.Warn(
-                $"[Script] The character is {Math.Round(distance, 1)} units away from the waypoint "
-                    + $"{pos.Region}({pos.Region.X},{pos.Region.Y}) X={pos.X}, Y={pos.Y}; the limit is 100. "
-                    + "Move the character closer to the script or use a town / walkback script."
-            );
+            HandleTooFar(distance, pos);
 
             return MoveResult.Abort;
         }
@@ -331,6 +332,55 @@ internal class MoveScriptCommand : IScriptCommand
         Log.Debug("[Script] Look-ahead timeout reached, requesting the next waypoint anyway.");
 
         return true;
+    }
+
+    /// <summary>
+    ///     Reports an unreachable waypoint once and applies the configured reaction: use a return scroll or
+    ///     stop the bot. Repeating the report on every script restart would only spam the log with the same
+    ///     condition, so the warning is emitted once per "too far" episode.
+    /// </summary>
+    private static void HandleTooFar(double distance, Position target)
+    {
+        var useScroll = PlayerConfig.Get<bool>("RSBot.Training.checkBoxReturnToTownWhenFar", false);
+
+        if (!_farReported)
+        {
+            _farReported = true;
+
+            Log.Warn(
+                $"[Script] The character is {Math.Round(distance, 1)} units away from the waypoint "
+                    + $"{target.Region}({target.Region.X},{target.Region.Y}) X={target.X}, Y={target.Y}; "
+                    + "the limit is 100."
+            );
+        }
+        else
+        {
+            Log.Debug(
+                $"[Script] The character is still too far from the waypoint ({Math.Round(distance, 1)} units)."
+            );
+        }
+
+        if (!useScroll)
+        {
+            Log.Notify("[Script] Stopping the bot: the walk script is out of reach.");
+
+            Kernel.Bot.Stop();
+
+            return;
+        }
+
+        var scroll = Game.Player.Inventory.GetItem(new TypeIdFilter(3, 3, 3, 3));
+
+        if (scroll != null && scroll.UseTo(3))
+        {
+            Log.Notify("[Script] Returning to town by scroll: the walk script is out of reach.");
+
+            return;
+        }
+
+        Log.Warn("[Script] No usable return scroll found; stopping the bot.");
+
+        Kernel.Bot.Stop();
     }
 
     public void Stop()
