@@ -211,6 +211,15 @@ public class ScriptManager
                     LogLevel.Warning,
                     commandName
                 );
+
+                // A command that cannot continue the script (an unreachable waypoint) stops the run here,
+                // otherwise the remaining lines would fail one after another within milliseconds.
+                if (handler.AbortsScriptOnFailure)
+                {
+                    error = true;
+
+                    break;
+                }
             }
         }
 

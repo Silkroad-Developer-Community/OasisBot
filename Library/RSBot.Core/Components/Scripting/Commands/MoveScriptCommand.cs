@@ -26,6 +26,21 @@ internal class MoveScriptCommand : IScriptCommand
     private static int _lastMoveRequestTick;
     private static int _lastSupportTick;
 
+    /// <summary>
+    ///     Outcome of a single move attempt.
+    /// </summary>
+    private enum MoveResult
+    {
+        /// <summary>The waypoint was reached, or the next one may be requested.</summary>
+        Ok,
+
+        /// <summary>The attempt failed, but retrying makes sense.</summary>
+        Retry,
+
+        /// <summary>The attempt failed and retrying cannot help (unreachable target, invalid line).</summary>
+        Abort,
+    }
+
     #region Properties
 
     /// <summary>
@@ -43,6 +58,12 @@ internal class MoveScriptCommand : IScriptCommand
     ///     <c>true</c> if this instance is running; otherwise, <c>false</c>.
     /// </value>
     public bool IsBusy { get; private set; }
+
+    /// <summary>
+    ///     A failed move means the character cannot reach the waypoint, so the rest of the walk script
+    ///     must not be executed line by line.
+    /// </summary>
+    public bool AbortsScriptOnFailure => true;
 
     /// <summary>
     ///     Gets or sets flag if you must dismount for teleporting.
@@ -98,9 +119,15 @@ internal class MoveScriptCommand : IScriptCommand
             const int retryAttempts = 5;
             var stepRetryCounter = 0;
 
-            while (!ExecuteMove(arguments))
+            while (true)
             {
-                if (!IsBusy)
+                var result = ExecuteMove(arguments);
+
+                if (result == MoveResult.Ok)
+                    return true;
+
+                // An abort also covers an external Stop(): the command is no longer busy in that case.
+                if (result == MoveResult.Abort || !IsBusy)
                     return false;
 
                 if (stepRetryCounter++ >= retryAttempts)
@@ -117,8 +144,6 @@ internal class MoveScriptCommand : IScriptCommand
                 //Wait until executing the next step so the server can get its shit done so most likely the next step will not fail.
                 Thread.Sleep(1000);
             }
-
-            return true;
         }
         finally
         {
@@ -130,7 +155,7 @@ internal class MoveScriptCommand : IScriptCommand
     ///     Executes the movement.
     /// </summary>
     /// <param name="arguments">The arguments.</param>
-    private bool ExecuteMove(IReadOnlyList<string> arguments)
+    private MoveResult ExecuteMove(IReadOnlyList<string> arguments)
     {
         if (
             !float.TryParse(arguments[0], out var xOffset)
@@ -140,9 +165,7 @@ internal class MoveScriptCommand : IScriptCommand
             || !byte.TryParse(arguments[4], out var ySector)
         )
         {
-            IsBusy = false;
-
-            return false; //Invalid format
+            return MoveResult.Abort; //Invalid format
         }
 
         Position previousPosition = Game.Player.Position;
@@ -215,10 +238,15 @@ internal class MoveScriptCommand : IScriptCommand
         var distance = pos.DistanceTo(previousPosition);
         if (distance > 100)
         {
-            Log.Warn("[Script] Target position too far away, bot logic aborted!");
+            // Retrying the same unreachable waypoint cannot succeed, and continuing with the next line
+            // would only cascade the same failure through the whole script.
+            Log.Warn(
+                $"[Script] The character is {Math.Round(distance, 1)} units away from the waypoint "
+                    + $"{pos.Region}({pos.Region.X},{pos.Region.Y}) X={pos.X}, Y={pos.Y}; the limit is 100. "
+                    + "Move the character closer to the script or use a town / walkback script."
+            );
 
-            IsBusy = false;
-            return false;
+            return MoveResult.Abort;
         }
 
         // A waypoint chain must not wait for the full travel time: the next waypoint is requested while
@@ -248,13 +276,13 @@ internal class MoveScriptCommand : IScriptCommand
             MustDismount = false;
             Game.Player.Vehicle.Dismount();
 
-            return Game.Player.MoveTo(previousPosition);
+            return Game.Player.MoveTo(previousPosition) ? MoveResult.Ok : MoveResult.Retry;
         }
 
         if (!posResult)
-            return false;
+            return MoveResult.Retry;
 
-        return !seamless || AwaitChainPoint(pos);
+        return !seamless || AwaitChainPoint(pos) ? MoveResult.Ok : MoveResult.Abort;
     }
 
     /// <summary>
