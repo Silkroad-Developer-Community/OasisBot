@@ -46,9 +46,19 @@ internal static class RuSroAuthService
     private const string EmailSignInTokenConfigKey = "RSBot.RuSro.emailSignInToken";
     private const string EmailRequestGroupIdConfigKey = "RSBot.RuSro.emailRequestGroupId";
     private const string EmailCodeRequestedAtConfigKey = "RSBot.RuSro.emailCodeRequestedAt";
+    private const string SessionCookiesConfigKey = "RSBot.RuSro.sessionCookies";
     private const int EmailCodeResendDelaySeconds = 30;
     private const int MaxAuthPageRedirects = 10;
     private const string Chars = "ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789";
+
+    /// <summary>
+    ///     4game treats a request without its session cookies as a brand new device and answers with a
+    ///     captcha, so the cookie jar has to survive the process. It is stored base64 encoded inside the
+    ///     profile config.
+    /// </summary>
+    private static readonly object SessionCookiesLock = new();
+
+    private static CookieContainer _sessionCookies;
 
     public static async Task<bool> Auth()
     {
@@ -135,6 +145,8 @@ internal static class RuSroAuthService
             if (string.IsNullOrWhiteSpace(response.RefreshToken))
                 response.RefreshToken = refreshToken;
 
+            PersistSessionCookies();
+
             return response;
         }
         catch (Exception ex)
@@ -153,7 +165,7 @@ internal static class RuSroAuthService
             out DateTimeOffset codeRequestedAt
         );
 
-        RotateDeviceIdentityAfterPendingEmailCode();
+        RotateDeviceIdentityAfterPendingEmailCode(resumePendingCode, codeRequestedAt);
 
         string state = Guid.NewGuid().ToString();
         if (!resumePendingCode)
@@ -252,7 +264,8 @@ internal static class RuSroAuthService
 
     private static HttpClient CreateAuthClient(string trackingId, out CookieContainer cookieContainer)
     {
-        cookieContainer = new CookieContainer();
+        cookieContainer = GetSessionCookies();
+
         if (!string.IsNullOrWhiteSpace(trackingId))
             cookieContainer.Add(new Cookie("trk", trackingId, "/", ".4game.ru"));
 
@@ -272,6 +285,111 @@ internal static class RuSroAuthService
         authClient.DefaultRequestHeaders.TryAddWithoutValidation("Accept", "application/json, text/plain, */*");
         authClient.DefaultRequestHeaders.TryAddWithoutValidation("Accept-Language", BrowserAcceptLanguage);
         return authClient;
+    }
+
+    /// <summary>
+    ///     Returns the cookie jar of the session, restoring it from the profile config on first use.
+    ///     Keeping the 4game cookies between launches is what makes the account see the same device.
+    /// </summary>
+    private static CookieContainer GetSessionCookies()
+    {
+        lock (SessionCookiesLock)
+        {
+            if (_sessionCookies != null)
+                return _sessionCookies;
+
+            _sessionCookies = new CookieContainer();
+
+            string serialized = GlobalConfig.Get<string>(SessionCookiesConfigKey, "");
+            if (string.IsNullOrWhiteSpace(serialized))
+                return _sessionCookies;
+
+            try
+            {
+                string json = Encoding.UTF8.GetString(Convert.FromBase64String(serialized));
+                List<PersistedCookie> cookies = JsonConvert.DeserializeObject<List<PersistedCookie>>(json);
+                if (cookies == null)
+                    return _sessionCookies;
+
+                foreach (PersistedCookie cookie in cookies)
+                {
+                    if (string.IsNullOrWhiteSpace(cookie?.Name) || string.IsNullOrWhiteSpace(cookie.Domain))
+                        continue;
+
+                    try
+                    {
+                        var restored = new Cookie(cookie.Name, cookie.Value ?? string.Empty, cookie.Path ?? "/", cookie.Domain)
+                        {
+                            Secure = cookie.Secure,
+                            HttpOnly = cookie.HttpOnly,
+                        };
+
+                        if (cookie.ExpiresUtc > DateTime.UtcNow)
+                            restored.Expires = cookie.ExpiresUtc;
+
+                        _sessionCookies.Add(restored);
+                    }
+                    catch (Exception error)
+                    {
+                        Log.Debug($"[RuSroAuthService]: Could not restore cookie {cookie.Name}: {error.Message}");
+                    }
+                }
+
+                Log.Debug($"[RuSroAuthService]: Restored {_sessionCookies.Count} 4game session cookies.");
+            }
+            catch (Exception error)
+            {
+                Log.Debug("[RuSroAuthService]: Could not read the stored 4game cookies: " + error.Message);
+                _sessionCookies = new CookieContainer();
+            }
+
+            return _sessionCookies;
+        }
+    }
+
+    /// <summary>
+    ///     Stores the current cookie jar in the profile config so the next launch reuses the same session.
+    /// </summary>
+    private static void PersistSessionCookies()
+    {
+        lock (SessionCookiesLock)
+        {
+            if (_sessionCookies == null)
+                return;
+
+            try
+            {
+                var cookies = new List<PersistedCookie>();
+
+                foreach (Cookie cookie in _sessionCookies.GetAllCookies())
+                {
+                    if (string.IsNullOrWhiteSpace(cookie.Name) || string.IsNullOrWhiteSpace(cookie.Domain))
+                        continue;
+
+                    cookies.Add(
+                        new PersistedCookie
+                        {
+                            Name = cookie.Name,
+                            Value = cookie.Value,
+                            Domain = cookie.Domain,
+                            Path = cookie.Path,
+                            ExpiresUtc = cookie.Expires,
+                            Secure = cookie.Secure,
+                            HttpOnly = cookie.HttpOnly,
+                        }
+                    );
+                }
+
+                string json = JsonConvert.SerializeObject(cookies);
+                GlobalConfig.Set(SessionCookiesConfigKey, Convert.ToBase64String(Encoding.UTF8.GetBytes(json)));
+                GlobalConfig.Set("RSBot.RuSro.sessionId", "");
+                GlobalConfig.Save();
+            }
+            catch (Exception error)
+            {
+                Log.Debug("[RuSroAuthService]: Could not store the 4game cookies: " + error.Message);
+            }
+        }
     }
 
     private static async Task<bool> InitializeAuthPageAsync(
@@ -318,7 +436,13 @@ internal static class RuSroAuthService
         }
 
         Log.Notify("4game requires additional verification. Complete it in the opened window.");
-        return await CaptchaWindow.ShowAsync(captchaUri, requestUri, cookieContainer);
+
+        if (!await CaptchaWindow.ShowAsync(captchaUri, requestUri, cookieContainer))
+            return false;
+
+        PersistSessionCookies();
+
+        return true;
     }
 
     private static async Task<string> SendAuthJsonRequestAsync(
@@ -478,6 +602,8 @@ internal static class RuSroAuthService
         GlobalConfig.Set(EmailRequestGroupIdConfigKey, "");
         GlobalConfig.Set(EmailCodeRequestedAtConfigKey, "");
         GlobalConfig.Save();
+
+        PersistSessionCookies();
     }
 
     private static void ResetAuthorizationState()
@@ -490,13 +616,12 @@ internal static class RuSroAuthService
         GlobalConfig.Set(EmailSignInTokenConfigKey, "");
         GlobalConfig.Set(EmailRequestGroupIdConfigKey, "");
         GlobalConfig.Set(EmailCodeRequestedAtConfigKey, "");
-        GlobalConfig.Set(HardwareIdConfigKey, "");
-        GlobalConfig.Set(LauncherIdConfigKey, "");
-        GlobalConfig.Set("RSBot.RuSro.sessionId", "");
         GlobalConfig.Save();
 
+        // The device identity and the 4game cookies are intentionally kept: wiping them made the next
+        // login look like a new device and forced the captcha again.
         Log.Debug(
-            "[RuSroAuthService]: Authorization state reset. " + "The next login will use new cookies and identifiers."
+            "[RuSroAuthService]: Authorization state reset. The stored device identity and cookies are kept."
         );
     }
 
@@ -603,9 +728,22 @@ internal static class RuSroAuthService
         return (hardwareId, launcherId);
     }
 
-    private static void RotateDeviceIdentityAfterPendingEmailCode()
+    /// <summary>
+    ///     Rotates the device identity only when the unfinished email code flow is stale. Rotating on
+    ///     every resume made each launch look like a brand new device to 4game.
+    /// </summary>
+    private static void RotateDeviceIdentityAfterPendingEmailCode(
+        bool resumePendingCode,
+        DateTimeOffset codeRequestedAt
+    )
     {
-        if (!GlobalConfig.Get<bool>(EmailCodePendingConfigKey))
+        if (!resumePendingCode || !GlobalConfig.Get<bool>(EmailCodePendingConfigKey))
+            return;
+
+        if (
+            codeRequestedAt != DateTimeOffset.MinValue
+            && DateTimeOffset.UtcNow - codeRequestedAt < TimeSpan.FromMinutes(30)
+        )
             return;
 
         string hardwareId = GenerateRandomString(12);
@@ -616,7 +754,7 @@ internal static class RuSroAuthService
         GlobalConfig.Save();
 
         Log.Debug(
-            "[RuSroAuthService]: The previous email code flow was not completed; generated new hardware and launcher IDs."
+            "[RuSroAuthService]: The previous email code flow is stale; generated new hardware and launcher IDs."
         );
     }
 
@@ -745,6 +883,30 @@ internal static class RuSroAuthService
         public T Data { get; set; }
     }
 
+    private sealed class PersistedCookie
+    {
+        [JsonProperty("name")]
+        public string Name { get; set; }
+
+        [JsonProperty("value")]
+        public string Value { get; set; }
+
+        [JsonProperty("domain")]
+        public string Domain { get; set; }
+
+        [JsonProperty("path")]
+        public string Path { get; set; }
+
+        [JsonProperty("expires")]
+        public DateTime ExpiresUtc { get; set; }
+
+        [JsonProperty("secure")]
+        public bool Secure { get; set; }
+
+        [JsonProperty("httpOnly")]
+        public bool HttpOnly { get; set; }
+    }
+
     private sealed class SignInData
     {
         [JsonProperty("signinToken")]
@@ -815,7 +977,7 @@ internal static class RuSroAuthService
             accessToken,
             hwid,
             launcherId,
-            GenerateRandomString(8)
+            hwid
         );
     }
 
