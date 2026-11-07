@@ -52,6 +52,29 @@ public partial class Main : DoubleBufferedControl
         EventManager.SubscribeEvent("OnLoadCharacter", OnLoadCharacter);
         EventManager.SubscribeEvent("OnSetTrainingArea", OnSetTrainingArea);
         EventManager.SubscribeEvent("OnSaveScript", new Action<int, string>(OnSaveScript));
+        EventManager.SubscribeEvent("OnLoadPlayerConfig", new System.Action(OnLoadPlayerConfig));
+    }
+
+    /// <summary>
+    ///     Reloads the controls when a character profile has been loaded. The view is created before the
+    ///     character logs in, so without this the checkboxes, radios and numbers would keep the designer
+    ///     defaults while the bot already works with the saved profile values.
+    /// </summary>
+    private void OnLoadPlayerConfig()
+    {
+        if (IsDisposed || Disposing)
+            return;
+
+        if (InvokeRequired)
+        {
+            BeginInvoke(new System.Action(OnLoadPlayerConfig));
+
+            return;
+        }
+
+        _settingsLoaded = false;
+        LoadSettings();
+        _settingsLoaded = true;
     }
 
     /// <summary>

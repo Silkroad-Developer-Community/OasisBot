@@ -28,6 +28,13 @@ internal class MoveScriptCommand : IScriptCommand
     private static bool _farReported;
 
     /// <summary>
+    ///     True once the "too far" reaction has been applied. A returned character starts the same walk script
+    ///     again from town, so without this the reaction would run on every restart and turn into a loop of
+    ///     scroll uses or bot stops. It is cleared as soon as a waypoint is reached again.
+    /// </summary>
+    private static bool _returnAttempted;
+
+    /// <summary>
     ///     Outcome of a single move attempt.
     /// </summary>
     private enum MoveResult
@@ -135,6 +142,7 @@ internal class MoveScriptCommand : IScriptCommand
                 if (result == MoveResult.Ok)
                 {
                     _farReported = false;
+                    _returnAttempted = false;
 
                     return true;
                 }
@@ -352,6 +360,19 @@ internal class MoveScriptCommand : IScriptCommand
     /// <returns><c>true</c> when the character was returned to town by a scroll; otherwise <c>false</c>.</returns>
     private static bool HandleTooFar(double distance, Position target)
     {
+        // The character was already returned to town (or the bot was stopped) for this episode. The walk
+        // script keeps starting from its first waypoint, which is still out of reach, so reacting again
+        // would only repeat the same scroll use. The script is finished quietly instead.
+        if (_returnAttempted)
+        {
+            Log.Debug(
+                "[Script] The walk script is still out of reach and the reaction has already been applied; "
+                    + "waiting for the character to get back in range."
+            );
+
+            return true;
+        }
+
         var useScroll = PlayerConfig.Get<bool>("RSBot.Training.checkBoxReturnToTownWhenFar", false);
 
         if (!_farReported)
@@ -389,32 +410,66 @@ internal class MoveScriptCommand : IScriptCommand
 
         var scroll = FindReturnScroll();
 
-        if (scroll != null)
-        {
-            // A plain return scroll is used without a target; UseTo is only a fallback for the clients
-            // where the scroll opens a destination menu.
-            if (scroll.Use() || scroll.UseTo(3))
-            {
-                Log.Notify(
-                    Lang(
-                        "ScriptReturningByScroll",
-                        "Returning to town by scroll: the walk script is out of reach."
-                    )
-                );
-
-                return true;
-            }
-
-            Log.Warn(Lang("ScriptScrollFailed", "The return scroll could not be used."));
-        }
-        else
+        if (scroll == null)
         {
             LogScrollCandidates();
+
+            _returnAttempted = true;
+
+            Log.Warn(Lang("ScriptNoScrollStopping", "No usable return scroll found; stopping the bot."));
+
+            Kernel.Bot.Stop();
+
+            return false;
         }
 
-        Log.Warn(Lang("ScriptNoScrollStopping", "No usable return scroll found; stopping the bot."));
+        _returnAttempted = true;
+
+        var positionBefore = Game.Player.Position;
+
+        // A plain return scroll is used without a target; UseTo is only a fallback for the clients where
+        // the scroll opens a destination menu. The reply of the client is not reliable: some clients cast
+        // the scroll and answer with a standard action packet, so the real check is that the character moved.
+        if (scroll.Use() || scroll.UseTo(3) || WaitForScrollReturn(positionBefore))
+        {
+            Log.Notify(
+                Lang("ScriptReturningByScroll", "Returning to town by scroll: the walk script is out of reach.")
+            );
+
+            return true;
+        }
+
+        Log.Warn(Lang("ScriptScrollFailed", "The return scroll could not be used."));
 
         Kernel.Bot.Stop();
+
+        return false;
+    }
+
+    /// <summary>
+    ///     Waits until the character has actually been moved by a return scroll. The client does not always
+    ///     answer the use request, but the position changes as soon as the scroll is applied.
+    /// </summary>
+    /// <param name="before">The position taken right before the scroll was used.</param>
+    /// <returns><c>true</c> when the character moved; otherwise <c>false</c>.</returns>
+    private static bool WaitForScrollReturn(Position before)
+    {
+        const int timeout = 5000;
+
+        var stopwatch = Stopwatch.StartNew();
+
+        while (stopwatch.ElapsedMilliseconds < timeout)
+        {
+            if (!Kernel.Bot.Running)
+                return false;
+
+            var now = Game.Player.Position;
+
+            if (now.Region.Id != before.Region.Id || now.DistanceTo(before) > 5f)
+                return true;
+
+            Thread.Sleep(ArrivalPollInterval);
+        }
 
         return false;
     }
