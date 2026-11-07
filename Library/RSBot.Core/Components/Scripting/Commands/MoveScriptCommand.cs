@@ -28,13 +28,6 @@ internal class MoveScriptCommand : IScriptCommand
     private static bool _farReported;
 
     /// <summary>
-    ///     True once the "too far" reaction has been applied. A returned character starts the same walk script
-    ///     again from town, so without this the reaction would run on every restart and turn into a loop of
-    ///     scroll uses or bot stops. It is cleared as soon as a waypoint is reached again.
-    /// </summary>
-    private static bool _returnAttempted;
-
-    /// <summary>
     ///     Outcome of a single move attempt.
     /// </summary>
     private enum MoveResult
@@ -142,8 +135,7 @@ internal class MoveScriptCommand : IScriptCommand
                 if (result == MoveResult.Ok)
                 {
                     _farReported = false;
-                    _returnAttempted = false;
-                    ScriptManager.ReturnPending = false;
+                    ScriptManager.ClearReturnState();
 
                     return true;
                 }
@@ -364,7 +356,7 @@ internal class MoveScriptCommand : IScriptCommand
         // The character was already returned to town (or the bot was stopped) for this episode. The walk
         // script keeps starting from its first waypoint, which is still out of reach, so reacting again
         // would only repeat the same scroll use. The script is finished quietly instead.
-        if (_returnAttempted)
+        if (ScriptManager.ReturnAttempted)
         {
             Log.Debug(
                 "[Script] The walk script is still out of reach and the reaction has already been applied; "
@@ -415,7 +407,7 @@ internal class MoveScriptCommand : IScriptCommand
         {
             LogScrollCandidates();
 
-            _returnAttempted = true;
+            ScriptManager.ReturnAttempted = true;
 
             Log.Warn(Lang("ScriptNoScrollStopping", "No usable return scroll found; stopping the bot."));
 
@@ -424,7 +416,7 @@ internal class MoveScriptCommand : IScriptCommand
             return false;
         }
 
-        _returnAttempted = true;
+        ScriptManager.ReturnAttempted = true;
 
         var positionBefore = Game.Player.Position;
 
@@ -435,7 +427,7 @@ internal class MoveScriptCommand : IScriptCommand
         {
             // The botbase must run its town script before it starts the walk script again, otherwise the
             // character would be sent back into the same unreachable script right away.
-            ScriptManager.ReturnPending = true;
+            ScriptManager.MarkReturnPending();
 
             Log.Notify(
                 Lang("ScriptReturningByScroll", "Returning to town by scroll: the walk script is out of reach.")
@@ -459,7 +451,8 @@ internal class MoveScriptCommand : IScriptCommand
     /// <returns><c>true</c> when the character moved; otherwise <c>false</c>.</returns>
     private static bool WaitForScrollReturn(Position before)
     {
-        const int timeout = 5000;
+        // A scroll can take a while: the client first casts it, then the server answers with a game reset.
+        const int timeout = 30000;
 
         var stopwatch = Stopwatch.StartNew();
 

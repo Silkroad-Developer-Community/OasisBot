@@ -48,6 +48,60 @@ internal class LoopBundle : IBundle
     public bool TownscriptRunning { get; private set; }
 
     /// <summary>
+    ///     Gets a value indicating whether the character is being teleported (a return scroll, for example).
+    ///     No town or walk script may be started while the waypoint data still belongs to the region the
+    ///     character is leaving.
+    /// </summary>
+    public bool Teleporting { get; private set; }
+
+    private string _lastRegion;
+
+    private System.DateTime _regionChangedAt = System.DateTime.MinValue;
+
+    /// <summary>
+    ///     The client reports the new region a bit later than the teleport event, so the region has to stay
+    ///     the same for this time before a script is chosen for it.
+    /// </summary>
+    private static readonly System.TimeSpan RegionSettleTime = System.TimeSpan.FromSeconds(2);
+
+    /// <summary>
+    ///     Called when a teleport starts. Nothing may be started until the character has arrived.
+    /// </summary>
+    public void OnTeleportStart()
+    {
+        Teleporting = true;
+        _regionChangedAt = System.DateTime.UtcNow;
+    }
+
+    /// <summary>
+    ///     Called when a teleport has completed. The region still has to settle, because the client reports
+    ///     it with a delay.
+    /// </summary>
+    public void OnTeleportComplete()
+    {
+        Teleporting = false;
+        _regionChangedAt = System.DateTime.UtcNow;
+    }
+
+    /// <summary>
+    ///     Checks whether the region the character stands in has been stable long enough to choose a script.
+    /// </summary>
+    private bool IsRegionSettled()
+    {
+        var region = Game.Player.Movement.Source.Region.ToString();
+
+        if (region != _lastRegion)
+        {
+            _lastRegion = region;
+            _regionChangedAt = System.DateTime.UtcNow;
+
+            return false;
+        }
+
+        return System.DateTime.UtcNow - _regionChangedAt >= RegionSettleTime;
+    }
+
+    /// <summary>
     ///     Invokes this instance.
     /// </summary>
     public void Invoke()
@@ -116,6 +170,18 @@ internal class LoopBundle : IBundle
         if (ScriptManager.Running)
             return;
 
+        // A return scroll is still in flight or the client has not reported the region the character is
+        // arriving in yet. Choosing a script now would use the region the character is leaving.
+        if (Teleporting || !IsRegionSettled())
+            return;
+
+        // A pending return must never block the bot forever: on a slow connection the arrival may be lost.
+        if (ScriptManager.IsReturnPendingExpired())
+        {
+            Log.Warn("[Training] The pending return timed out; the walk script may start again.");
+            ScriptManager.ClearReturnState();
+        }
+
         var filename = Path.Combine(
             ScriptManager.InitialDirectory,
             "Towns",
@@ -153,9 +219,9 @@ internal class LoopBundle : IBundle
         ScriptManager.Load(filename);
         ScriptManager.RunScript(false);
 
-        // The character has been processed by the town script, so the walk script may start again even
-        // when the previous run was aborted as out of reach.
-        ScriptManager.ClearReturnPending();
+        // The character has been processed by the town script of the region it actually stands in, so the
+        // walk script may start again even when the previous run was aborted as out of reach.
+        ScriptManager.ClearReturnState();
 
         if (Running && Config.UseReverse)
         {

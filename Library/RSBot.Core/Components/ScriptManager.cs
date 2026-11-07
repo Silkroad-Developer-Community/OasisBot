@@ -61,12 +61,56 @@ public class ScriptManager
     public static bool ReturnPending { get; internal set; }
 
     /// <summary>
+    ///     Gets a value indicating whether the "too far" reaction has already been applied for the current
+    ///     episode. A second reaction is only allowed after a waypoint was reached or the botbase finished
+    ///     its town script.
+    /// </summary>
+    public static bool ReturnAttempted { get; internal set; }
+
+    private static DateTime _returnPendingSince;
+
+    /// <summary>
+    ///     How long a pending return may block the walk script. A scroll can take a while on a slow
+    ///     connection, but the state must never stick forever when the client never reports the arrival.
+    /// </summary>
+    private static readonly TimeSpan ReturnPendingTimeout = TimeSpan.FromMinutes(1);
+
+    /// <summary>
+    ///     Marks that the character is on its way back from an unreachable walk script.
+    /// </summary>
+    public static void MarkReturnPending()
+    {
+        ReturnPending = true;
+        _returnPendingSince = DateTime.UtcNow;
+    }
+
+    /// <summary>
+    ///     Gets a value indicating whether the pending return has been blocking the walk script for too
+    ///     long and must be dropped.
+    /// </summary>
+    public static bool IsReturnPendingExpired()
+    {
+        return ReturnPending && DateTime.UtcNow - _returnPendingSince > ReturnPendingTimeout;
+    }
+
+    /// <summary>
     ///     Clears the pending return. Called by a botbase once its town script has run, so the walk script
     ///     may start again.
     /// </summary>
     public static void ClearReturnPending()
     {
         ReturnPending = false;
+    }
+
+    /// <summary>
+    ///     Forgets the whole return episode: both the pending flag and the "reaction already applied" mark.
+    ///     Called after a town script has taken care of a returned character, which allows one fresh attempt
+    ///     of the walk script.
+    /// </summary>
+    public static void ClearReturnState()
+    {
+        ReturnPending = false;
+        ReturnAttempted = false;
     }
 
     /// <summary>

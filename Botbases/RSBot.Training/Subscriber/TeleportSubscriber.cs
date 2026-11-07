@@ -25,6 +25,8 @@ internal class TeleportSubscriber
         if (!Kernel.Bot.Running)
             return;
 
+        Bundles.Loop.OnTeleportStart();
+
         if (Bundles.Loop.Running)
             Bundles.Loop.Stop();
     }
@@ -36,6 +38,8 @@ internal class TeleportSubscriber
     {
         if (!Kernel.Bot.Running)
             return;
+
+        Bundles.Loop.OnTeleportComplete();
     }
 
     #endregion Event listeners
