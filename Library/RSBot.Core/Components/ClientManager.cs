@@ -61,13 +61,10 @@ public class ClientManager
     {
         // A client we launched earlier has to go first: otherwise _process gets overwritten below and
         // the previous (often still suspended) process stays in memory with nobody able to reach it.
+        // Kill() also cleans up leftovers of a previous session, because such a process keeps the game's
+        // single instance mutex and makes the new client refuse to start with no visible reason.
         if (IsRunning)
             Kill();
-
-        // A leftover client of a previous session keeps the game's single instance mutex, so the new
-        // client would refuse to start with no visible reason. Clean it up before launching.
-        if (GlobalConfig.Get<bool>("RSBot.Silkroad.KillStaleClients", true))
-            KillStaleClients();
 
         var sessionProxy = Kernel.Proxy;
         VtcClientLayout vtcLayout = null;
@@ -732,6 +729,116 @@ public class ClientManager
         VirtualProtectEx(processHandle, address, (UIntPtr)patch.Length, oldProtect, out _);
     }
 
+    private static readonly object MultiClientPatchLock = new();
+
+    private static string _multiClientPatchPath;
+    private static long _multiClientPatchStamp;
+    private static long _multiClientPatchLength;
+    private static int _multiClientPatchAddress;
+
+    /// <summary>
+    ///     Returns the guard address that was resolved earlier for the same client file, so the
+    ///     executable is not read and parsed again on every launch.
+    /// </summary>
+    private static bool TryGetCachedMultiClientPatch(string clientPath, out int patchAddress)
+    {
+        patchAddress = 0;
+
+        try
+        {
+            var file = new FileInfo(clientPath);
+
+            lock (MultiClientPatchLock)
+            {
+                if (
+                    _multiClientPatchAddress != 0
+                    && string.Equals(_multiClientPatchPath, clientPath, StringComparison.OrdinalIgnoreCase)
+                    && _multiClientPatchLength == file.Length
+                    && _multiClientPatchStamp == file.LastWriteTimeUtc.Ticks
+                )
+                {
+                    patchAddress = _multiClientPatchAddress;
+
+                    return true;
+                }
+            }
+        }
+        catch (Exception error)
+        {
+            Log.Debug("Multi client: could not inspect the client executable: " + error.Message);
+        }
+
+        return false;
+    }
+
+    /// <summary>
+    ///     Remembers the resolved guard address for the given client file.
+    /// </summary>
+    private static void CacheMultiClientPatch(string clientPath, int patchAddress)
+    {
+        try
+        {
+            var file = new FileInfo(clientPath);
+
+            lock (MultiClientPatchLock)
+            {
+                _multiClientPatchPath = clientPath;
+                _multiClientPatchLength = file.Length;
+                _multiClientPatchStamp = file.LastWriteTimeUtc.Ticks;
+                _multiClientPatchAddress = patchAddress;
+            }
+        }
+        catch (Exception error)
+        {
+            Log.Debug("Multi client: could not cache the guard address: " + error.Message);
+        }
+    }
+
+    /// <summary>
+    ///     Writes the guard patch (75 -> EB) into the still suspended client process.
+    /// </summary>
+    private static void ApplyGuardByte(Process process, PROCESS_INFORMATION pi, IntPtr patchAddress)
+    {
+        if (
+            !VirtualProtectEx(pi.hProcess, patchAddress, (UIntPtr)1, PAGE_EXECUTE_READWRITE, out var oldProtect)
+        )
+        {
+            Log.Warn(
+                "Multi client: could not unprotect the guard instruction, Windows error "
+                    + Marshal.GetLastWin32Error()
+            );
+
+            return;
+        }
+
+        try
+        {
+            // 75 (jne) -> EB (jmp): always continue as if the mutex was acquired.
+            var patch = new byte[] { 0xEB };
+
+            if (
+                !WriteProcessMemory(pi.hProcess, patchAddress, patch, (uint)patch.Length, out var written)
+                || written.ToInt32() != patch.Length
+            )
+            {
+                Log.Warn(
+                    "Multi client: could not write the guard patch, Windows error " + Marshal.GetLastWin32Error()
+                );
+
+                return;
+            }
+        }
+        finally
+        {
+            VirtualProtectEx(pi.hProcess, patchAddress, (UIntPtr)1, oldProtect, out _);
+        }
+
+        Log.Notify(
+            $"Multi client patch applied at 0x{patchAddress.ToInt32():X8} (pid {process.Id}): "
+                + "the client will not block on the single instance guard."
+        );
+    }
+
     /// <summary>
     ///     Bypasses the single instance guard of the RuSro client. The client creates the machine wide
     ///     mutex "Global\Silkroad Client RU", waits for it with a zero timeout and, when the wait returns
@@ -757,6 +864,15 @@ public class ClientManager
                 return;
             }
 
+            // The guard address only depends on the client file, so a successful lookup is reused until
+            // the executable changes.
+            if (TryGetCachedMultiClientPatch(clientPath, out var cachedAddress))
+            {
+                ApplyGuardByte(process, pi, (IntPtr)cachedAddress);
+
+                return;
+            }
+
             byte[] image;
 
             try
@@ -770,9 +886,19 @@ public class ClientManager
                 return;
             }
 
-            if (!TryGetImageLayout(image, out var imageBase, out var sections))
+            if (!TryGetImageLayout(image, out var imageBase, out var sections, out var dynamicBase))
             {
                 Log.Warn("Multi client: could not parse the client executable.");
+
+                return;
+            }
+
+            if (dynamicBase)
+            {
+                Log.Warn(
+                    "Multi client: the client image is relocatable (DYNAMICBASE), the guard address cannot "
+                        + "be predicted, skipping the patch."
+                );
 
                 return;
             }
@@ -838,51 +964,8 @@ public class ClientManager
 
             var patchAddress = (IntPtr)(imageBase + jumpRva);
 
-            if (
-                !VirtualProtectEx(
-                    pi.hProcess,
-                    patchAddress,
-                    (UIntPtr)1,
-                    PAGE_EXECUTE_READWRITE,
-                    out var oldProtect
-                )
-            )
-            {
-                Log.Warn(
-                    "Multi client: could not unprotect the guard instruction, Windows error "
-                        + Marshal.GetLastWin32Error()
-                );
-
-                return;
-            }
-
-            try
-            {
-                // 75 (jne) -> EB (jmp): always continue as if the mutex was acquired.
-                var patch = new byte[] { 0xEB };
-
-                if (
-                    !WriteProcessMemory(pi.hProcess, patchAddress, patch, (uint)patch.Length, out var written)
-                    || written.ToInt32() != patch.Length
-                )
-                {
-                    Log.Warn(
-                        "Multi client: could not write the guard patch, Windows error "
-                            + Marshal.GetLastWin32Error()
-                    );
-
-                    return;
-                }
-            }
-            finally
-            {
-                VirtualProtectEx(pi.hProcess, patchAddress, (UIntPtr)1, oldProtect, out _);
-            }
-
-            Log.Notify(
-                $"Multi client patch applied at 0x{patchAddress.ToInt32():X8} (pid {process.Id}): "
-                    + "the client will not block on the single instance guard."
-            );
+            CacheMultiClientPatch(clientPath, patchAddress.ToInt32());
+            ApplyGuardByte(process, pi, patchAddress);
         }
         catch (Exception error)
         {
@@ -890,6 +973,10 @@ public class ClientManager
         }
     }
 
+    /// <summary>
+    ///     Returns the full path of the configured client executable, or <c>null</c> when it is not set
+    ///     or does not exist.
+    /// </summary>
     private static string GetConfiguredClientPath()
     {
         try
@@ -909,6 +996,9 @@ public class ClientManager
         }
     }
 
+    /// <summary>
+    ///     A section of a PE image: where it lives in the file and where it is mapped to in memory.
+    /// </summary>
     private readonly struct ImageSection
     {
         public ImageSection(int virtualAddress, int rawSize, int rawPointer)
@@ -926,10 +1016,16 @@ public class ClientManager
     /// <summary>
     ///     Reads the image base and the section table from a PE file on disk.
     /// </summary>
-    private static bool TryGetImageLayout(byte[] image, out int imageBase, out List<ImageSection> sections)
+    private static bool TryGetImageLayout(
+        byte[] image,
+        out int imageBase,
+        out List<ImageSection> sections,
+        out bool dynamicBase
+    )
     {
         imageBase = 0;
         sections = null;
+        dynamicBase = false;
 
         if (image == null || image.Length < 0x40)
             return false;
@@ -949,6 +1045,11 @@ public class ClientManager
                 magic == 0x20B
                     ? (int)BitConverter.ToUInt64(image, optionalHeaderOffset + 24)
                     : BitConverter.ToInt32(image, optionalHeaderOffset + 28);
+
+            // DYNAMICBASE (0x0040) means the loader may relocate the image, so ImageBase + RVA is not a
+            // reliable address and the guard must not be patched blindly.
+            if (optionalHeaderOffset + 72 <= image.Length)
+                dynamicBase = (BitConverter.ToUInt16(image, optionalHeaderOffset + 70) & 0x0040) != 0;
 
             var sectionOffset = optionalHeaderOffset + optionalHeaderSize;
             if (numberOfSections == 0 || sectionOffset + numberOfSections * 40 > image.Length)
@@ -975,6 +1076,9 @@ public class ClientManager
         }
     }
 
+    /// <summary>
+    ///     Converts a file offset inside a PE section into the relative virtual address it is mapped to.
+    /// </summary>
     private static bool TryFileOffsetToRva(List<ImageSection> sections, int fileOffset, out int rva)
     {
         rva = 0;
@@ -1042,6 +1146,10 @@ public class ClientManager
         return -1;
     }
 
+    /// <summary>
+    ///     Searches <paramref name="haystack" /> for the first occurrence of <paramref name="needle" />
+    ///     starting at the given offset.
+    /// </summary>
     private static int IndexOf(byte[] haystack, byte[] needle, int start)
     {
         if (needle.Length == 0 || haystack.Length < needle.Length)
@@ -1073,7 +1181,8 @@ public class ClientManager
     }
 
     /// <summary>
-    ///     Kill the game client process, including every process it spawned.
+    ///     Kill the game client process, including every process it spawned. Leftovers of a previous
+    ///     session are cleaned up as well, unless <c>RSBot.Silkroad.KillStaleClients</c> is disabled.
     /// </summary>
     public static void Kill()
     {
@@ -1094,7 +1203,9 @@ public class ClientManager
 
         // A protected client (XIGNCODE) or a client that was launched outside of ClientManager can still
         // be alive here. Such a leftover keeps the single instance mutex and blocks the next launch.
-        KillStaleClients();
+        // The cleanup is opt-out, because it touches processes the bot did not launch itself.
+        if (GlobalConfig.Get<bool>("RSBot.Silkroad.KillStaleClients", true))
+            KillStaleClients();
     }
 
     /// <summary>
@@ -1114,7 +1225,7 @@ public class ClientManager
         //    instance mutex only on a normal shutdown, so this step matters more than TerminateProcess.
         try
         {
-            if (process.CloseMainWindow() && WaitForExit(process, 4000))
+            if (process.CloseMainWindow() && WaitForExit(process, 2500))
             {
                 Log.Debug($"Client process {pid} ({name}) closed its main window and exited.");
 
@@ -1131,7 +1242,7 @@ public class ClientManager
         {
             process.Kill(entireProcessTree: true);
 
-            if (WaitForExit(process, 5000))
+            if (WaitForExit(process, 3000))
             {
                 Log.Debug($"Client process {pid} ({name}) was terminated as a process tree.");
 
@@ -1320,6 +1431,9 @@ public class ClientManager
         return false;
     }
 
+    /// <summary>
+    ///     Returns the process name, or a placeholder when the process is already gone.
+    /// </summary>
     private static string SafeProcessName(Process process)
     {
         try
@@ -1332,6 +1446,9 @@ public class ClientManager
         }
     }
 
+    /// <summary>
+    ///     Returns the process start time, or a placeholder when it cannot be read.
+    /// </summary>
     private static string SafeStartTime(Process process)
     {
         try
@@ -1344,6 +1461,9 @@ public class ClientManager
         }
     }
 
+    /// <summary>
+    ///     Waits for the process to exit and reports whether it is gone afterwards.
+    /// </summary>
     private static bool WaitForExit(Process process, int milliseconds)
     {
         try
@@ -1384,7 +1504,7 @@ public class ClientManager
 
             try
             {
-                process.WaitForExit(3000);
+                process.WaitForExit(2000);
             }
             catch { }
 
@@ -1421,7 +1541,7 @@ public class ClientManager
 
             process.Kill();
 
-            if (!process.WaitForExit(3000))
+            if (!process.WaitForExit(2000))
                 Log.Warn($"Client process {process.Id} could not be terminated after a failed start.");
         }
         catch (Exception error)
