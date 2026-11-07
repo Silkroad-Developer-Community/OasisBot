@@ -1,8 +1,10 @@
-using System;
+﻿using System;
+using System.Collections.Generic;
 using System.Diagnostics;
 using System.Globalization;
 using System.IO;
 using System.Linq;
+using System.Runtime.InteropServices;
 using System.Text;
 using System.Threading;
 using System.Threading.Tasks;
@@ -61,6 +63,11 @@ public class ClientManager
         // the previous (often still suspended) process stays in memory with nobody able to reach it.
         if (IsRunning)
             Kill();
+
+        // A leftover client of a previous session keeps the game's single instance mutex, so the new
+        // client would refuse to start with no visible reason. Clean it up before launching.
+        if (GlobalConfig.Get<bool>("RSBot.Silkroad.KillStaleClients", true))
+            KillStaleClients();
 
         var sessionProxy = Kernel.Proxy;
         VtcClientLayout vtcLayout = null;
@@ -173,6 +180,7 @@ public class ClientManager
         }
 
         _process = sroProcess;
+
 
         // Guard the client with a kill-on-close job: Windows then terminates it together with the bot,
         // even when the bot crashes or is killed from the task manager.
@@ -719,38 +727,291 @@ public class ClientManager
         VirtualProtectEx(processHandle, address, (UIntPtr)patch.Length, oldProtect, out _);
     }
 
+        return -1;
+    }
+
     /// <summary>
     ///     Kill the game client process, including every process it spawned.
     /// </summary>
     public static void Kill()
     {
         var process = Interlocked.Exchange(ref _process, null);
-        if (process == null)
-            return;
 
-        // Detach first: an intentional shutdown must not fire OnExitClient and trigger a relogin.
-        try
+        if (process != null)
         {
-            process.EnableRaisingEvents = false;
-            process.Exited -= ClientProcess_Exited;
+            // Detach first: an intentional shutdown must not fire OnExitClient and trigger a relogin.
+            try
+            {
+                process.EnableRaisingEvents = false;
+                process.Exited -= ClientProcess_Exited;
+            }
+            catch { }
+
+            TerminateClient(process);
         }
-        catch { }
 
+        // A protected client (XIGNCODE) or a client that was launched outside of ClientManager can still
+        // be alive here. Such a leftover keeps the single instance mutex and blocks the next launch.
+        KillStaleClients();
+    }
+
+    /// <summary>
+    ///     Shuts a client process down step by step, from the gentle way to the hardest one, and reports
+    ///     which step actually worked.
+    /// </summary>
+    /// <returns><c>true</c> when the process is gone; otherwise <c>false</c>.</returns>
+    private static bool TerminateClient(Process process)
+    {
         if (HasExited(process))
-            return;
+            return true;
 
+        var pid = process.Id;
+        var name = SafeProcessName(process);
+
+        // 1. Ask the client to close itself. A protected client releases its driver and its single
+        //    instance mutex only on a normal shutdown, so this step matters more than TerminateProcess.
         try
         {
-            process.Kill(entireProcessTree: true);
-            process.WaitForExit(5000);
+            if (process.CloseMainWindow() && WaitForExit(process, 4000))
+            {
+                Log.Debug($"Client process {pid} ({name}) closed its main window and exited.");
+
+                return true;
+            }
         }
         catch (Exception error)
         {
-            Log.Warn($"Could not terminate the client process tree: {error.Message}");
+            Log.Debug($"Client process {pid}: graceful close failed: {error.Message}");
         }
 
-        if (!HasExited(process) && !TerminateByHandle(process))
-            Log.Error($"Client process {process.Id} could not be terminated and may stay in memory!");
+        // 2. Kill the process tree.
+        try
+        {
+            process.Kill(entireProcessTree: true);
+
+            if (WaitForExit(process, 5000))
+            {
+                Log.Debug($"Client process {pid} ({name}) was terminated as a process tree.");
+
+                return true;
+            }
+        }
+        catch (Exception error)
+        {
+            Log.Warn($"Could not terminate the client process tree of {pid}: {error.Message}");
+        }
+
+        // 3. Terminate through a freshly opened handle, which still works when the wrapper is stale.
+        if (TerminateByHandle(process))
+        {
+            Log.Debug($"Client process {pid} ({name}) was terminated by handle.");
+
+            return true;
+        }
+
+        Log.Error(
+            $"Client process {pid} ({name}) is still alive after graceful close, tree kill and handle "
+                + "termination. A protection driver is most likely blocking it; the client will stay in "
+                + "memory and block the next launch."
+        );
+
+        return false;
+    }
+
+    /// <summary>
+    ///     Terminates every leftover process of the configured client executable that is not tracked by
+    ///     the bot anymore. Only processes started from the exact configured path are touched, so a
+    ///     second installation or a manually started client from another folder is never affected.
+    /// </summary>
+    /// <returns>Number of terminated leftovers.</returns>
+    public static int KillStaleClients()
+    {
+        string expectedPath;
+        try
+        {
+            expectedPath = Path.GetFullPath(
+                Path.Combine(
+                    GlobalConfig.Get<string>("RSBot.SilkroadDirectory", ""),
+                    GlobalConfig.Get<string>("RSBot.SilkroadExecutable", "")
+                )
+            );
+        }
+        catch
+        {
+            return 0;
+        }
+
+        if (!File.Exists(expectedPath))
+            return 0;
+
+        var processes = SnapshotProcesses();
+        var terminated = 0;
+
+        foreach (var process in Process.GetProcessesByName(Path.GetFileNameWithoutExtension(expectedPath)))
+        {
+            try
+            {
+                if (process.Id == Environment.ProcessId || HasExited(process))
+                    continue;
+
+                string modulePath = null;
+
+                try
+                {
+                    modulePath = process.MainModule?.FileName;
+                }
+                catch
+                {
+                    // The process is protected or belongs to another user: leave it alone.
+                }
+
+                if (!string.Equals(modulePath, expectedPath, StringComparison.OrdinalIgnoreCase))
+                    continue;
+
+                // Only clean up clients that are ours: either started by this bot, or orphaned. A client
+                // whose parent process is still alive belongs to another bot instance or was started
+                // manually and must never be touched.
+                if (!IsLeftoverClient(process, processes, out var owner))
+                {
+                    Log.Debug($"Leaving client process {process.Id} alone, it {owner}.");
+
+                    continue;
+                }
+
+                Log.Warn(
+                    $"A leftover client process is still running (pid {process.Id}, started "
+                        + $"{SafeStartTime(process)}). Terminating it before the next launch."
+                );
+
+                if (TerminateClient(process))
+                    terminated++;
+            }
+            catch (Exception error)
+            {
+                Log.Warn($"Could not clean up a leftover client process: {error.Message}");
+            }
+            finally
+            {
+                process.Dispose();
+            }
+        }
+
+        return terminated;
+    }
+
+    private readonly struct ProcessSnapshot
+    {
+        public ProcessSnapshot(uint parentId, string name)
+        {
+            ParentId = parentId;
+            Name = name;
+        }
+
+        public uint ParentId { get; }
+        public string Name { get; }
+    }
+
+    /// <summary>
+    ///     Takes a single snapshot of the process list (pid, parent pid, name) via Toolhelp.
+    /// </summary>
+    private static Dictionary<uint, ProcessSnapshot> SnapshotProcesses()
+    {
+        var result = new Dictionary<uint, ProcessSnapshot>();
+        var snapshot = CreateToolhelp32Snapshot(TH32CS_SNAPPROCESS, 0);
+
+        if (snapshot == IntPtr.Zero || snapshot == new IntPtr(-1))
+            return result;
+
+        try
+        {
+            var entry = new PROCESSENTRY32 { dwSize = (uint)Marshal.SizeOf<PROCESSENTRY32>() };
+
+            if (!Process32FirstW(snapshot, ref entry))
+                return result;
+
+            do
+            {
+                result[entry.th32ProcessID] = new ProcessSnapshot(
+                    entry.th32ParentProcessID,
+                    entry.szExeFile ?? string.Empty
+                );
+            } while (Process32NextW(snapshot, ref entry));
+        }
+        finally
+        {
+            CloseHandle(snapshot);
+        }
+
+        return result;
+    }
+
+    /// <summary>
+    ///     A client is considered a leftover only when it was started by this bot and is not tracked
+    ///     anymore, or when its parent process is already gone. Anything with a living parent (another
+    ///     bot instance, a launcher, the user's explorer) is left untouched.
+    /// </summary>
+    private static bool IsLeftoverClient(
+        Process process,
+        Dictionary<uint, ProcessSnapshot> processes,
+        out string reason
+    )
+    {
+        reason = null;
+
+        if (!processes.TryGetValue((uint)process.Id, out var info))
+        {
+            reason = "is not part of the process snapshot";
+
+            return false;
+        }
+
+        var parentId = info.ParentId;
+
+        if (parentId == 0 || parentId == (uint)Environment.ProcessId)
+            return true;
+
+        if (!processes.TryGetValue(parentId, out var parent))
+            return true;
+
+        reason = $"is owned by the running process {parentId} ({parent.Name})";
+
+        return false;
+    }
+
+    private static string SafeProcessName(Process process)
+    {
+        try
+        {
+            return process.ProcessName;
+        }
+        catch
+        {
+            return "unknown";
+        }
+    }
+
+    private static string SafeStartTime(Process process)
+    {
+        try
+        {
+            return process.StartTime.ToString("HH:mm:ss");
+        }
+        catch
+        {
+            return "unknown time";
+        }
+    }
+
+    private static bool WaitForExit(Process process, int milliseconds)
+    {
+        try
+        {
+            return process.WaitForExit(milliseconds) || HasExited(process);
+        }
+        catch
+        {
+            return HasExited(process);
+        }
     }
 
     /// <summary>
