@@ -250,9 +250,40 @@ public class ScriptManager
     }
 
     /// <summary>
+    ///     Determines whether the command line following the currently executed one is another
+    ///     <c>move</c> command. The move command uses this to chain walk steps without stopping at
+    ///     every single waypoint.
+    /// </summary>
+    /// <returns><c>true</c> if another move command follows; otherwise <c>false</c>.</returns>
+    public static bool HasNextMoveCommand()
+    {
+        if (Commands == null || Commands.Length == 0)
+            return false;
+
+        for (var line = CurrentLineIndex + 1; line < Commands.Length; line++)
+        {
+            var command = Commands[line]?.Trim();
+
+            if (string.IsNullOrEmpty(command) || command.StartsWith("//") || command.StartsWith("#"))
+                continue;
+
+            var arguments = command.Split(ArgumentSeparator, StringSplitOptions.RemoveEmptyEntries);
+
+            return command == "move"
+                || (
+                    command.StartsWith("move" + ArgumentSeparator)
+                    && arguments.Length >= 6
+                    && arguments.All(a => a != "stop")
+                );
+        }
+
+        return false;
+    }
+
+    /// <summary>
     ///     Parses the position from the given arguments.
     /// </summary>
-    /// <param name="args">The arguments.</param>
+    /// <param name="args"></param>
     /// <returns></returns>
     private static Position ParsePosition(string[] args)
     {

@@ -1,4 +1,6 @@
-﻿using System.Collections.Generic;
+﻿using System;
+using System.Collections.Generic;
+using System.Diagnostics;
 using System.Threading;
 using RSBot.Core.Objects;
 
@@ -6,6 +8,24 @@ namespace RSBot.Core.Components.Scripting.Commands;
 
 internal class MoveScriptCommand : IScriptCommand
 {
+    /// <summary>
+    ///     Poll interval while waiting for the look-ahead point of the next waypoint.
+    /// </summary>
+    private const int ArrivalPollInterval = 10;
+
+    /// <summary>
+    ///     Minimum time between two move requests. Prevents packet flooding on densely recorded paths.
+    /// </summary>
+    private const int MoveRequestThrottle = 120;
+
+    /// <summary>
+    ///     Mount, fellow and speed drug checks run at most this often instead of on every waypoint.
+    /// </summary>
+    private const int SupportThrottle = 5000;
+
+    private static int _lastMoveRequestTick;
+    private static int _lastSupportTick;
+
     #region Properties
 
     /// <summary>
@@ -58,7 +78,7 @@ internal class MoveScriptCommand : IScriptCommand
     /// </returns>
     public bool Execute(string[] arguments = null)
     {
-        if (arguments == null || arguments.Length != Arguments.Count)
+        if (arguments == null || (arguments.Length != Arguments.Count && arguments.Length != Arguments.Count + 1))
         {
             Log.Warn("[Script] Invalid move command: Position information missing / invalid format.");
 
@@ -128,53 +148,64 @@ internal class MoveScriptCommand : IScriptCommand
         Position previousPosition = Game.Player.Position;
         Position pos = new(xSector, ySector, xOffset, yOffset, zOffset);
 
-        if (PlayerConfig.Get("RSBot.Training.checkUseSpeedDrug", true))
-        {
-            if (
-                !Game.Player.HasActiveVehicle
-                && !Game.Player.InAction
-                && Game.Player.State.ActiveBuffs.FindIndex(p => p.Record.Params.Contains(1752396901)) < 0
-            )
-            {
-                var item = Game.Player.Inventory.GetItem(
-                    new TypeIdFilter(3, 3, 13, 1),
-                    p => p.Record.Desc1.Contains("_SPEED_")
-                );
-                item?.Use();
-            }
-        }
+        var mode = arguments.Count > Arguments.Count ? arguments[Arguments.Count].ToLowerInvariant() : null;
+        var forceStop = mode == "stop";
+        var forceSeamless = mode == "seamless" || mode == "chain";
 
-        if (PlayerConfig.Get("RSBot.Training.checkUseMount", true))
+        // Mount / fellow / speed drug handling is expensive and spawns extra packets, so it runs at
+        // most once per SupportThrottle instead of on every single waypoint.
+        if (!forceStop && Kernel.TickCount - _lastSupportTick >= SupportThrottle)
         {
-            if (
-                !Game.Player.HasActiveVehicle
-                && !Game.Player.InAction
-                && !(
-                    ScriptManager.Running
-                    && ScriptManager.File == PlayerConfig.Get("RSBot.Lure.SelectedScriptPath", string.Empty)
+            _lastSupportTick = Kernel.TickCount;
+
+            if (PlayerConfig.Get("RSBot.Training.checkUseSpeedDrug", true))
+            {
+                if (
+                    !Game.Player.HasActiveVehicle
+                    && !Game.Player.InAction
+                    && Game.Player.State.ActiveBuffs.FindIndex(p => p.Record.Params.Contains(1752396901)) < 0
                 )
-            )
-            {
-                Game.Player.SummonFellow();
-
-                var fellow = Game.Player.Fellow;
-
-                if (fellow != null)
                 {
-                    fellow.CastSkill("P2SKILL_SPECIAL_SP_GET_A"); //SP Recall
-
-                    double distanceToFellow = previousPosition.DistanceTo(fellow.Position);
-                    if (distanceToFellow <= 5.0)
-                    {
-                        fellow.Mount();
-                    }
-                    else
-                        Log.Debug($"Can't mount fellow pet because it's {distanceToFellow}m away");
+                    var item = Game.Player.Inventory.GetItem(
+                        new TypeIdFilter(3, 3, 13, 1),
+                        p => p.Record.Desc1.Contains("_SPEED_")
+                    );
+                    item?.Use();
                 }
             }
 
-            if (!Game.Player.HasActiveVehicle && !Game.Player.IsInDungeon && !Game.Player.InAction)
-                Game.Player.SummonVehicle();
+            if (PlayerConfig.Get("RSBot.Training.checkUseMount", true))
+            {
+                if (
+                    !Game.Player.HasActiveVehicle
+                    && !Game.Player.InAction
+                    && !(
+                        ScriptManager.Running
+                        && ScriptManager.File == PlayerConfig.Get("RSBot.Lure.SelectedScriptPath", string.Empty)
+                    )
+                )
+                {
+                    Game.Player.SummonFellow();
+
+                    var fellow = Game.Player.Fellow;
+
+                    if (fellow != null)
+                    {
+                        fellow.CastSkill("P2SKILL_SPECIAL_SP_GET_A"); //SP Recall
+
+                        double distanceToFellow = previousPosition.DistanceTo(fellow.Position);
+                        if (distanceToFellow <= 5.0)
+                        {
+                            fellow.Mount();
+                        }
+                        else
+                            Log.Debug($"Can't mount fellow pet because it's {distanceToFellow}m away");
+                    }
+                }
+
+                if (!Game.Player.HasActiveVehicle && !Game.Player.IsInDungeon && !Game.Player.InAction)
+                    Game.Player.SummonVehicle();
+            }
         }
 
         //Check if the new position is nearby a cave entrance.
@@ -190,19 +221,88 @@ internal class MoveScriptCommand : IScriptCommand
             return false;
         }
 
-        Log.Debug($"[Script] Move to position {pos.Region}({pos.Region.X},{pos.Region.Y}) X={pos.X}, Y={pos.Y}");
+        // A waypoint chain must not wait for the full travel time: the next waypoint is requested while
+        // the character is still walking, so it never stops between two move lines.
+        var seamless =
+            !forceStop
+            && (
+                forceSeamless
+                || (
+                    PlayerConfig.Get<bool>("RSBot.Script.SeamlessWalk", true)
+                    && ScriptManager.HasNextMoveCommand()
+                )
+            );
 
-        bool posResult = Game.Player.MoveTo(pos);
+        ThrottleMoveRequests();
+
+        Log.Debug(
+            $"[Script] Move to position {pos.Region}({pos.Region.X},{pos.Region.Y}) X={pos.X}, Y={pos.Y}"
+                + (seamless ? " (chained)" : string.Empty)
+        );
+
+        var posResult = Game.Player.MoveTo(pos, !seamless);
+        _lastMoveRequestTick = Kernel.TickCount;
 
         if (MustDismount)
         {
             MustDismount = false;
             Game.Player.Vehicle.Dismount();
-            bool previousPositionResult = Game.Player.MoveTo(previousPosition);
-            return previousPositionResult;
+
+            return Game.Player.MoveTo(previousPosition);
         }
-        else
-            return posResult;
+
+        if (!posResult)
+            return false;
+
+        return !seamless || AwaitChainPoint(pos);
+    }
+
+    /// <summary>
+    ///     Keeps the rate of move requests below the server friendly threshold, otherwise densely
+    ///     recorded paths would flood the server and the client would reject or rubber-band the steps.
+    /// </summary>
+    private static void ThrottleMoveRequests()
+    {
+        if (_lastMoveRequestTick == 0)
+            return;
+
+        var elapsed = Kernel.TickCount - _lastMoveRequestTick;
+        if (elapsed < MoveRequestThrottle)
+            Thread.Sleep(MoveRequestThrottle - elapsed);
+    }
+
+    /// <summary>
+    ///     Waits until the remaining walk distance is covered by the look-ahead time, so the next
+    ///     waypoint can be requested before the character reaches the current one.
+    /// </summary>
+    /// <returns><c>true</c> when the next waypoint may be requested; otherwise <c>false</c>.</returns>
+    private bool AwaitChainPoint(Position target)
+    {
+        var speed = Math.Max(Game.Player.ActualSpeed * 0.1f, 1f);
+        var lookAhead = Math.Max(speed * 0.2f, 2f);
+        var timeout = (int)(target.DistanceToPlayer() / speed * 1000f) + 3000;
+
+        var stopwatch = Stopwatch.StartNew();
+
+        while (stopwatch.ElapsedMilliseconds < timeout)
+        {
+            if (!IsBusy)
+                return false;
+
+            var remaining = Game.Player.Movement.Source.DistanceTo(target);
+            if (remaining <= lookAhead)
+                return true;
+
+            // The server already reported the stop, i.e. we are standing on (or next to) the waypoint.
+            if (!Game.Player.Movement.Moving && remaining <= Math.Max(lookAhead * 2f, 5f))
+                return true;
+
+            Thread.Sleep(ArrivalPollInterval);
+        }
+
+        Log.Debug("[Script] Look-ahead timeout reached, requesting the next waypoint anyway.");
+
+        return true;
     }
 
     public void Stop()
