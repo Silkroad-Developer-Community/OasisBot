@@ -143,6 +143,7 @@ internal class MoveScriptCommand : IScriptCommand
                 {
                     _farReported = false;
                     _returnAttempted = false;
+                    ScriptManager.ReturnPending = false;
 
                     return true;
                 }
@@ -432,6 +433,10 @@ internal class MoveScriptCommand : IScriptCommand
         // the scroll and answer with a standard action packet, so the real check is that the character moved.
         if (scroll.Use() || scroll.UseTo(3) || WaitForScrollReturn(positionBefore))
         {
+            // The botbase must run its town script before it starts the walk script again, otherwise the
+            // character would be sent back into the same unreachable script right away.
+            ScriptManager.ReturnPending = true;
+
             Log.Notify(
                 Lang("ScriptReturningByScroll", "Returning to town by scroll: the walk script is out of reach.")
             );

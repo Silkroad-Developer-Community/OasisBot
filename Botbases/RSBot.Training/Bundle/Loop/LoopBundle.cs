@@ -12,6 +12,18 @@ internal class LoopBundle : IBundle
     private System.DateTime _lastAutopathAttempt = System.DateTime.MinValue;
 
     /// <summary>
+    ///     The last time the walk script was started. A walk script that cannot reach its first waypoint
+    ///     fails immediately, so starting it again on every tick would flood the log without moving the
+    ///     character.
+    /// </summary>
+    private System.DateTime _lastWalkbackAttempt = System.DateTime.MinValue;
+
+    /// <summary>
+    ///     Minimum time between two starts of the walk script.
+    /// </summary>
+    private static readonly System.TimeSpan WalkbackCooldown = System.TimeSpan.FromSeconds(10);
+
+    /// <summary>
     ///     Gets the configuration.
     /// </summary>
     /// <value>
@@ -113,6 +125,17 @@ internal class LoopBundle : IBundle
         //The player is in town, therefore, we need to run the town script first.
         if (!File.Exists(filename))
         {
+            // The character was just returned to town, but the client has not reported the new region yet.
+            // Starting the walk script now would fail instantly and repeat the whole reaction.
+            if (ScriptManager.ReturnPending)
+            {
+                Log.Debug(
+                    "[Training] The character is on its way back; waiting for the town script before walking back."
+                );
+
+                return;
+            }
+
             CheckForWalkbackScript();
             return;
         }
@@ -129,6 +152,10 @@ internal class LoopBundle : IBundle
 
         ScriptManager.Load(filename);
         ScriptManager.RunScript(false);
+
+        // The character has been processed by the town script, so the walk script may start again even
+        // when the previous run was aborted as out of reach.
+        ScriptManager.ClearReturnPending();
 
         if (Running && Config.UseReverse)
         {
@@ -189,6 +216,13 @@ internal class LoopBundle : IBundle
 
         if (Config.WalkScript == null || !File.Exists(Config.WalkScript))
             return;
+
+        // A walk script that cannot reach its first waypoint fails within a second, and the bundle is
+        // invoked on every tick. Without the cooldown the same script would be loaded over and over.
+        if (System.DateTime.UtcNow - _lastWalkbackAttempt < WalkbackCooldown)
+            return;
+
+        _lastWalkbackAttempt = System.DateTime.UtcNow;
 
         Invoke();
         Log.NotifyLang("LoadingWalkScript", Config.WalkScript);

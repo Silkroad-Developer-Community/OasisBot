@@ -54,6 +54,22 @@ public class ScriptManager
     public static int CurrentLineIndex { get; private set; }
 
     /// <summary>
+    ///     Gets a value indicating whether a walk script was aborted because its waypoint is out of reach and
+    ///     the character is on its way back. A botbase should run its town script first instead of starting
+    ///     the same walk script again, which would only repeat the reaction on every restart.
+    /// </summary>
+    public static bool ReturnPending { get; internal set; }
+
+    /// <summary>
+    ///     Clears the pending return. Called by a botbase once its town script has run, so the walk script
+    ///     may start again.
+    /// </summary>
+    public static void ClearReturnPending()
+    {
+        ReturnPending = false;
+    }
+
+    /// <summary>
     ///     Gets or sets the argument separator.
     ///     Modify this value in case of custom script syntax support
     /// </summary>
@@ -205,10 +221,14 @@ public class ScriptManager
 
             if (executionResult == false)
             {
+                // A command that handled the failure itself (returned the character to town) is not an
+                // error: repeating a warning on every restart of the script would only flood the log.
+                var softFailure = handler.AbortsScriptOnFailure && !handler.FailureIsError;
+
                 LogScriptMessage(
                     "The execution of the script command failed.",
                     CurrentLineIndex,
-                    LogLevel.Warning,
+                    softFailure ? LogLevel.Debug : LogLevel.Warning,
                     commandName
                 );
 
