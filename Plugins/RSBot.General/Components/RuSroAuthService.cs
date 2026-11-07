@@ -316,6 +316,11 @@ internal static class RuSroAuthService
                     if (string.IsNullOrWhiteSpace(cookie?.Name) || string.IsNullOrWhiteSpace(cookie.Domain))
                         continue;
 
+                    // A persistent cookie that already expired must not be restored: without this check
+                    // it would come back as a session cookie and be replayed on every launch.
+                    if (cookie.ExpiresUtc != DateTime.MinValue && cookie.ExpiresUtc <= DateTime.UtcNow)
+                        continue;
+
                     try
                     {
                         var restored = new Cookie(cookie.Name, cookie.Value ?? string.Empty, cookie.Path ?? "/", cookie.Domain)
