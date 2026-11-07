@@ -1,4 +1,4 @@
-using System;
+﻿using System;
 using System.Collections.Generic;
 using System.IO;
 using System.Linq;
@@ -43,7 +43,20 @@ public class PluginManager
             var files = Directory.GetFiles(InitialDirectory, "*.dll");
             foreach (var file in files)
             {
-                var (plugins, views) = GetExtensionsFromAssembly(file);
+                (Dictionary<string, IPlugin> plugins, Dictionary<string, IPluginView> views) result;
+
+                try
+                {
+                    result = GetExtensionsFromAssembly(file);
+                }
+                catch (Exception error)
+                {
+                    Log.Warn($"Could not load the plugin assembly {Path.GetFileName(file)}: {error.Message}");
+
+                    continue;
+                }
+
+                var (plugins, views) = result;
 
                 foreach (var plugin in plugins)
                 {
@@ -75,10 +88,10 @@ public class PluginManager
         }
         catch (Exception ex)
         {
-            File.WriteAllText(
-                Path.Combine(Kernel.BasePath, "Data", "Logs", "boot-error.log"),
-                $"The plugin manager encountered a problem: \n{ex.Message} at {ex.StackTrace}"
-            );
+            Log.Error("The plugin manager encountered a problem: " + ex.Message);
+
+            BootErrorLog.Write("The plugin manager encountered a problem:", ex);
+
             return false;
         }
     }
@@ -96,7 +109,7 @@ public class PluginManager
 
         try
         {
-            var assembly = Assembly.LoadFrom(file);
+            var assembly = AssemblyLoader.Load(file);
             var assemblyTypes = assembly.GetTypes();
 
             foreach (var type in assemblyTypes.Where(t => t.IsPublic && !t.IsAbstract))
