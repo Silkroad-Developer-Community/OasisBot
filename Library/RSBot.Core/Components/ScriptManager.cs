@@ -148,7 +148,13 @@ public class ScriptManager
             return;
 
         var error = false;
-        foreach (var scriptLine in Commands?.Skip(CurrentLineIndex))
+        var commands = Commands;
+        var startLine = CurrentLineIndex;
+
+        // CurrentLineIndex always points at the line that is currently processed. Commands that look
+        // ahead (the walk script look-ahead) rely on it, so it must not lag behind on blank, comment,
+        // unknown or failed lines: the loop advances it on every iteration.
+        for (CurrentLineIndex = startLine; CurrentLineIndex < commands.Length; CurrentLineIndex++)
         {
             if (!Running || Paused || (!Kernel.Bot.Running && !ignoreBotRunning))
             {
@@ -156,6 +162,8 @@ public class ScriptManager
 
                 break;
             }
+
+            var scriptLine = commands[CurrentLineIndex];
 
             Log.Debug($"[Script] Executing line #{CurrentLineIndex}");
             Log.Status("Running walk script");
@@ -203,14 +211,7 @@ public class ScriptManager
                     LogLevel.Warning,
                     commandName
                 );
-
-                continue;
             }
-
-            CurrentLineIndex++;
-
-            if (CurrentLineIndex > Commands?.Length - 1)
-                break;
         }
 
         if (!Paused)
