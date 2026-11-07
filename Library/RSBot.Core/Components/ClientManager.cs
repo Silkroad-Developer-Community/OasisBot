@@ -8,6 +8,7 @@ using System.Threading;
 using System.Threading.Tasks;
 using RSBot.Core.Event;
 using RSBot.Core.Extensions;
+using RSBot.Core.Network;
 using static RSBot.Core.Extensions.NativeExtensions;
 
 namespace RSBot.Core.Components;
@@ -31,7 +32,24 @@ public class ClientManager
     /// <summary>
     ///     Get, has client exited <c>true</c> otherwise; <c>false</c>
     /// </summary>
-    public static bool IsRunning => _process != null && !_process.HasExited;
+    public static bool IsRunning
+    {
+        get
+        {
+            var process = _process;
+            if (process == null)
+                return false;
+
+            try
+            {
+                return !process.HasExited;
+            }
+            catch
+            {
+                return false;
+            }
+        }
+    }
 
     /// <summary>
     ///     Start the game client
@@ -39,6 +57,11 @@ public class ClientManager
     /// <returns>Has successfully started <c>true</c>; otherwise <c>false</c></returns>
     public static async Task<bool> Start()
     {
+        // A client we launched earlier has to go first: otherwise _process gets overwritten below and
+        // the previous (often still suspended) process stays in memory with nobody able to reach it.
+        if (IsRunning)
+            Kill();
+
         var sessionProxy = Kernel.Proxy;
         VtcClientLayout vtcLayout = null;
         if (Game.ClientType == GameClientType.VTC_Game)
@@ -130,13 +153,95 @@ public class ClientManager
         )
             return false;
 
-        using var vtcStartup = vtcLayout != null ? new VtcClientStartup(pi) : null;
+        // The client is created suspended and is only resumed at the very end of the setup below, so
+        // every early exit has to terminate it explicitly. Otherwise an orphaned, never-resumed
+        // process stays in memory and, once _process is overwritten, can never be reached again.
+        Process sroProcess;
+        try
+        {
+            sroProcess = Process.GetProcessById((int)pi.dwProcessId);
+        }
+        catch (Exception error)
+        {
+            Log.Error("Could not open the started client process: " + error.Message);
+
+            TerminateQuietly(null, pi.hProcess);
+            CloseHandle(pi.hThread);
+            CloseHandle(pi.hProcess);
+
+            return false;
+        }
+
+        _process = sroProcess;
+
+        // Guard the client with a kill-on-close job: Windows then terminates it together with the bot,
+        // even when the bot crashes or is killed from the task manager.
+        ClientJobObject.Attach(sroProcess, pi.hProcess);
+
+        var started = false;
+
+        try
+        {
+            using var vtcStartup = vtcLayout != null ? new VtcClientStartup(pi) : null;
+
+            started = SetupClient(
+                sroProcess,
+                pi,
+                vtcStartup,
+                vtcLayout,
+                specialClient,
+                sessionProxy,
+                divisionIndex,
+                buffer,
+                pathLen
+            );
+        }
+        catch (Exception error)
+        {
+            Log.Error("Client startup failed: " + error.Message);
+        }
+        finally
+        {
+            if (!started)
+                TerminateQuietly(sroProcess, pi.hProcess);
+
+            CloseHandle(pi.hThread);
+            CloseHandle(pi.hProcess);
+        }
+
+        if (!started)
+        {
+            _process = null;
+
+            return false;
+        }
+
+        EventManager.FireEvent("OnStartClient");
+
+        return true;
+    }
+
+    /// <summary>
+    ///     Applies the loader injection, the protection bypasses and the client patches to the freshly
+    ///     created, still suspended process, then resumes it.
+    /// </summary>
+    /// <returns><c>true</c> when the client was resumed and is running; otherwise <c>false</c>.</returns>
+    private static bool SetupClient(
+        Process sroProcess,
+        PROCESS_INFORMATION pi,
+        VtcClientStartup vtcStartup,
+        VtcClientLayout vtcLayout,
+        bool specialClient,
+        Proxy sessionProxy,
+        int divisionIndex,
+        byte[] buffer,
+        uint pathLen
+    )
+    {
         PrepareTempConfigFile(pi.dwProcessId, divisionIndex);
 
         if (specialClient)
         {
-            Process sroProcess = Process.GetProcessById((int)pi.dwProcessId);
-
             if (Game.ClientType == GameClientType.VTC_Game)
             {
                 string error;
@@ -189,8 +294,6 @@ public class ClientManager
             }
             else
                 ResumeThread(pi.hThread);
-
-            _process = sroProcess;
         }
         else
         {
@@ -223,7 +326,6 @@ public class ClientManager
 
             if (Game.ClientType == GameClientType.Chinese)
             {
-                var sroProcess = System.Diagnostics.Process.GetProcessById((int)pi.dwProcessId);
                 WaitForChineseClientPatchTargets(sroProcess, pi.hThread);
                 ApplyChineseClientPatch(sroProcess, pi);
             }
@@ -236,15 +338,13 @@ public class ClientManager
             ResumeThread(pi.hThread);
             ResumeThread(pi.hProcess);
 
-            _process = Process.GetProcessById((int)pi.dwProcessId);
-            if (_process == null || _process.HasExited)
+            if (sroProcess.HasExited)
                 return false;
         }
 
-        _process.EnableRaisingEvents = true;
-        _process.Exited += ClientProcess_Exited;
+        sroProcess.EnableRaisingEvents = true;
+        sroProcess.Exited += ClientProcess_Exited;
 
-        EventManager.FireEvent("OnStartClient");
         return true;
     }
 
@@ -620,18 +720,125 @@ public class ClientManager
     }
 
     /// <summary>
-    ///     Kill the game client process
+    ///     Kill the game client process, including every process it spawned.
     /// </summary>
     public static void Kill()
     {
-        if (!IsRunning)
+        var process = Interlocked.Exchange(ref _process, null);
+        if (process == null)
+            return;
+
+        // Detach first: an intentional shutdown must not fire OnExitClient and trigger a relogin.
+        try
+        {
+            process.EnableRaisingEvents = false;
+            process.Exited -= ClientProcess_Exited;
+        }
+        catch { }
+
+        if (HasExited(process))
             return;
 
         try
         {
-            _process.Kill();
+            process.Kill(entireProcessTree: true);
+            process.WaitForExit(5000);
         }
-        catch { }
+        catch (Exception error)
+        {
+            Log.Warn($"Could not terminate the client process tree: {error.Message}");
+        }
+
+        if (!HasExited(process) && !TerminateByHandle(process))
+            Log.Error($"Client process {process.Id} could not be terminated and may stay in memory!");
+    }
+
+    /// <summary>
+    ///     Terminates a client process through a freshly opened handle. This is the last resort and still
+    ///     works when <see cref="Process.Kill()" /> is blocked by a protection driver.
+    /// </summary>
+    private static bool TerminateByHandle(Process process)
+    {
+        IntPtr handle;
+
+        try
+        {
+            handle = OpenProcess(PROCESS_TERMINATE, false, (uint)process.Id);
+        }
+        catch (Exception error)
+        {
+            Log.Warn($"Could not open client process {process.Id} for termination: {error.Message}");
+
+            return false;
+        }
+
+        if (handle == IntPtr.Zero)
+            return false;
+
+        try
+        {
+            TerminateProcess(handle, 1);
+
+            try
+            {
+                process.WaitForExit(3000);
+            }
+            catch { }
+
+            return HasExited(process);
+        }
+        finally
+        {
+            CloseHandle(handle);
+        }
+    }
+
+    /// <summary>
+    ///     Terminates the whole client process on a setup failure, using the handle returned by
+    ///     <c>CreateProcess</c> so the still suspended process is guaranteed to disappear.
+    /// </summary>
+    private static void TerminateQuietly(Process process, IntPtr processHandle)
+    {
+        if (processHandle != IntPtr.Zero)
+        {
+            try
+            {
+                TerminateProcess(processHandle, 1);
+            }
+            catch { }
+        }
+
+        if (process == null)
+            return;
+
+        try
+        {
+            if (HasExited(process))
+                return;
+
+            process.Kill();
+
+            if (!process.WaitForExit(3000))
+                Log.Warn($"Client process {process.Id} could not be terminated after a failed start.");
+        }
+        catch (Exception error)
+        {
+            Log.Warn($"Could not terminate client process {process.Id}: {error.Message}");
+
+            TerminateByHandle(process);
+        }
+    }
+
+    private static bool HasExited(Process process)
+    {
+        try
+        {
+            return process.HasExited;
+        }
+        catch
+        {
+            return false;
+        }
     }
 
     /// <summary>
@@ -663,6 +870,8 @@ public class ClientManager
     /// </summary>
     private static void ClientProcess_Exited(object sender, EventArgs e)
     {
+        Interlocked.CompareExchange(ref _process, null, sender as Process);
+
         Log.Warn("Client process exited!");
         EventManager.FireEvent("OnExitClient");
     }
