@@ -33,18 +33,19 @@ namespace RSBot.Training
             if (Game.Player.State.LifeState == LifeState.Dead)
                 return;
 
+            //Nothing if in scroll state! A return scroll moves the character through the world, and the
+            //loop must not start a town or walk script from the region it is leaving.
+            if (
+                Game.Player.State.ScrollState == ScrollState.NormalScroll
+                || Game.Player.State.ScrollState == ScrollState.ThiefScroll
+            )
+                return;
+
             //Begin the loopback if needed
             if (Container.Bot.Area.Position.DistanceToPlayer() > Container.Bot.Area.Radius + 50)
                 Bundles.Loop.Start();
 
             if (Bundles.Loop.Running)
-                return;
-
-            //Nothing if in scroll state!
-            if (
-                Game.Player.State.ScrollState == ScrollState.NormalScroll
-                || Game.Player.State.ScrollState == ScrollState.ThiefScroll
-            )
                 return;
 
             try

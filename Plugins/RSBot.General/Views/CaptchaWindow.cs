@@ -281,7 +281,9 @@ internal sealed class CaptchaWindow : UIWindowBase
         _webView.CoreWebView2.Settings.AreDefaultContextMenusEnabled = false;
         _webView.CoreWebView2.Settings.AreDevToolsEnabled = false;
         _webView.CoreWebView2.Settings.IsStatusBarEnabled = false;
-        _webView.CoreWebView2.CookieManager.DeleteAllCookies();
+
+        // The WebView2 profile is persistent on purpose: 4game fingerprints this browser context, so
+        // wiping the cookies on every verification makes every launch look like a brand new device.
         _webView.CoreWebView2.NavigationCompleted += WebView_NavigationCompleted;
         _webView.CoreWebView2.NewWindowRequested += (_, eventArgs) =>
         {

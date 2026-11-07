@@ -56,6 +56,7 @@
             btnRemove = new SDUI.Controls.Button();
             linkRecord = new System.Windows.Forms.LinkLabel();
             checkBoxUseReverse = new SDUI.Controls.CheckBox();
+            checkBoxReturnToTownWhenFar = new SDUI.Controls.CheckBox();
             checkUseSpeedDrug = new SDUI.Controls.CheckBox();
             checkCastBuffs = new SDUI.Controls.CheckBox();
             checkUseMount = new SDUI.Controls.CheckBox();
@@ -205,6 +206,7 @@
             groupBoxWalkback.Controls.Add(btnRemove);
             groupBoxWalkback.Controls.Add(linkRecord);
             groupBoxWalkback.Controls.Add(checkBoxUseReverse);
+            groupBoxWalkback.Controls.Add(checkBoxReturnToTownWhenFar);
             groupBoxWalkback.Controls.Add(checkUseSpeedDrug);
             groupBoxWalkback.Controls.Add(checkCastBuffs);
             groupBoxWalkback.Controls.Add(checkUseMount);
@@ -217,7 +219,7 @@
             groupBoxWalkback.Padding = new System.Windows.Forms.Padding(4, 12, 4, 4);
             groupBoxWalkback.Radius = 10;
             groupBoxWalkback.ShadowDepth = 4;
-            groupBoxWalkback.Size = new System.Drawing.Size(598, 146);
+            groupBoxWalkback.Size = new System.Drawing.Size(598, 176);
             groupBoxWalkback.TabIndex = 2;
             groupBoxWalkback.TabStop = false;
             groupBoxWalkback.Text = "Back to training";
@@ -264,6 +266,22 @@
             checkBoxUseReverse.Text = "Use Reverse";
             checkBoxUseReverse.UseVisualStyleBackColor = false;
             checkBoxUseReverse.CheckedChanged += settings_CheckedChanged;
+            // 
+            // checkBoxReturnToTownWhenFar
+            // 
+            checkBoxReturnToTownWhenFar.AutoSize = true;
+            checkBoxReturnToTownWhenFar.BackColor = System.Drawing.Color.Transparent;
+            checkBoxReturnToTownWhenFar.Depth = 0;
+            checkBoxReturnToTownWhenFar.Location = new System.Drawing.Point(22, 126);
+            checkBoxReturnToTownWhenFar.Margin = new System.Windows.Forms.Padding(0);
+            checkBoxReturnToTownWhenFar.MouseLocation = new System.Drawing.Point(-1, -1);
+            checkBoxReturnToTownWhenFar.Name = "checkBoxReturnToTownWhenFar";
+            checkBoxReturnToTownWhenFar.Ripple = true;
+            checkBoxReturnToTownWhenFar.Size = new System.Drawing.Size(340, 30);
+            checkBoxReturnToTownWhenFar.TabIndex = 9;
+            checkBoxReturnToTownWhenFar.Text = "If too far: return to town by scroll";
+            checkBoxReturnToTownWhenFar.UseVisualStyleBackColor = false;
+            checkBoxReturnToTownWhenFar.CheckedChanged += settings_CheckedChanged;
             // 
             // checkUseSpeedDrug
             // 
@@ -407,7 +425,7 @@
             groupBoxBerserk.Controls.Add(checkBerzerkMonsterAmount);
             groupBoxBerserk.Controls.Add(checkBerzerkWhenFull);
             groupBoxBerserk.Controls.Add(checkBerserkOnMonsterRarity);
-            groupBoxBerserk.Location = new System.Drawing.Point(328, 180);
+            groupBoxBerserk.Location = new System.Drawing.Point(328, 210);
             groupBoxBerserk.Margin = new System.Windows.Forms.Padding(4, 4, 4, 4);
             groupBoxBerserk.Name = "groupBoxBerserk";
             groupBoxBerserk.Padding = new System.Windows.Forms.Padding(4, 12, 4, 4);
@@ -758,7 +776,7 @@
             groupBoxAdvanced.Controls.Add(linkAttackWeakerMobsHelp);
             groupBoxAdvanced.Controls.Add(checkAttackWeakerFirst);
             groupBoxAdvanced.Controls.Add(checkBoxDimensionPillar);
-            groupBoxAdvanced.Location = new System.Drawing.Point(328, 375);
+            groupBoxAdvanced.Location = new System.Drawing.Point(328, 405);
             groupBoxAdvanced.Margin = new System.Windows.Forms.Padding(4, 4, 4, 4);
             groupBoxAdvanced.Name = "groupBoxAdvanced";
             groupBoxAdvanced.Padding = new System.Windows.Forms.Padding(4, 10, 4, 4);
@@ -893,6 +911,7 @@
         private SDUI.Controls.TextBox txtYCoord;
         private SDUI.Controls.TextBox txtXCoord;
         private SDUI.Controls.CheckBox checkBoxUseReverse;
+        private SDUI.Controls.CheckBox checkBoxReturnToTownWhenFar;
         private SDUI.Controls.Button buttonSelectTrainingArea;
         private SDUI.Controls.Radio radioStand;
         private SDUI.Controls.GroupBox groupBoxAdvanced;

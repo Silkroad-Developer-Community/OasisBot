@@ -54,6 +54,66 @@ public class ScriptManager
     public static int CurrentLineIndex { get; private set; }
 
     /// <summary>
+    ///     Gets a value indicating whether a walk script was aborted because its waypoint is out of reach and
+    ///     the character is on its way back. A botbase should run its town script first instead of starting
+    ///     the same walk script again, which would only repeat the reaction on every restart.
+    /// </summary>
+    public static bool ReturnPending { get; internal set; }
+
+    /// <summary>
+    ///     Gets a value indicating whether the "too far" reaction has already been applied for the current
+    ///     episode. A second reaction is only allowed after a waypoint was reached or the botbase finished
+    ///     its town script.
+    /// </summary>
+    public static bool ReturnAttempted { get; internal set; }
+
+    private static DateTime _returnPendingSince;
+
+    /// <summary>
+    ///     How long a pending return may block the walk script. A scroll can take a while on a slow
+    ///     connection, but the state must never stick forever when the client never reports the arrival.
+    /// </summary>
+    private static readonly TimeSpan ReturnPendingTimeout = TimeSpan.FromMinutes(1);
+
+    /// <summary>
+    ///     Marks that the character is on its way back from an unreachable walk script.
+    /// </summary>
+    public static void MarkReturnPending()
+    {
+        ReturnPending = true;
+        _returnPendingSince = DateTime.UtcNow;
+    }
+
+    /// <summary>
+    ///     Gets a value indicating whether the pending return has been blocking the walk script for too
+    ///     long and must be dropped.
+    /// </summary>
+    public static bool IsReturnPendingExpired()
+    {
+        return ReturnPending && DateTime.UtcNow - _returnPendingSince > ReturnPendingTimeout;
+    }
+
+    /// <summary>
+    ///     Clears the pending return. Called by a botbase once its town script has run, so the walk script
+    ///     may start again.
+    /// </summary>
+    public static void ClearReturnPending()
+    {
+        ReturnPending = false;
+    }
+
+    /// <summary>
+    ///     Forgets the whole return episode: both the pending flag and the "reaction already applied" mark.
+    ///     Called after a town script has taken care of a returned character, which allows one fresh attempt
+    ///     of the walk script.
+    /// </summary>
+    public static void ClearReturnState()
+    {
+        ReturnPending = false;
+        ReturnAttempted = false;
+    }
+
+    /// <summary>
     ///     Gets or sets the argument separator.
     ///     Modify this value in case of custom script syntax support
     /// </summary>
@@ -148,7 +208,13 @@ public class ScriptManager
             return;
 
         var error = false;
-        foreach (var scriptLine in Commands?.Skip(CurrentLineIndex))
+        var commands = Commands;
+        var startLine = CurrentLineIndex;
+
+        // CurrentLineIndex always points at the line that is currently processed. Commands that look
+        // ahead (the walk script look-ahead) rely on it, so it must not lag behind on blank, comment,
+        // unknown or failed lines: the loop advances it on every iteration.
+        for (CurrentLineIndex = startLine; CurrentLineIndex < commands.Length; CurrentLineIndex++)
         {
             if (!Running || Paused || (!Kernel.Bot.Running && !ignoreBotRunning))
             {
@@ -156,6 +222,8 @@ public class ScriptManager
 
                 break;
             }
+
+            var scriptLine = commands[CurrentLineIndex];
 
             Log.Debug($"[Script] Executing line #{CurrentLineIndex}");
             Log.Status("Running walk script");
@@ -197,20 +265,26 @@ public class ScriptManager
 
             if (executionResult == false)
             {
+                // A command that handled the failure itself (returned the character to town) is not an
+                // error: repeating a warning on every restart of the script would only flood the log.
+                var softFailure = handler.AbortsScriptOnFailure && !handler.FailureIsError;
+
                 LogScriptMessage(
                     "The execution of the script command failed.",
                     CurrentLineIndex,
-                    LogLevel.Warning,
+                    softFailure ? LogLevel.Debug : LogLevel.Warning,
                     commandName
                 );
 
-                continue;
+                // A command that cannot continue the script (an unreachable waypoint) stops the run here,
+                // otherwise the remaining lines would fail one after another within milliseconds.
+                if (handler.AbortsScriptOnFailure)
+                {
+                    error = handler.FailureIsError;
+
+                    break;
+                }
             }
-
-            CurrentLineIndex++;
-
-            if (CurrentLineIndex > Commands?.Length - 1)
-                break;
         }
 
         if (!Paused)
@@ -250,9 +324,40 @@ public class ScriptManager
     }
 
     /// <summary>
+    ///     Determines whether the command line following the currently executed one is another
+    ///     <c>move</c> command. The move command uses this to chain walk steps without stopping at
+    ///     every single waypoint.
+    /// </summary>
+    /// <returns><c>true</c> if another move command follows; otherwise <c>false</c>.</returns>
+    public static bool HasNextMoveCommand()
+    {
+        if (Commands == null || Commands.Length == 0)
+            return false;
+
+        for (var line = CurrentLineIndex + 1; line < Commands.Length; line++)
+        {
+            var command = Commands[line]?.Trim();
+
+            if (string.IsNullOrEmpty(command) || command.StartsWith("//") || command.StartsWith("#"))
+                continue;
+
+            var arguments = command.Split(ArgumentSeparator, StringSplitOptions.RemoveEmptyEntries);
+
+            return command == "move"
+                || (
+                    command.StartsWith("move" + ArgumentSeparator)
+                    && arguments.Length >= 6
+                    && arguments.All(a => a != "stop")
+                );
+        }
+
+        return false;
+    }
+
+    /// <summary>
     ///     Parses the position from the given arguments.
     /// </summary>
-    /// <param name="args">The arguments.</param>
+    /// <param name="args"></param>
     /// <returns></returns>
     private static Position ParsePosition(string[] args)
     {

@@ -113,6 +113,8 @@ internal static class Program
 
         Encoding.RegisterProvider(CodePagesEncodingProvider.Instance);
 
+        RegisterShutdownHandlers();
+
         if (isHeadless)
         {
             RunHeadless();
@@ -130,6 +132,29 @@ internal static class Program
             splashScreen.ShowDialog();
 
             Application.Run(mainForm);
+        }
+    }
+
+    /// <summary>
+    ///     Makes sure the game client never outlives the bot, whichever way the bot terminates: a normal
+    ///     shutdown, <see cref="Environment.Exit" />, an unhandled exception, or a killed UI thread.
+    /// </summary>
+    private static void RegisterShutdownHandlers()
+    {
+        AppDomain.CurrentDomain.ProcessExit += (_, _) => KillClientSafely();
+        AppDomain.CurrentDomain.UnhandledException += (_, _) => KillClientSafely();
+        Application.ApplicationExit += (_, _) => KillClientSafely();
+    }
+
+    private static void KillClientSafely()
+    {
+        try
+        {
+            ClientManager.Kill();
+        }
+        catch
+        {
+            // Nothing useful can be done while the process is going down.
         }
     }
 

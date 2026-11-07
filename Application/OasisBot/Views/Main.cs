@@ -617,23 +617,40 @@ public partial class Main : UIWindow
     /// <param name="e">The <see cref="FormClosingEventArgs" /> instance containing the event data.</param>
     private void Main_FormClosing(object sender, FormClosingEventArgs e)
     {
-        if (Kernel.Proxy == null || !Kernel.Proxy.ClientConnected || !GeneralConfig.Get("RSBot.showExitDialog", true))
+        if (
+            Kernel.Proxy != null
+            && Kernel.Proxy.ClientConnected
+            && GeneralConfig.Get("RSBot.showExitDialog", true)
+        )
+        {
+            var exitDialog = new ExitDialog();
+            if (exitDialog.ShowDialog(this) != DialogResult.Yes)
+            {
+                e.Cancel = true;
+                return;
+            }
+        }
+
+        ShutdownApplication();
+    }
+
+    /// <summary>
+    ///     Saves the configuration and shuts the bot down, always terminating the game client. The client
+    ///     is not bound to the proxy state: it has to be killed even when it was never connected, was
+    ///     disconnected, or the exit dialog is disabled.
+    /// </summary>
+    internal static void ShutdownApplication()
+    {
+        try
         {
             GlobalConfig.Save();
             PlayerConfig.Save();
-
-            Environment.Exit(0);
         }
-
-        var exitDialog = new ExitDialog();
-        if (exitDialog.ShowDialog(this) != DialogResult.Yes)
+        catch (Exception error)
         {
-            e.Cancel = true;
-            return;
+            Log.Warn("Could not save the configuration on exit: " + error.Message);
         }
 
-        GlobalConfig.Save();
-        PlayerConfig.Save();
         ClientManager.Kill();
 
         Environment.Exit(0);
@@ -663,23 +680,18 @@ public partial class Main : UIWindow
     /// <param name="e">The <see cref="EventArgs" /> instance containing the event data.</param>
     private void menuItemExit_Click(object sender, EventArgs e)
     {
-        if (Kernel.Proxy == null || !Kernel.Proxy.ClientConnected || !GeneralConfig.Get("RSBot.showExitDialog", true))
+        if (
+            Kernel.Proxy != null
+            && Kernel.Proxy.ClientConnected
+            && GeneralConfig.Get("RSBot.showExitDialog", true)
+        )
         {
-            GlobalConfig.Save();
-            PlayerConfig.Save();
-
-            Environment.Exit(0);
+            var exitDialog = new ExitDialog();
+            if (exitDialog.ShowDialog(this) != DialogResult.Yes)
+                return;
         }
 
-        var exitDialog = new ExitDialog();
-        if (exitDialog.ShowDialog(this) != DialogResult.Yes)
-            return;
-
-        GlobalConfig.Save();
-        PlayerConfig.Save();
-        ClientManager.Kill();
-
-        Environment.Exit(0);
+        ShutdownApplication();
     }
 
     /// <summary>

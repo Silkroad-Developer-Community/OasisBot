@@ -1,4 +1,4 @@
-using System;
+﻿using System;
 using System.Collections.Generic;
 using System.IO;
 using System.Linq;
@@ -41,7 +41,18 @@ public class BotbaseManager
 
             foreach (var file in Directory.GetFiles(DirectoryPath, "*.dll"))
             {
-                var result = GetExtensionsFromAssembly(file);
+                (Dictionary<string, IBotbase> bots, Dictionary<string, IBotbaseView> views) result;
+
+                try
+                {
+                    result = GetExtensionsFromAssembly(file);
+                }
+                catch (Exception error)
+                {
+                    Log.Warn($"Could not load the botbase assembly {Path.GetFileName(file)}: {error.Message}");
+
+                    continue;
+                }
 
                 foreach (var bot in result.bots)
                 {
@@ -65,10 +76,10 @@ public class BotbaseManager
         }
         catch (Exception ex)
         {
-            File.WriteAllText(
-                Path.Combine(Kernel.BasePath, "Data", "Logs", "boot-error.log"),
-                $"The botbase manager encountered a problem: \n{ex.Message} at {ex.StackTrace}"
-            );
+            Log.Error("The botbase manager encountered a problem: " + ex.Message);
+
+            BootErrorLog.Write("The botbase manager encountered a problem:", ex);
+
             return false;
         }
     }
@@ -86,7 +97,7 @@ public class BotbaseManager
         var bots = new Dictionary<string, IBotbase>();
         var views = new Dictionary<string, IBotbaseView>();
 
-        var assembly = Assembly.LoadFrom(file);
+        var assembly = AssemblyLoader.Load(file);
 
         try
         {

@@ -26,6 +26,11 @@ public static class PlayerConfig
         _config = new Config(Path.Combine(_configDirectory, charName + ".rs"));
 
         Log.Notify("[Player] settings have been loaded!");
+
+        // Settings views are created and loaded before a character logs in, when this config does not exist
+        // yet. They must re-read their controls now, otherwise the UI shows the designer defaults while the
+        // bot already works with the values of the profile.
+        EventManager.FireEvent("OnLoadPlayerConfig");
     }
 
     /// <summary>

@@ -1,13 +1,16 @@
-using System;
+﻿using System;
+using System.Collections.Generic;
 using System.Diagnostics;
 using System.Globalization;
 using System.IO;
 using System.Linq;
+using System.Runtime.InteropServices;
 using System.Text;
 using System.Threading;
 using System.Threading.Tasks;
 using RSBot.Core.Event;
 using RSBot.Core.Extensions;
+using RSBot.Core.Network;
 using static RSBot.Core.Extensions.NativeExtensions;
 
 namespace RSBot.Core.Components;
@@ -31,7 +34,24 @@ public class ClientManager
     /// <summary>
     ///     Get, has client exited <c>true</c> otherwise; <c>false</c>
     /// </summary>
-    public static bool IsRunning => _process != null && !_process.HasExited;
+    public static bool IsRunning
+    {
+        get
+        {
+            var process = _process;
+            if (process == null)
+                return false;
+
+            try
+            {
+                return !process.HasExited;
+            }
+            catch
+            {
+                return false;
+            }
+        }
+    }
 
     /// <summary>
     ///     Start the game client
@@ -39,6 +59,13 @@ public class ClientManager
     /// <returns>Has successfully started <c>true</c>; otherwise <c>false</c></returns>
     public static async Task<bool> Start()
     {
+        // A client we launched earlier has to go first: otherwise _process gets overwritten below and
+        // the previous (often still suspended) process stays in memory with nobody able to reach it.
+        // Kill() also cleans up leftovers of a previous session, because such a process keeps the game's
+        // single instance mutex and makes the new client refuse to start with no visible reason.
+        if (IsRunning)
+            Kill();
+
         var sessionProxy = Kernel.Proxy;
         VtcClientLayout vtcLayout = null;
         if (Game.ClientType == GameClientType.VTC_Game)
@@ -130,13 +157,101 @@ public class ClientManager
         )
             return false;
 
-        using var vtcStartup = vtcLayout != null ? new VtcClientStartup(pi) : null;
+        // The client is created suspended and is only resumed at the very end of the setup below, so
+        // every early exit has to terminate it explicitly. Otherwise an orphaned, never-resumed
+        // process stays in memory and, once _process is overwritten, can never be reached again.
+        Process sroProcess;
+        try
+        {
+            sroProcess = Process.GetProcessById((int)pi.dwProcessId);
+        }
+        catch (Exception error)
+        {
+            Log.Error("Could not open the started client process: " + error.Message);
+
+            TerminateQuietly(null, pi.hProcess);
+            CloseHandle(pi.hThread);
+            CloseHandle(pi.hProcess);
+
+            return false;
+        }
+
+        _process = sroProcess;
+
+        // 4game's RU client refuses to run twice: it acquires the machine wide mutex
+        // "Global\Silkroad Client RU" and exits with "Already executing..." when another copy owns it.
+        // The check can be bypassed so several characters run on one machine at the same time.
+        if (Game.ClientType == GameClientType.RuSro && GlobalConfig.Get<bool>("RSBot.Silkroad.MultiClient", true))
+            ApplyMultiClientPatch(sroProcess, pi);
+
+        // Guard the client with a kill-on-close job: Windows then terminates it together with the bot,
+        // even when the bot crashes or is killed from the task manager.
+        ClientJobObject.Attach(sroProcess, pi.hProcess);
+
+        var started = false;
+
+        try
+        {
+            using var vtcStartup = vtcLayout != null ? new VtcClientStartup(pi) : null;
+
+            started = SetupClient(
+                sroProcess,
+                pi,
+                vtcStartup,
+                vtcLayout,
+                specialClient,
+                sessionProxy,
+                divisionIndex,
+                buffer,
+                pathLen
+            );
+        }
+        catch (Exception error)
+        {
+            Log.Error("Client startup failed: " + error.Message);
+        }
+        finally
+        {
+            if (!started)
+                TerminateQuietly(sroProcess, pi.hProcess);
+
+            CloseHandle(pi.hThread);
+            CloseHandle(pi.hProcess);
+        }
+
+        if (!started)
+        {
+            _process = null;
+
+            return false;
+        }
+
+        EventManager.FireEvent("OnStartClient");
+
+        return true;
+    }
+
+    /// <summary>
+    ///     Applies the loader injection, the protection bypasses and the client patches to the freshly
+    ///     created, still suspended process, then resumes it.
+    /// </summary>
+    /// <returns><c>true</c> when the client was resumed and is running; otherwise <c>false</c>.</returns>
+    private static bool SetupClient(
+        Process sroProcess,
+        PROCESS_INFORMATION pi,
+        VtcClientStartup vtcStartup,
+        VtcClientLayout vtcLayout,
+        bool specialClient,
+        Proxy sessionProxy,
+        int divisionIndex,
+        byte[] buffer,
+        uint pathLen
+    )
+    {
         PrepareTempConfigFile(pi.dwProcessId, divisionIndex);
 
         if (specialClient)
         {
-            Process sroProcess = Process.GetProcessById((int)pi.dwProcessId);
-
             if (Game.ClientType == GameClientType.VTC_Game)
             {
                 string error;
@@ -189,8 +304,6 @@ public class ClientManager
             }
             else
                 ResumeThread(pi.hThread);
-
-            _process = sroProcess;
         }
         else
         {
@@ -223,7 +336,6 @@ public class ClientManager
 
             if (Game.ClientType == GameClientType.Chinese)
             {
-                var sroProcess = System.Diagnostics.Process.GetProcessById((int)pi.dwProcessId);
                 WaitForChineseClientPatchTargets(sroProcess, pi.hThread);
                 ApplyChineseClientPatch(sroProcess, pi);
             }
@@ -236,15 +348,13 @@ public class ClientManager
             ResumeThread(pi.hThread);
             ResumeThread(pi.hProcess);
 
-            _process = Process.GetProcessById((int)pi.dwProcessId);
-            if (_process == null || _process.HasExited)
+            if (sroProcess.HasExited)
                 return false;
         }
 
-        _process.EnableRaisingEvents = true;
-        _process.Exited += ClientProcess_Exited;
+        sroProcess.EnableRaisingEvents = true;
+        sroProcess.Exited += ClientProcess_Exited;
 
-        EventManager.FireEvent("OnStartClient");
         return true;
     }
 
@@ -619,19 +729,839 @@ public class ClientManager
         VirtualProtectEx(processHandle, address, (UIntPtr)patch.Length, oldProtect, out _);
     }
 
+    private static readonly object MultiClientPatchLock = new();
+
+    private static string _multiClientPatchPath;
+    private static long _multiClientPatchStamp;
+    private static long _multiClientPatchLength;
+    private static int _multiClientPatchAddress;
+
     /// <summary>
-    ///     Kill the game client process
+    ///     Returns the guard address that was resolved earlier for the same client file, so the
+    ///     executable is not read and parsed again on every launch.
+    /// </summary>
+    private static bool TryGetCachedMultiClientPatch(string clientPath, out int patchAddress)
+    {
+        patchAddress = 0;
+
+        try
+        {
+            var file = new FileInfo(clientPath);
+
+            lock (MultiClientPatchLock)
+            {
+                if (
+                    _multiClientPatchAddress != 0
+                    && string.Equals(_multiClientPatchPath, clientPath, StringComparison.OrdinalIgnoreCase)
+                    && _multiClientPatchLength == file.Length
+                    && _multiClientPatchStamp == file.LastWriteTimeUtc.Ticks
+                )
+                {
+                    patchAddress = _multiClientPatchAddress;
+
+                    return true;
+                }
+            }
+        }
+        catch (Exception error)
+        {
+            Log.Debug("Multi client: could not inspect the client executable: " + error.Message);
+        }
+
+        return false;
+    }
+
+    /// <summary>
+    ///     Remembers the resolved guard address for the given client file.
+    /// </summary>
+    private static void CacheMultiClientPatch(string clientPath, int patchAddress)
+    {
+        try
+        {
+            var file = new FileInfo(clientPath);
+
+            lock (MultiClientPatchLock)
+            {
+                _multiClientPatchPath = clientPath;
+                _multiClientPatchLength = file.Length;
+                _multiClientPatchStamp = file.LastWriteTimeUtc.Ticks;
+                _multiClientPatchAddress = patchAddress;
+            }
+        }
+        catch (Exception error)
+        {
+            Log.Debug("Multi client: could not cache the guard address: " + error.Message);
+        }
+    }
+
+    /// <summary>
+    ///     Writes the guard patch (75 -> EB) into the still suspended client process.
+    /// </summary>
+    private static void ApplyGuardByte(Process process, PROCESS_INFORMATION pi, IntPtr patchAddress)
+    {
+        if (
+            !VirtualProtectEx(pi.hProcess, patchAddress, (UIntPtr)1, PAGE_EXECUTE_READWRITE, out var oldProtect)
+        )
+        {
+            Log.Warn(
+                "Multi client: could not unprotect the guard instruction, Windows error "
+                    + Marshal.GetLastWin32Error()
+            );
+
+            return;
+        }
+
+        try
+        {
+            // 75 (jne) -> EB (jmp): always continue as if the mutex was acquired.
+            var patch = new byte[] { 0xEB };
+
+            if (
+                !WriteProcessMemory(pi.hProcess, patchAddress, patch, (uint)patch.Length, out var written)
+                || written.ToInt32() != patch.Length
+            )
+            {
+                Log.Warn(
+                    "Multi client: could not write the guard patch, Windows error " + Marshal.GetLastWin32Error()
+                );
+
+                return;
+            }
+        }
+        finally
+        {
+            VirtualProtectEx(pi.hProcess, patchAddress, (UIntPtr)1, oldProtect, out _);
+        }
+
+        Log.Notify(
+            $"Multi client patch applied at 0x{patchAddress.ToInt32():X8} (pid {process.Id}): "
+                + "the client will not block on the single instance guard."
+        );
+    }
+
+    /// <summary>
+    ///     Bypasses the single instance guard of the RuSro client. The client creates the machine wide
+    ///     mutex "Global\Silkroad Client RU", waits for it with a zero timeout and, when the wait returns
+    ///     WAIT_TIMEOUT (0x102) because another copy owns it, closes the mutex and exits with
+    ///     "Already executing...". The conditional jump after that wait is turned into an unconditional
+    ///     one, so the error branch is never taken and the client continues normally.
+    ///     <para>
+    ///         The patch address is resolved from the PE image on disk (ImageBase + RVA) instead of
+    ///         reading the running process: while the client is still suspended its module list is not
+    ///         initialized yet, so both <see cref="Process.MainModule" /> and Toolhelp fail with
+    ///         ERROR_PARTIAL_COPY, but writing to a known address works.
+    ///     </para>
+    /// </summary>
+    private static void ApplyMultiClientPatch(Process process, PROCESS_INFORMATION pi)
+    {
+        try
+        {
+            var clientPath = GetConfiguredClientPath();
+            if (clientPath == null)
+            {
+                Log.Debug("Multi client: the client executable is not configured, skipping.");
+
+                return;
+            }
+
+            // The guard address only depends on the client file, so a successful lookup is reused until
+            // the executable changes.
+            if (TryGetCachedMultiClientPatch(clientPath, out var cachedAddress))
+            {
+                ApplyGuardByte(process, pi, (IntPtr)cachedAddress);
+
+                return;
+            }
+
+            byte[] image;
+
+            try
+            {
+                image = File.ReadAllBytes(clientPath);
+            }
+            catch (Exception error)
+            {
+                Log.Warn("Multi client: could not read the client executable: " + error.Message);
+
+                return;
+            }
+
+            if (!TryGetImageLayout(image, out var imageBase, out var sections, out var dynamicBase))
+            {
+                Log.Warn("Multi client: could not parse the client executable.");
+
+                return;
+            }
+
+            if (dynamicBase)
+            {
+                Log.Warn(
+                    "Multi client: the client image is relocatable (DYNAMICBASE), the guard address cannot "
+                        + "be predicted, skipping the patch."
+                );
+
+                return;
+            }
+
+            byte[] mutexName = Encoding.Unicode.GetBytes("Global\\Silkroad Client RU\0");
+            var stringOffset = IndexOf(image, mutexName, 0);
+
+            if (stringOffset < 0 || !TryFileOffsetToRva(sections, stringOffset, out var stringRva))
+            {
+                Log.Debug("Multi client: the single instance mutex string was not found, skipping.");
+
+                return;
+            }
+
+            var stringAddress = imageBase + stringRva;
+            var pushString = new byte[]
+            {
+                0x68,
+                (byte)stringAddress,
+                (byte)(stringAddress >> 8),
+                (byte)(stringAddress >> 16),
+                (byte)(stringAddress >> 24),
+            };
+
+            // The address may also occur somewhere as plain data, so every candidate is validated
+            // against the expected instruction layout and the first matching one is patched.
+            var pushOffset = -1;
+            var searchFrom = 0;
+
+            while (true)
+            {
+                var candidate = IndexOf(image, pushString, searchFrom);
+                if (candidate < 0)
+                    break;
+
+                if (IsExpectedMultiClientCode(image, candidate))
+                {
+                    pushOffset = candidate;
+
+                    break;
+                }
+
+                searchFrom = candidate + 1;
+            }
+
+            if (pushOffset < 0)
+            {
+                Log.Warn(
+                    "Multi client: the single instance check has an unexpected layout in this client "
+                        + "build, skipping the patch."
+                );
+
+                return;
+            }
+
+            var errorJumpOffset = FindErrorJumpOffset(image, pushOffset);
+            if (errorJumpOffset < 0 || !TryFileOffsetToRva(sections, errorJumpOffset, out var jumpRva))
+            {
+                Log.Warn("Multi client: the error branch of the single instance check was not found.");
+
+                return;
+            }
+
+            var patchAddress = (IntPtr)(imageBase + jumpRva);
+
+            CacheMultiClientPatch(clientPath, patchAddress.ToInt32());
+            ApplyGuardByte(process, pi, patchAddress);
+        }
+        catch (Exception error)
+        {
+            Log.Warn("Multi client: could not apply the patch: " + error.Message);
+        }
+    }
+
+    /// <summary>
+    ///     Returns the full path of the configured client executable, or <c>null</c> when it is not set
+    ///     or does not exist.
+    /// </summary>
+    private static string GetConfiguredClientPath()
+    {
+        try
+        {
+            var path = Path.GetFullPath(
+                Path.Combine(
+                    GlobalConfig.Get<string>("RSBot.SilkroadDirectory", ""),
+                    GlobalConfig.Get<string>("RSBot.SilkroadExecutable", "")
+                )
+            );
+
+            return File.Exists(path) ? path : null;
+        }
+        catch
+        {
+            return null;
+        }
+    }
+
+    /// <summary>
+    ///     A section of a PE image: where it lives in the file and where it is mapped to in memory.
+    /// </summary>
+    private readonly struct ImageSection
+    {
+        public ImageSection(int virtualAddress, int rawSize, int rawPointer)
+        {
+            VirtualAddress = virtualAddress;
+            RawSize = rawSize;
+            RawPointer = rawPointer;
+        }
+
+        public int VirtualAddress { get; }
+        public int RawSize { get; }
+        public int RawPointer { get; }
+    }
+
+    /// <summary>
+    ///     Reads the image base and the section table from a PE file on disk.
+    /// </summary>
+    private static bool TryGetImageLayout(
+        byte[] image,
+        out int imageBase,
+        out List<ImageSection> sections,
+        out bool dynamicBase
+    )
+    {
+        imageBase = 0;
+        sections = null;
+        dynamicBase = false;
+
+        if (image == null || image.Length < 0x40)
+            return false;
+
+        try
+        {
+            var peOffset = BitConverter.ToInt32(image, 0x3C);
+            if (peOffset <= 0 || peOffset + 24 > image.Length)
+                return false;
+
+            var numberOfSections = BitConverter.ToUInt16(image, peOffset + 6);
+            var optionalHeaderSize = BitConverter.ToUInt16(image, peOffset + 20);
+            var optionalHeaderOffset = peOffset + 24;
+            var magic = BitConverter.ToUInt16(image, optionalHeaderOffset);
+
+            imageBase =
+                magic == 0x20B
+                    ? (int)BitConverter.ToUInt64(image, optionalHeaderOffset + 24)
+                    : BitConverter.ToInt32(image, optionalHeaderOffset + 28);
+
+            // DYNAMICBASE (0x0040) means the loader may relocate the image, so ImageBase + RVA is not a
+            // reliable address and the guard must not be patched blindly.
+            if (optionalHeaderOffset + 72 <= image.Length)
+                dynamicBase = (BitConverter.ToUInt16(image, optionalHeaderOffset + 70) & 0x0040) != 0;
+
+            var sectionOffset = optionalHeaderOffset + optionalHeaderSize;
+            if (numberOfSections == 0 || sectionOffset + numberOfSections * 40 > image.Length)
+                return false;
+
+            sections = new List<ImageSection>(numberOfSections);
+
+            for (var i = 0; i < numberOfSections; i++)
+            {
+                var entry = sectionOffset + i * 40;
+                var virtualAddress = BitConverter.ToInt32(image, entry + 12);
+                var rawSize = BitConverter.ToInt32(image, entry + 16);
+                var rawPointer = BitConverter.ToInt32(image, entry + 20);
+
+                if (rawSize > 0)
+                    sections.Add(new ImageSection(virtualAddress, rawSize, rawPointer));
+            }
+
+            return imageBase != 0 && sections.Count > 0;
+        }
+        catch
+        {
+            return false;
+        }
+    }
+
+    /// <summary>
+    ///     Converts a file offset inside a PE section into the relative virtual address it is mapped to.
+    /// </summary>
+    private static bool TryFileOffsetToRva(List<ImageSection> sections, int fileOffset, out int rva)
+    {
+        rva = 0;
+
+        foreach (var section in sections)
+        {
+            if (fileOffset < section.RawPointer || fileOffset >= section.RawPointer + section.RawSize)
+                continue;
+
+            rva = section.VirtualAddress + (fileOffset - section.RawPointer);
+
+            return true;
+        }
+
+        return false;
+    }
+
+    /// <summary>
+    ///     Validates the instructions that immediately follow the mutex name push, so a different client
+    ///     build is never patched at a random address.
+    /// </summary>
+    private static bool IsExpectedMultiClientCode(byte[] memory, int pushOffset)
+    {
+        // push name; push 2; push 2; push 0; call dword ptr [CreateMutex...]
+        var expected = new byte[] { 0x6A, 0x02, 0x6A, 0x02, 0x6A, 0x00, 0xFF, 0x15 };
+
+        if (pushOffset + 5 + expected.Length > memory.Length)
+            return false;
+
+        for (var i = 0; i < expected.Length; i++)
+        {
+            if (memory[pushOffset + 5 + i] != expected[i])
+                return false;
+        }
+
+        return true;
+    }
+
+    /// <summary>
+    ///     Finds the "cmp eax, 102h; jne" pair that follows the mutex wait and returns the offset of the
+    ///     jump opcode.
+    /// </summary>
+    private static int FindErrorJumpOffset(byte[] memory, int pushOffset)
+    {
+        var expected = new byte[] { 0x3D, 0x02, 0x01, 0x00, 0x00, 0x75 };
+        var limit = Math.Min(pushOffset + 0x60, memory.Length - expected.Length);
+
+        for (var i = pushOffset; i < limit; i++)
+        {
+            var match = true;
+
+            for (var j = 0; j < expected.Length; j++)
+            {
+                if (memory[i + j] != expected[j])
+                {
+                    match = false;
+                    break;
+                }
+            }
+
+            if (match)
+                return i + expected.Length - 1; // opcode of the conditional jump
+        }
+
+        return -1;
+    }
+
+    /// <summary>
+    ///     Searches <paramref name="haystack" /> for the first occurrence of <paramref name="needle" />
+    ///     starting at the given offset.
+    /// </summary>
+    private static int IndexOf(byte[] haystack, byte[] needle, int start)
+    {
+        if (needle.Length == 0 || haystack.Length < needle.Length)
+            return -1;
+
+        var limit = haystack.Length - needle.Length;
+
+        for (var i = Math.Max(0, start); i <= limit; i++)
+        {
+            if (haystack[i] != needle[0])
+                continue;
+
+            var match = true;
+
+            for (var j = 1; j < needle.Length; j++)
+            {
+                if (haystack[i + j] != needle[j])
+                {
+                    match = false;
+                    break;
+                }
+            }
+
+            if (match)
+                return i;
+        }
+
+        return -1;
+    }
+
+    /// <summary>
+    ///     Kill the game client process, including every process it spawned. Leftovers of a previous
+    ///     session are cleaned up as well, unless <c>RSBot.Silkroad.KillStaleClients</c> is disabled.
     /// </summary>
     public static void Kill()
     {
-        if (!IsRunning)
+        var process = Interlocked.Exchange(ref _process, null);
+
+        if (process != null)
+        {
+            // Detach first: an intentional shutdown must not fire OnExitClient and trigger a relogin.
+            try
+            {
+                process.EnableRaisingEvents = false;
+                process.Exited -= ClientProcess_Exited;
+            }
+            catch { }
+
+            TerminateClient(process);
+        }
+
+        // A protected client (XIGNCODE) or a client that was launched outside of ClientManager can still
+        // be alive here. Such a leftover keeps the single instance mutex and blocks the next launch.
+        // The cleanup is opt-out, because it touches processes the bot did not launch itself.
+        if (GlobalConfig.Get<bool>("RSBot.Silkroad.KillStaleClients", true))
+            KillStaleClients();
+    }
+
+    /// <summary>
+    ///     Shuts a client process down step by step, from the gentle way to the hardest one, and reports
+    ///     which step actually worked.
+    /// </summary>
+    /// <returns><c>true</c> when the process is gone; otherwise <c>false</c>.</returns>
+    private static bool TerminateClient(Process process)
+    {
+        if (HasExited(process))
+            return true;
+
+        var pid = process.Id;
+        var name = SafeProcessName(process);
+
+        // 1. Ask the client to close itself. A protected client releases its driver and its single
+        //    instance mutex only on a normal shutdown, so this step matters more than TerminateProcess.
+        try
+        {
+            if (process.CloseMainWindow() && WaitForExit(process, 2500))
+            {
+                Log.Debug($"Client process {pid} ({name}) closed its main window and exited.");
+
+                return true;
+            }
+        }
+        catch (Exception error)
+        {
+            Log.Debug($"Client process {pid}: graceful close failed: {error.Message}");
+        }
+
+        // 2. Kill the process tree.
+        try
+        {
+            process.Kill(entireProcessTree: true);
+
+            if (WaitForExit(process, 3000))
+            {
+                Log.Debug($"Client process {pid} ({name}) was terminated as a process tree.");
+
+                return true;
+            }
+        }
+        catch (Exception error)
+        {
+            Log.Warn($"Could not terminate the client process tree of {pid}: {error.Message}");
+        }
+
+        // 3. Terminate through a freshly opened handle, which still works when the wrapper is stale.
+        if (TerminateByHandle(process))
+        {
+            Log.Debug($"Client process {pid} ({name}) was terminated by handle.");
+
+            return true;
+        }
+
+        Log.Error(
+            $"Client process {pid} ({name}) is still alive after graceful close, tree kill and handle "
+                + "termination. A protection driver is most likely blocking it; the client will stay in "
+                + "memory and block the next launch."
+        );
+
+        return false;
+    }
+
+    /// <summary>
+    ///     Terminates every leftover process of the configured client executable that is not tracked by
+    ///     the bot anymore. Only processes started from the exact configured path are touched, so a
+    ///     second installation or a manually started client from another folder is never affected.
+    /// </summary>
+    /// <returns>Number of terminated leftovers.</returns>
+    public static int KillStaleClients()
+    {
+        string expectedPath;
+        try
+        {
+            expectedPath = Path.GetFullPath(
+                Path.Combine(
+                    GlobalConfig.Get<string>("RSBot.SilkroadDirectory", ""),
+                    GlobalConfig.Get<string>("RSBot.SilkroadExecutable", "")
+                )
+            );
+        }
+        catch
+        {
+            return 0;
+        }
+
+        if (!File.Exists(expectedPath))
+            return 0;
+
+        var processes = SnapshotProcesses();
+        var terminated = 0;
+
+        foreach (var process in Process.GetProcessesByName(Path.GetFileNameWithoutExtension(expectedPath)))
+        {
+            try
+            {
+                if (process.Id == Environment.ProcessId || HasExited(process))
+                    continue;
+
+                string modulePath = null;
+
+                try
+                {
+                    modulePath = process.MainModule?.FileName;
+                }
+                catch
+                {
+                    // The process is protected or belongs to another user: leave it alone.
+                }
+
+                if (!string.Equals(modulePath, expectedPath, StringComparison.OrdinalIgnoreCase))
+                    continue;
+
+                // Only clean up clients that are ours: either started by this bot, or orphaned. A client
+                // whose parent process is still alive belongs to another bot instance or was started
+                // manually and must never be touched.
+                if (!IsLeftoverClient(process, processes, out var owner))
+                {
+                    Log.Debug($"Leaving client process {process.Id} alone, it {owner}.");
+
+                    continue;
+                }
+
+                Log.Warn(
+                    $"A leftover client process is still running (pid {process.Id}, started "
+                        + $"{SafeStartTime(process)}). Terminating it before the next launch."
+                );
+
+                if (TerminateClient(process))
+                    terminated++;
+            }
+            catch (Exception error)
+            {
+                Log.Warn($"Could not clean up a leftover client process: {error.Message}");
+            }
+            finally
+            {
+                process.Dispose();
+            }
+        }
+
+        return terminated;
+    }
+
+    private readonly struct ProcessSnapshot
+    {
+        public ProcessSnapshot(uint parentId, string name)
+        {
+            ParentId = parentId;
+            Name = name;
+        }
+
+        public uint ParentId { get; }
+        public string Name { get; }
+    }
+
+    /// <summary>
+    ///     Takes a single snapshot of the process list (pid, parent pid, name) via Toolhelp.
+    /// </summary>
+    private static Dictionary<uint, ProcessSnapshot> SnapshotProcesses()
+    {
+        var result = new Dictionary<uint, ProcessSnapshot>();
+        var snapshot = CreateToolhelp32Snapshot(TH32CS_SNAPPROCESS, 0);
+
+        if (snapshot == IntPtr.Zero || snapshot == new IntPtr(-1))
+            return result;
+
+        try
+        {
+            var entry = new PROCESSENTRY32 { dwSize = (uint)Marshal.SizeOf<PROCESSENTRY32>() };
+
+            if (!Process32FirstW(snapshot, ref entry))
+                return result;
+
+            do
+            {
+                result[entry.th32ProcessID] = new ProcessSnapshot(
+                    entry.th32ParentProcessID,
+                    entry.szExeFile ?? string.Empty
+                );
+            } while (Process32NextW(snapshot, ref entry));
+        }
+        finally
+        {
+            CloseHandle(snapshot);
+        }
+
+        return result;
+    }
+
+    /// <summary>
+    ///     A client is considered a leftover only when it was started by this bot and is not tracked
+    ///     anymore, or when its parent process is already gone. Anything with a living parent (another
+    ///     bot instance, a launcher, the user's explorer) is left untouched.
+    /// </summary>
+    private static bool IsLeftoverClient(
+        Process process,
+        Dictionary<uint, ProcessSnapshot> processes,
+        out string reason
+    )
+    {
+        reason = null;
+
+        if (!processes.TryGetValue((uint)process.Id, out var info))
+        {
+            reason = "is not part of the process snapshot";
+
+            return false;
+        }
+
+        var parentId = info.ParentId;
+
+        if (parentId == 0 || parentId == (uint)Environment.ProcessId)
+            return true;
+
+        if (!processes.TryGetValue(parentId, out var parent))
+            return true;
+
+        reason = $"is owned by the running process {parentId} ({parent.Name})";
+
+        return false;
+    }
+
+    /// <summary>
+    ///     Returns the process name, or a placeholder when the process is already gone.
+    /// </summary>
+    private static string SafeProcessName(Process process)
+    {
+        try
+        {
+            return process.ProcessName;
+        }
+        catch
+        {
+            return "unknown";
+        }
+    }
+
+    /// <summary>
+    ///     Returns the process start time, or a placeholder when it cannot be read.
+    /// </summary>
+    private static string SafeStartTime(Process process)
+    {
+        try
+        {
+            return process.StartTime.ToString("HH:mm:ss");
+        }
+        catch
+        {
+            return "unknown time";
+        }
+    }
+
+    /// <summary>
+    ///     Waits for the process to exit and reports whether it is gone afterwards.
+    /// </summary>
+    private static bool WaitForExit(Process process, int milliseconds)
+    {
+        try
+        {
+            return process.WaitForExit(milliseconds) || HasExited(process);
+        }
+        catch
+        {
+            return HasExited(process);
+        }
+    }
+
+    /// <summary>
+    ///     Terminates a client process through a freshly opened handle. This is the last resort and still
+    ///     works when <see cref="Process.Kill()" /> is blocked by a protection driver.
+    /// </summary>
+    private static bool TerminateByHandle(Process process)
+    {
+        IntPtr handle;
+
+        try
+        {
+            handle = OpenProcess(PROCESS_TERMINATE, false, (uint)process.Id);
+        }
+        catch (Exception error)
+        {
+            Log.Warn($"Could not open client process {process.Id} for termination: {error.Message}");
+
+            return false;
+        }
+
+        if (handle == IntPtr.Zero)
+            return false;
+
+        try
+        {
+            TerminateProcess(handle, 1);
+
+            try
+            {
+                process.WaitForExit(2000);
+            }
+            catch { }
+
+            return HasExited(process);
+        }
+        finally
+        {
+            CloseHandle(handle);
+        }
+    }
+
+    /// <summary>
+    ///     Terminates the whole client process on a setup failure, using the handle returned by
+    ///     <c>CreateProcess</c> so the still suspended process is guaranteed to disappear.
+    /// </summary>
+    private static void TerminateQuietly(Process process, IntPtr processHandle)
+    {
+        if (processHandle != IntPtr.Zero)
+        {
+            try
+            {
+                TerminateProcess(processHandle, 1);
+            }
+            catch { }
+        }
+
+        if (process == null)
             return;
 
         try
         {
-            _process.Kill();
+            if (HasExited(process))
+                return;
+
+            process.Kill();
+
+            if (!process.WaitForExit(2000))
+                Log.Warn($"Client process {process.Id} could not be terminated after a failed start.");
         }
-        catch { }
+        catch (Exception error)
+        {
+            Log.Warn($"Could not terminate client process {process.Id}: {error.Message}");
+
+            TerminateByHandle(process);
+        }
+    }
+
+    private static bool HasExited(Process process)
+    {
+        try
+        {
+            return process.HasExited;
+        }
+        catch
+        {
+            return false;
+        }
     }
 
     /// <summary>
@@ -663,6 +1593,8 @@ public class ClientManager
     /// </summary>
     private static void ClientProcess_Exited(object sender, EventArgs e)
     {
+        Interlocked.CompareExchange(ref _process, null, sender as Process);
+
         Log.Warn("Client process exited!");
         EventManager.FireEvent("OnExitClient");
     }
