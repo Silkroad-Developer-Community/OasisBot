@@ -107,9 +107,12 @@ public class PluginManager
         var views = new Dictionary<string, IPluginView>();
         ;
 
+        // The load is outside the inner try on purpose: a broken assembly must reach the caller, which
+        // logs it and skips the file. Swallowing the exception here hides the reason a plugin is missing.
+        var assembly = AssemblyLoader.Load(file);
+
         try
         {
-            var assembly = AssemblyLoader.Load(file);
             var assemblyTypes = assembly.GetTypes();
 
             foreach (var type in assemblyTypes.Where(t => t.IsPublic && !t.IsAbstract))

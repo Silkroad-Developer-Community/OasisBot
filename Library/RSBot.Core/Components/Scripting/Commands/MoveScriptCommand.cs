@@ -407,16 +407,12 @@ internal class MoveScriptCommand : IScriptCommand
         {
             LogScrollCandidates();
 
-            ScriptManager.ReturnAttempted = true;
-
             Log.Warn(Lang("ScriptNoScrollStopping", "No usable return scroll found; stopping the bot."));
 
             Kernel.Bot.Stop();
 
             return false;
         }
-
-        ScriptManager.ReturnAttempted = true;
 
         var positionBefore = Game.Player.Position;
 
@@ -425,6 +421,11 @@ internal class MoveScriptCommand : IScriptCommand
         // the scroll and answer with a standard action packet, so the real check is that the character moved.
         if (scroll.Use() || scroll.UseTo(3) || WaitForScrollReturn(positionBefore))
         {
+            // The episode is only marked as handled once the character is really on its way back. Marking
+            // it earlier would silence a failed return: after a restart the bot would finish the walk
+            // script without a reaction and never come back.
+            ScriptManager.ReturnAttempted = true;
+
             // The botbase must run its town script before it starts the walk script again, otherwise the
             // character would be sent back into the same unreachable script right away.
             ScriptManager.MarkReturnPending();

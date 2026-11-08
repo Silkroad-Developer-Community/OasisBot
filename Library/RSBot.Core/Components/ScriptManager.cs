@@ -331,12 +331,16 @@ public class ScriptManager
     /// <returns><c>true</c> if another move command follows; otherwise <c>false</c>.</returns>
     public static bool HasNextMoveCommand()
     {
-        if (Commands == null || Commands.Length == 0)
+        // Commands is nulled by Stop() from other threads, so a single snapshot keeps the check free of a
+        // NullReferenceException between the null test and the access.
+        var commands = Commands;
+
+        if (commands == null || commands.Length == 0)
             return false;
 
-        for (var line = CurrentLineIndex + 1; line < Commands.Length; line++)
+        for (var line = CurrentLineIndex + 1; line < commands.Length; line++)
         {
-            var command = Commands[line]?.Trim();
+            var command = commands[line]?.Trim();
 
             if (string.IsNullOrEmpty(command) || command.StartsWith("//") || command.StartsWith("#"))
                 continue;

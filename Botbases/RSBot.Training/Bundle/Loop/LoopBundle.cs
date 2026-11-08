@@ -147,6 +147,11 @@ internal class LoopBundle : IBundle
 
         Running = false;
         _lastAutopathAttempt = System.DateTime.MinValue;
+
+        // A stop in the middle of a teleport must not leave the loop blocked for the next run: the
+        // completion event of that teleport will never arrive once the bot is not running.
+        Teleporting = false;
+        _regionChangedAt = System.DateTime.MinValue;
     }
 
     /// <summary>
@@ -191,15 +196,16 @@ internal class LoopBundle : IBundle
         //The player is in town, therefore, we need to run the town script first.
         if (!File.Exists(filename))
         {
-            // The character was just returned to town, but the client has not reported the new region yet.
-            // Starting the walk script now would fail instantly and repeat the whole reaction.
+            // The character was just returned to town, but this region has no town script. The arrival
+            // region is settled here (the gate above), so there is nothing to wait for: drop the pending
+            // state and let the walk script start instead of idling until the timeout expires.
             if (ScriptManager.ReturnPending)
             {
                 Log.Debug(
-                    "[Training] The character is on its way back; waiting for the town script before walking back."
+                    "[Training] The arrival region has no town script; starting the walk script instead of waiting."
                 );
 
-                return;
+                ScriptManager.ClearReturnState();
             }
 
             CheckForWalkbackScript();

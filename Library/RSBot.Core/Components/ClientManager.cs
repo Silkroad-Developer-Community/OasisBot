@@ -61,10 +61,11 @@ public class ClientManager
     {
         // A client we launched earlier has to go first: otherwise _process gets overwritten below and
         // the previous (often still suspended) process stays in memory with nobody able to reach it.
-        // Kill() also cleans up leftovers of a previous session, because such a process keeps the game's
-        // single instance mutex and makes the new client refuse to start with no visible reason.
-        if (IsRunning)
-            Kill();
+        // Kill() runs unconditionally, also when no client is tracked: in that case it still cleans up
+        // leftovers of a previous session, and such a process keeps the game's single instance mutex and
+        // makes the new client refuse to start with no visible reason. The cleanup itself stays opt-out
+        // through RSBot.Silkroad.KillStaleClients.
+        Kill();
 
         var sessionProxy = Kernel.Proxy;
         VtcClientLayout vtcLayout = null;
@@ -1410,6 +1411,16 @@ public class ClientManager
     )
     {
         reason = null;
+
+        // The client this bot is running is never a leftover, even when the cleanup is triggered while
+        // it is still alive. Killing it here would also fire OnExitClient and trigger a relogin.
+        var tracked = _process;
+        if (tracked != null && !HasExited(tracked) && tracked.Id == process.Id)
+        {
+            reason = "is the client currently used by this bot";
+
+            return false;
+        }
 
         if (!processes.TryGetValue((uint)process.Id, out var info))
         {
