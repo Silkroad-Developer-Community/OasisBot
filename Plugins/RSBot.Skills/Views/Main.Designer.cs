@@ -862,7 +862,7 @@
             checkWarlockMode.Ripple = true;
             checkWarlockMode.Size = new System.Drawing.Size(213, 30);
             checkWarlockMode.TabIndex = 0;
-            checkWarlockMode.Text = "Change target after 2 DoTs";
+            checkWarlockMode.Text = "Use DoT skills (warlock mode)";
             checkWarlockMode.UseVisualStyleBackColor = false;
             checkWarlockMode.CheckedChanged += settings_CheckedChanged;
             // 

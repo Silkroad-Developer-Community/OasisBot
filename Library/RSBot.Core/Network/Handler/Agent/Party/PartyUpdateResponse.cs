@@ -1,4 +1,5 @@
-﻿using RSBot.Core.Event;
+﻿using System.Collections.Generic;
+using RSBot.Core.Event;
 using RSBot.Core.Objects;
 using RSBot.Core.Objects.Party;
 
@@ -6,6 +7,12 @@ namespace RSBot.Core.Network.Handler.Agent.Party;
 
 internal class PartyUpdateResponse : IPacketHandler
 {
+    /// <summary>
+    ///     Update types that were already reported as unknown. The server repeats such a packet many times per
+    ///     second (for example type 39), and logging every one of them filled the log during combat.
+    /// </summary>
+    private static readonly HashSet<byte> _reportedUnknownTypes = new();
+
     /// <summary>
     ///     Gets or sets the opcode.
     /// </summary>
@@ -118,7 +125,9 @@ internal class PartyUpdateResponse : IPacketHandler
                 break;
 
             default:
-                Log.Debug($"Unknow party type:{type} opcode: {packet.Opcode}");
+                if (_reportedUnknownTypes.Add((byte)type))
+                    Log.Debug($"Unknow party type:{type} opcode: {packet.Opcode}");
+
                 break;
         }
     }
