@@ -97,13 +97,23 @@ internal class TargetBundle : IBundle
         }
 
         var warlockModeEnabled = PlayerConfig.Get("RSBot.Skills.checkWarlockMode", false);
-        if (warlockModeEnabled && Game.SelectedEntity?.State.HasTwoDots() == true)
+
+        // A target is done with DoTs when it carries two of them or when no further DoT can be applied to
+        // it (the remaining skill is already on the target, or the target limit is reached). Without the
+        // second case the bot keeps attacking a monster it can no longer DoT and never moves on.
+        var selectedState = Game.SelectedEntity?.State;
+        var dotsDone =
+            selectedState != null
+            && selectedState.ActiveBuffs.Any(b => b.IsDot)
+            && (selectedState.HasTwoDots() || !SkillManager.HasUsableDotFor(Game.SelectedEntity));
+
+        if (warlockModeEnabled && dotsDone)
         {
             // Every other target search excludes monsters with two DoTs, so dropping the current target
             // when it is the only one available would leave the character idle while being attacked.
             if (GetNearestEnemy() != null)
             {
-                Log.Debug("[TargetBundle] Target has 2 DoTs, switching to the next target!");
+                Log.Debug("[TargetBundle] Target has enough DoTs, switching to the next target!");
 
                 var target = Game.SelectedEntity;
 
@@ -120,7 +130,7 @@ internal class TargetBundle : IBundle
             }
             else
             {
-                Log.Debug("[TargetBundle] Target has 2 DoTs, but no other target is available; keeping it.");
+                Log.Debug("[TargetBundle] Target has enough DoTs, but no other target is available; keeping it.");
             }
         }
 

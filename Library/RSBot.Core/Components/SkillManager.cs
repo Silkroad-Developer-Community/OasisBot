@@ -140,6 +140,19 @@ public static class SkillManager
         //var weaponRange = 0;
         var closestSkill = default(SkillInfo);
 
+        // Warlock mode: apply the DoT skills first. A skill that is already on the target is skipped by
+        // FindDotSkillForTarget, and when no DoT can be applied the normal attack skills are used, so the
+        // bot does not keep casting a skill the server would reject.
+        if (
+            entity.State.HitState != ActionHitStateFlag.KnockDown
+            && PlayerConfig.Get("RSBot.Skills.checkWarlockMode", false)
+        )
+        {
+            var dotSkill = FindDotSkillForTarget(entity, rarity, true);
+            if (dotSkill != null)
+                return dotSkill;
+        }
+
         if (entity.State.HitState == ActionHitStateFlag.KnockDown)
         {
             // try to get attack skill for only knockdown states
@@ -161,7 +174,11 @@ public static class SkillManager
                     continue;
 
                 var selectedSkill = Skills[rarity][_lastIndex];
-                if (!selectedSkill.CanBeCasted || !CanUseSkillOnTarget(selectedSkill, entity))
+                if (
+                    !selectedSkill.CanBeCasted
+                    || !CanUseSkillOnTarget(selectedSkill, entity)
+                    || (selectedSkill.IsDot && HasDotOnTarget(entity, selectedSkill))
+                )
                     continue;
 
                 closestSkill = selectedSkill;
@@ -180,7 +197,11 @@ public static class SkillManager
             for (var i = 0; i < Skills[rarity].Count; i++)
             {
                 var s = Skills[rarity][i];
-                if (!s.CanBeCasted || !CanUseSkillOnTarget(s, entity))
+                if (
+                    !s.CanBeCasted
+                    || !CanUseSkillOnTarget(s, entity)
+                    || (s.IsDot && HasDotOnTarget(entity, s))
+                )
                     continue;
 
                 var difference = Math.Abs(
@@ -233,6 +254,56 @@ public static class SkillManager
             return 0;
 
         return entities.Count();
+    }
+
+    /// <summary>
+    ///     Checks whether the given DoT skill is already applied to the target.
+    /// </summary>
+    /// <param name="entity">The selected entity.</param>
+    /// <param name="skill">The DoT skill.</param>
+    /// <returns><c>true</c> when the DoT is already on the target; otherwise <c>false</c>.</returns>
+    private static bool HasDotOnTarget(SpawnedEntity entity, SkillInfo skill)
+    {
+        return entity is SpawnedBionic bionic && bionic.State.ActiveBuffs.Any(b => b.Id == skill.Id);
+    }
+
+    /// <summary>
+    ///     Finds a DoT skill that is not applied to the target yet. When <paramref name="requireReady" /> is
+    ///     set, only skills that can be casted right now are taken into account.
+    /// </summary>
+    /// <param name="entity">The selected entity.</param>
+    /// <param name="rarity">The rarity whose skill list is used.</param>
+    /// <param name="requireReady">Whether a skill on cooldown may be returned.</param>
+    /// <returns>The skill to apply, or <c>null</c> when no DoT is left for the target.</returns>
+    private static SkillInfo FindDotSkillForTarget(SpawnedEntity entity, MonsterRarity rarity, bool requireReady)
+    {
+        if (!Skills.TryGetValue(rarity, out var skills))
+            return null;
+
+        return skills.FirstOrDefault(s =>
+            s.IsDot
+            && (!requireReady || s.CanBeCasted)
+            && CanUseSkillOnTarget(s, entity)
+            && !HasDotOnTarget(entity, s)
+        );
+    }
+
+    /// <summary>
+    ///     Gets a value indicating whether at least one DoT can still be applied to the entity, ignoring
+    ///     cooldowns. Used to decide when a target is finished and the next one may be picked.
+    /// </summary>
+    /// <param name="entity">The selected entity.</param>
+    /// <returns><c>true</c> when another DoT may be applied; otherwise <c>false</c>.</returns>
+    public static bool HasUsableDotFor(SpawnedEntity entity)
+    {
+        if (entity is not SpawnedMonster monster)
+            return false;
+
+        var rarity = MonsterRarity.General;
+        if (Skills.TryGetValue(monster.Rarity, out var monsterSkills) && monsterSkills.Count > 0)
+            rarity = monster.Rarity;
+
+        return FindDotSkillForTarget(entity, rarity, false) != null;
     }
 
     /// <summary>
