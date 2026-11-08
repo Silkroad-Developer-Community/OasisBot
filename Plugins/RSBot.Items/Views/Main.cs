@@ -602,6 +602,8 @@ public partial class Main : DoubleBufferedControl
             checkDontPickupInBerzerk.Checked = PlayerConfig.Get("RSBot.Items.Pickup.DontPickupInBerzerk", true);
             cbJustpickmyitems.Checked = PlayerConfig.Get("RSBot.Items.Pickup.JustPickMyItems", false);
             cbDontPickupWhileBotting.Checked = PlayerConfig.Get<bool>("RSBot.Items.Pickup.DontPickupWhileBotting");
+            checkPickupDuringAttack.Checked = PlayerConfig.Get("RSBot.Items.Pickup.DuringAttack", false);
+            numAbilityPetRadius.Value = PlayerConfig.Get("RSBot.Items.Pickup.AbilityPetRadius", 100);
 
             checkQuestItems.Checked = PlayerConfig.Get<bool>("RSBot.Items.Pickup.Quest", true);
             checkAllEquips.Checked = PlayerConfig.Get<bool>("RSBot.Items.Pickup.AnyEquips");
@@ -937,7 +939,9 @@ public partial class Main : DoubleBufferedControl
         PlayerConfig.Set("RSBot.Items.Pickup.DontPickupWhileBotting", cbDontPickupWhileBotting.Checked);
         PlayerConfig.Set("RSBot.Items.Pickup.JustPickMyItems", cbJustpickmyitems.Checked);
         PlayerConfig.Set("RSBot.Items.Pickup.DontPickupInBerzerk", checkDontPickupInBerzerk.Checked);
-        PlayerConfig.Set("RSBot.Items.Pickup.EnableAbilityPet", checkEnableAbilityPet.Checked);
+            PlayerConfig.Set("RSBot.Items.Pickup.EnableAbilityPet", checkEnableAbilityPet.Checked);
+            PlayerConfig.Set("RSBot.Items.Pickup.DuringAttack", checkPickupDuringAttack.Checked);
+            PlayerConfig.Set("RSBot.Items.Pickup.AbilityPetRadius", (int)numAbilityPetRadius.Value);
         PlayerConfig.Set("RSBot.Items.Pickup.Blue", checkPickupBlue.Checked);
         PlayerConfig.Set("RSBot.Items.Pickup.Rare", checkPickupRare.Checked);
         PlayerConfig.Set("RSBot.Items.Pickup.Gold", checkPickupGold.Checked);

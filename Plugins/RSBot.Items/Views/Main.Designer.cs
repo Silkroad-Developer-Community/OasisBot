@@ -156,6 +156,9 @@ namespace RSBot.Items.Views
             cbJustpickmyitems = new SDUI.Controls.CheckBox();
             checkDontPickupInBerzerk = new SDUI.Controls.CheckBox();
             checkEnableAbilityPet = new SDUI.Controls.CheckBox();
+            checkPickupDuringAttack = new SDUI.Controls.CheckBox();
+            labelAbilityPetRadius = new SDUI.Controls.Label();
+            numAbilityPetRadius = new SDUI.Controls.NumUpDown();
             contextShoppingList.SuspendLayout();
             contextAvailableProducts.SuspendLayout();
             tabMain.SuspendLayout();
@@ -1768,6 +1771,9 @@ namespace RSBot.Items.Views
             groupBoxGeneral.Controls.Add(cbJustpickmyitems);
             groupBoxGeneral.Controls.Add(checkDontPickupInBerzerk);
             groupBoxGeneral.Controls.Add(checkEnableAbilityPet);
+            groupBoxGeneral.Controls.Add(checkPickupDuringAttack);
+            groupBoxGeneral.Controls.Add(numAbilityPetRadius);
+            groupBoxGeneral.Controls.Add(labelAbilityPetRadius);
             groupBoxGeneral.Location = new Point(8, 8);
             groupBoxGeneral.Margin = new Padding(4);
             groupBoxGeneral.Name = "groupBoxGeneral";
@@ -1846,6 +1852,56 @@ namespace RSBot.Items.Views
             checkEnableAbilityPet.Text = "Use ability pet to pickup items ";
             checkEnableAbilityPet.UseVisualStyleBackColor = false;
             checkEnableAbilityPet.CheckedChanged += checkPickupSettings_CheckedChanged;
+            // 
+            // checkPickupDuringAttack
+            // 
+            checkPickupDuringAttack.AutoSize = true;
+            checkPickupDuringAttack.BackColor = Color.Transparent;
+            checkPickupDuringAttack.Depth = 0;
+            checkPickupDuringAttack.Location = new Point(620, 38);
+            checkPickupDuringAttack.Margin = new Padding(0);
+            checkPickupDuringAttack.MouseLocation = new Point(-1, -1);
+            checkPickupDuringAttack.Name = "checkPickupDuringAttack";
+            checkPickupDuringAttack.Ripple = true;
+            checkPickupDuringAttack.Size = new Size(280, 30);
+            checkPickupDuringAttack.TabIndex = 5;
+            checkPickupDuringAttack.Text = "Pickup items during the fight";
+            checkPickupDuringAttack.UseVisualStyleBackColor = false;
+            checkPickupDuringAttack.CheckedChanged += checkPickupSettings_CheckedChanged;
+            // 
+            // labelAbilityPetRadius
+            // 
+            labelAbilityPetRadius.ApplyGradient = false;
+            labelAbilityPetRadius.AutoSize = true;
+            labelAbilityPetRadius.BackColor = Color.Transparent;
+            labelAbilityPetRadius.ForeColor = Color.FromArgb(0, 0, 0);
+            labelAbilityPetRadius.Gradient = new Color[]
+    {
+    Color.Gray,
+    Color.Black
+    };
+            labelAbilityPetRadius.GradientAnimation = false;
+            labelAbilityPetRadius.Location = new Point(620, 76);
+            labelAbilityPetRadius.Margin = new Padding(4, 0, 4, 0);
+            labelAbilityPetRadius.Name = "labelAbilityPetRadius";
+            labelAbilityPetRadius.Size = new Size(140, 20);
+            labelAbilityPetRadius.Text = "Pet pickup radius (m):";
+            // 
+            // numAbilityPetRadius
+            // 
+            numAbilityPetRadius.BackColor = Color.Transparent;
+            numAbilityPetRadius.Font = new Font("Segoe UI", 9.25F);
+            numAbilityPetRadius.ForeColor = Color.FromArgb(0, 0, 0);
+            numAbilityPetRadius.Location = new Point(770, 73);
+            numAbilityPetRadius.Margin = new Padding(4);
+            numAbilityPetRadius.Maximum = new decimal(new int[] { 250, 0, 0, 0 });
+            numAbilityPetRadius.Minimum = new decimal(new int[] { 5, 0, 0, 0 });
+            numAbilityPetRadius.MinimumSize = new Size(80, 31);
+            numAbilityPetRadius.Name = "numAbilityPetRadius";
+            numAbilityPetRadius.Size = new Size(80, 31);
+            numAbilityPetRadius.TabIndex = 6;
+            numAbilityPetRadius.Value = new decimal(new int[] { 100, 0, 0, 0 });
+            numAbilityPetRadius.ValueChanged += checkPickupSettings_CheckedChanged;
             // 
             // Main
             // 
@@ -1964,6 +2020,9 @@ namespace RSBot.Items.Views
         private ColumnHeader colPickup;
         private SDUI.Controls.CheckBox checkPickupRare;
         private SDUI.Controls.CheckBox checkEnableAbilityPet;
+    private SDUI.Controls.CheckBox checkPickupDuringAttack;
+    private SDUI.Controls.Label labelAbilityPetRadius;
+    private SDUI.Controls.NumUpDown numAbilityPetRadius;
         private SDUI.Controls.Button btnResetFilter;
         private SDUI.Controls.CheckBox checkDontPickupInBerzerk;
         private SDUI.Controls.CheckBox cbJustpickmyitems;

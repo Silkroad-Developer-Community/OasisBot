@@ -11,6 +11,18 @@ namespace RSBot.Core.Components;
 public class PickupManager
 {
     /// <summary>
+    ///     The distance at which the client accepts a pickup command. Items farther away have to be walked to
+    ///     first, otherwise the server ignores the request and the item stays on the ground.
+    /// </summary>
+    private const int PickupRange = 6;
+
+    /// <summary>
+    ///     How many items one pass may handle. The whole pass runs on the bot thread and every pickup waits
+    ///     for the server answer, so an unbounded pass kept the bot from attacking for seconds.
+    /// </summary>
+    private const int MaxPickupsPerPass = 6;
+
+    /// <summary>
     ///     Gets or sets a value indicating whether this <see cref="PickupManager" /> is running.
     /// </summary>
     /// <value>
@@ -99,6 +111,19 @@ public class PickupManager
     public static bool JustPickMyItems => PlayerConfig.Get("RSBot.Items.Pickup.JustPickMyItems", false);
 
     /// <summary>
+    ///     Gets the radius in which the ability pet is sent to collect items. It is independent of the training
+    ///     area: the pet follows the character and does not pull the character out of the area, so a larger
+    ///     radius only means that more loot is ordered for the pet.
+    /// </summary>
+    public static int AbilityPetRadius => Math.Clamp(PlayerConfig.Get("RSBot.Items.Pickup.AbilityPetRadius", 100), 5, 250);
+
+    /// <summary>
+    ///     Gets a value indicating whether the character picks up items while it is fighting a monster. When
+    ///     disabled, pickup waits for the moment between two targets.
+    /// </summary>
+    public static bool PickupDuringAttack => PlayerConfig.Get("RSBot.Items.Pickup.DuringAttack", false);
+
+    /// <summary>
     ///     Runs the specified center position.
     /// </summary>
     /// <param name="playerPosition">The player position.</param>
@@ -124,6 +149,8 @@ public class PickupManager
                 return;
             }
 
+            var attempts = 0;
+
             foreach (
                 var item in entities.OrderBy(item =>
                     item.Movement.Source.DistanceTo(playerPosition) /*.Take(5)*/
@@ -133,14 +160,33 @@ public class PickupManager
                 if (!RunningPlayerPickup)
                     return;
 
+                if (++attempts > MaxPickupsPerPass)
+                    return;
+
                 while (Game.Player.InAction)
                     Thread.Sleep(50);
 
                 if (item.Record.IsSpecialtyGoodBox && Game.Player.Job2SpecialtyBag.Full)
                     continue;
 
-                //Make sure the player is at the item's location
-                //Game.Player.MoveTo(item.Movement.Source);
+                // The client only accepts a pickup when the character stands at the item. Walking to it is
+                // done here, but never while a monster is being fought: that would pull the character away
+                // from the target and the item would be left behind anyway.
+                if (item.Movement.Source.DistanceTo(Game.Player.Position) > PickupRange)
+                {
+                    if (Game.SelectedEntity is SpawnedMonster)
+                        continue;
+
+                    Game.Player.MoveTo(item.Movement.Source);
+
+                    var deadline = Kernel.TickCount + 3000;
+                    while (
+                        item.Movement.Source.DistanceTo(Game.Player.Position) > PickupRange
+                        && Kernel.TickCount < deadline
+                    )
+                        Thread.Sleep(50);
+                }
+
                 item.Pickup();
             }
         }
