@@ -162,6 +162,14 @@ public static class SkillManager
         )
         {
             var dotSkill = FindDotSkillForTarget(entity, true);
+
+            // A DoT sent from outside its range is lost: the server applies neither the DoT nor a cooldown,
+            // and the bot only sees "entered in action" while it is still walking to the monster. The skill
+            // stays selected and is cast again and again during the approach. Wait until the monster is
+            // close enough instead.
+            if (dotSkill != null && !IsInRange(entity, dotSkill))
+                dotSkill = null;
+
             if (dotSkill != null)
             {
                 Log.Debug(
@@ -343,6 +351,20 @@ public static class SkillManager
     private static int _lastDotDiagnosticTick;
 
     /// <summary>
+    ///     Checks whether the entity is close enough for the skill to reach it. The range of a skill record is
+    ///     stored in tenths of a meter; a small tolerance absorbs the position drift while walking.
+    /// </summary>
+    /// <param name="entity">The selected entity.</param>
+    /// <param name="skill">The skill to check.</param>
+    /// <returns><c>true</c> when the skill can reach the entity; otherwise <c>false</c>.</returns>
+    private static bool IsInRange(SpawnedEntity entity, SkillInfo skill)
+    {
+        var range = skill.Record.Action_Range / 10;
+
+        return range <= 0 || entity.Position.DistanceTo(Game.Player.Position) <= range + 2;
+    }
+
+    /// <summary>
     ///     Explains in the log why no DoT was chosen for the target (throttled to one line per two seconds):
     ///     how many DoT skills the rarity list has, how many are on cooldown, need more mana, are already on
     ///     the target or are blocked by the target limit.
@@ -366,6 +388,7 @@ public static class SkillManager
                 + $"noMana={dotSkills.Count(s => Game.Player.Mana < s.Record.Consume_MP)}, "
                 + $"alreadyOnTarget={dotSkills.Count(s => HasDotOnTarget(entity, s))}, "
                 + $"limitBlocked={dotSkills.Count(s => !CanUseSkillOnTarget(s, entity))}, "
+                + $"outOfRange={dotSkills.Count(s => !IsInRange(entity, s))}, "
                 + $"dotTargetsAlive={CountDotTargets()}, limit={limit}, mana={Game.Player.Mana}"
         );
     }
@@ -514,6 +537,12 @@ public static class SkillManager
         );
 
         LastRequestedSkillId = skill.Id;
+
+        // A DoT cast can be lost: the target walks out of range or the character is still moving, and then
+        // the server applies neither the DoT nor a cooldown. The selection would send the same cast on every
+        // tick, which looks like a cast spam. A short block on every attempt keeps the retry interval sane.
+        if (skill.IsDot)
+            skill.MarkCooldown(2000);
 
         PacketManager.SendPacket(packet, PacketDestination.Server);
 
