@@ -256,7 +256,10 @@ public static class SkillManager
         if (bionic.State.ActiveBuffs.Any(b => b.IsDot))
             return true;
 
-        return CountDotTargets() < limit;
+        // The limit belongs to the skill, not to the character: each DoT can be applied to its own number
+        // of monsters (for example 2, or 3 for a higher skill level). Counting all monsters with any DoT
+        // made the second target look blocked as soon as the first one carried two different DoTs.
+        return CountDotTargets(skill.Id) < limit;
     }
 
     /// <summary>
@@ -271,6 +274,26 @@ public static class SkillManager
         if (
             !SpawnManager.TryGetEntities<SpawnedMonster>(
                 m => m.State.LifeState == LifeState.Alive && m.State.ActiveBuffs.Any(b => b.IsDot),
+                out var entities
+            )
+        )
+            return 0;
+
+        return entities.Count();
+    }
+
+    /// <summary>
+    ///     Counts the living monsters that carry the given DoT skill. The target limit is a property of the
+    ///     skill, so the counter is kept per skill: a monster with two different DoTs uses one slot of each
+    ///     skill, not two slots of a shared limit.
+    /// </summary>
+    /// <param name="skillId">The DoT skill id.</param>
+    /// <returns>The number of living monsters with that DoT.</returns>
+    private static int CountDotTargets(uint skillId)
+    {
+        if (
+            !SpawnManager.TryGetEntities<SpawnedMonster>(
+                m => m.State.LifeState == LifeState.Alive && m.State.ActiveBuffs.Any(b => b.Id == skillId),
                 out var entities
             )
         )
