@@ -98,6 +98,13 @@
             listActiveBuffs = new SDUI.Controls.ListView();
             colActiveName = new System.Windows.Forms.ColumnHeader();
             colActiveLevel = new System.Windows.Forms.ColumnHeader();
+            tabPageWarlock = new System.Windows.Forms.TabPage();
+            groupBoxDotSkills = new SDUI.Controls.GroupBox();
+            listDotSkills = new SDUI.Controls.ListView();
+            columnDotName = new System.Windows.Forms.ColumnHeader();
+            columnDotLevel = new System.Windows.Forms.ColumnHeader();
+            btnRemoveDotSkill = new SDUI.Controls.Button();
+            skillContextMenuAddDotSkill = new System.Windows.Forms.ToolStripMenuItem();
             groupBoxAttackingSkills.SuspendLayout();
             groupBox2.SuspendLayout();
             tabControl1.SuspendLayout();
@@ -112,6 +119,8 @@
             skillContextMenu.SuspendLayout();
             panelPlayerSkills.SuspendLayout();
             tabPage4.SuspendLayout();
+            tabPageWarlock.SuspendLayout();
+            groupBoxDotSkills.SuspendLayout();
             SuspendLayout();
             // 
             // groupBoxAttackingSkills
@@ -399,6 +408,7 @@
             // 
             tabControl1.Controls.Add(tabPage1);
             tabControl1.Controls.Add(tabPage2);
+            tabControl1.Controls.Add(tabPageWarlock);
             tabControl1.Dock = System.Windows.Forms.DockStyle.Right;
             tabControl1.ItemSize = new System.Drawing.Size(80, 24);
             tabControl1.Location = new System.Drawing.Point(452, 0);
@@ -434,6 +444,72 @@
             tabPage2.Size = new System.Drawing.Size(482, 552);
             tabPage2.TabIndex = 1;
             tabPage2.Text = "Advanced setup";
+            // 
+            // tabPageWarlock
+            // 
+            tabPageWarlock.BackColor = System.Drawing.Color.White;
+            tabPageWarlock.Controls.Add(groupBoxDotSkills);
+            tabPageWarlock.Location = new System.Drawing.Point(4, 28);
+            tabPageWarlock.Margin = new System.Windows.Forms.Padding(0);
+            tabPageWarlock.Name = "tabPageWarlock";
+            tabPageWarlock.Size = new System.Drawing.Size(482, 552);
+            tabPageWarlock.TabIndex = 2;
+            tabPageWarlock.Text = "Warlock";
+            // 
+            // groupBoxDotSkills
+            // 
+            groupBoxDotSkills.BackColor = System.Drawing.Color.Transparent;
+            groupBoxDotSkills.Controls.Add(listDotSkills);
+            groupBoxDotSkills.Controls.Add(btnRemoveDotSkill);
+            groupBoxDotSkills.Location = new System.Drawing.Point(7, 5);
+            groupBoxDotSkills.Margin = new System.Windows.Forms.Padding(7, 5, 0, 0);
+            groupBoxDotSkills.Name = "groupBoxDotSkills";
+            groupBoxDotSkills.Padding = new System.Windows.Forms.Padding(4, 12, 4, 4);
+            groupBoxDotSkills.Radius = 10;
+            groupBoxDotSkills.ShadowDepth = 4;
+            groupBoxDotSkills.Size = new System.Drawing.Size(465, 300);
+            groupBoxDotSkills.TabIndex = 0;
+            groupBoxDotSkills.TabStop = false;
+            groupBoxDotSkills.Text = "DoT skills";
+            // 
+            // listDotSkills
+            // 
+            listDotSkills.BackColor = System.Drawing.Color.White;
+            listDotSkills.Columns.AddRange(new System.Windows.Forms.ColumnHeader[] { columnDotName, columnDotLevel });
+            listDotSkills.ForeColor = System.Drawing.Color.FromArgb(0, 0, 0);
+            listDotSkills.FullRowSelect = true;
+            listDotSkills.HeaderStyle = System.Windows.Forms.ColumnHeaderStyle.None;
+            listDotSkills.Location = new System.Drawing.Point(8, 31);
+            listDotSkills.Margin = new System.Windows.Forms.Padding(4);
+            listDotSkills.Name = "listDotSkills";
+            listDotSkills.Size = new System.Drawing.Size(393, 260);
+            listDotSkills.TabIndex = 8;
+            listDotSkills.UseCompatibleStateImageBehavior = false;
+            listDotSkills.View = System.Windows.Forms.View.Details;
+            // 
+            // columnDotName
+            // 
+            columnDotName.Text = "Name";
+            columnDotName.Width = 248;
+            // 
+            // columnDotLevel
+            // 
+            columnDotLevel.Text = "Level";
+            // 
+            // btnRemoveDotSkill
+            // 
+            btnRemoveDotSkill.Color = System.Drawing.Color.Transparent;
+            btnRemoveDotSkill.Font = new System.Drawing.Font("Webdings", 9.75F);
+            btnRemoveDotSkill.Location = new System.Drawing.Point(409, 31);
+            btnRemoveDotSkill.Margin = new System.Windows.Forms.Padding(4);
+            btnRemoveDotSkill.Name = "btnRemoveDotSkill";
+            btnRemoveDotSkill.Radius = 6;
+            btnRemoveDotSkill.ShadowDepth = 4F;
+            btnRemoveDotSkill.Size = new System.Drawing.Size(30, 28);
+            btnRemoveDotSkill.TabIndex = 1;
+            btnRemoveDotSkill.Text = "r";
+            btnRemoveDotSkill.UseVisualStyleBackColor = true;
+            btnRemoveDotSkill.Click += btnRemoveDotSkill_Click;
             // 
             // groupBoxAutomatedResurrection
             // 
@@ -942,7 +1018,7 @@
             // skillContextMenu
             // 
             skillContextMenu.ImageScalingSize = new System.Drawing.Size(32, 32);
-            skillContextMenu.Items.AddRange(new System.Windows.Forms.ToolStripItem[] { skillContextMenuAddAttackSkill, toolStripSeparator1, skillContextMenuAddBuffSkill, toolStripSeparator2, useToolStripMenuItem, useToPartyMemberToolStripMenuItem });
+            skillContextMenu.Items.AddRange(new System.Windows.Forms.ToolStripItem[] { skillContextMenuAddAttackSkill, toolStripSeparator1, skillContextMenuAddBuffSkill, skillContextMenuAddDotSkill, toolStripSeparator2, useToolStripMenuItem, useToPartyMemberToolStripMenuItem });
             skillContextMenu.Name = "skillContextMenu";
             skillContextMenu.Size = new System.Drawing.Size(219, 112);
             skillContextMenu.Opening += skillContextMenu_Opening;
@@ -967,6 +1043,14 @@
             skillContextMenuAddBuffSkill.Size = new System.Drawing.Size(218, 24);
             skillContextMenuAddBuffSkill.Text = "Add To Buffs";
             skillContextMenuAddBuffSkill.Click += menuAddBuff_Click;
+            // 
+            // skillContextMenuAddDotSkill
+            // 
+            skillContextMenuAddDotSkill.ForeColor = System.Drawing.Color.FromArgb(0, 0, 0);
+            skillContextMenuAddDotSkill.Name = "skillContextMenuAddDotSkill";
+            skillContextMenuAddDotSkill.Size = new System.Drawing.Size(218, 24);
+            skillContextMenuAddDotSkill.Text = "Add To DoT skills";
+            skillContextMenuAddDotSkill.Click += menuAddDot_Click;
             // 
             // toolStripSeparator2
             // 
@@ -1144,6 +1228,8 @@
             panelPlayerSkills.ResumeLayout(false);
             panelPlayerSkills.PerformLayout();
             tabPage4.ResumeLayout(false);
+            tabPageWarlock.ResumeLayout(false);
+            groupBoxDotSkills.ResumeLayout(false);
             ResumeLayout(false);
         }
 
@@ -1191,6 +1277,13 @@
         private SDUI.Controls.ListView listBuffs;
         private System.Windows.Forms.ColumnHeader columnHeader1;
         private System.Windows.Forms.ColumnHeader columnHeader2;
+        private System.Windows.Forms.TabPage tabPageWarlock;
+        private SDUI.Controls.GroupBox groupBoxDotSkills;
+        private SDUI.Controls.ListView listDotSkills;
+        private System.Windows.Forms.ColumnHeader columnDotName;
+        private System.Windows.Forms.ColumnHeader columnDotLevel;
+        private SDUI.Controls.Button btnRemoveDotSkill;
+        private System.Windows.Forms.ToolStripMenuItem skillContextMenuAddDotSkill;
         private SDUI.Controls.ContextMenuStrip skillContextMenu;
         private SDUI.Controls.CheckBox checkBoxNoAttack;
         private System.Windows.Forms.ToolStripMenuItem skillContextMenuAddBuffSkill;

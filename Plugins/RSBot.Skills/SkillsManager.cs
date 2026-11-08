@@ -40,6 +40,7 @@ namespace RSBot.Skills
         {
             ApplyAttackSkills();
             ApplyBuffSkills();
+            ApplyDotSkills();
         }
 
         private void OnSkillUpgraded(SkillInfo oldSkill, SkillInfo newSkill)
@@ -185,6 +186,30 @@ namespace RSBot.Skills
             }
         }
 
+        /// <summary>
+        ///     Applies the DoT skills of warlock mode. They are configured apart from the regular attack skills,
+        ///     because a DoT has its own limits (two per monster, a limited number of monsters).
+        /// </summary>
+        public static void ApplyDotSkills()
+        {
+            SkillManager.DotSkills.Clear();
+
+            Game.Player.TryGetAbilitySkills(out var abilitySkills);
+
+            foreach (var skillId in PlayerConfig.GetArray<uint>("RSBot.Skills.DotSkills"))
+            {
+                var skillInfo = Game.Player.Skills.GetSkillInfoById(skillId);
+                if (skillInfo == null)
+                {
+                    skillInfo = abilitySkills.FirstOrDefault(p => p.Id == skillId);
+                    if (skillInfo == null)
+                        continue;
+                }
+
+                SkillManager.DotSkills.Add(skillInfo);
+            }
+        }
+
         public static void SaveSkills(string monsterType, uint[] skills)
         {
             PlayerConfig.SetArray(monsterType, skills);
@@ -255,6 +280,7 @@ namespace RSBot.Skills
 
             ApplyAttackSkills();
             ApplyBuffSkills();
+            ApplyDotSkills();
 
             PlayerConfig.Save();
         }

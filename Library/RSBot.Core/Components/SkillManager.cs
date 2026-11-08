@@ -67,6 +67,13 @@ public static class SkillManager
     public static List<SkillInfo> Buffs { get; set; }
 
     /// <summary>
+    ///     Gets or sets the DoT skills configured for warlock mode. They are kept apart from the regular
+    ///     attack skills: a DoT has its own limits (two per monster, a limited number of monsters), while the
+    ///     regular skills have none.
+    /// </summary>
+    public static List<SkillInfo> DotSkills { get; set; } = new();
+
+    /// <summary>
     ///     Gets or sets the teleport skill.
     /// </summary>
     public static SkillInfo TeleportSkill { get; set; }
@@ -154,7 +161,7 @@ public static class SkillManager
             && PlayerConfig.Get("RSBot.Skills.checkWarlockMode", false)
         )
         {
-            var dotSkill = FindDotSkillForTarget(entity, rarity, true);
+            var dotSkill = FindDotSkillForTarget(entity, true);
             if (dotSkill != null)
             {
                 Log.Debug(
@@ -166,7 +173,7 @@ public static class SkillManager
                 return dotSkill;
             }
 
-            LogDotDiagnostic(entity, rarity);
+            LogDotDiagnostic(entity);
         }
 
         if (entity.State.HitState == ActionHitStateFlag.KnockDown)
@@ -326,16 +333,10 @@ public static class SkillManager
     /// <param name="rarity">The rarity whose skill list is used.</param>
     /// <param name="requireReady">Whether a skill on cooldown may be returned.</param>
     /// <returns>The skill to apply, or <c>null</c> when no DoT is left for the target.</returns>
-    private static SkillInfo FindDotSkillForTarget(SpawnedEntity entity, MonsterRarity rarity, bool requireReady)
+    private static SkillInfo FindDotSkillForTarget(SpawnedEntity entity, bool requireReady)
     {
-        if (!Skills.TryGetValue(rarity, out var skills))
-            return null;
-
-        return skills.FirstOrDefault(s =>
-            s.IsDot
-            && (!requireReady || s.CanBeCasted)
-            && CanUseSkillOnTarget(s, entity)
-            && !HasDotOnTarget(entity, s)
+        return DotSkills.FirstOrDefault(s =>
+            (!requireReady || s.CanBeCasted) && CanUseSkillOnTarget(s, entity) && !HasDotOnTarget(entity, s)
         );
     }
 
@@ -348,20 +349,18 @@ public static class SkillManager
     /// </summary>
     /// <param name="entity">The selected entity.</param>
     /// <param name="rarity">The rarity whose skill list was used.</param>
-    private static void LogDotDiagnostic(SpawnedEntity entity, MonsterRarity rarity)
+    private static void LogDotDiagnostic(SpawnedEntity entity)
     {
         if (Kernel.TickCount - _lastDotDiagnosticTick < 2000)
             return;
 
         _lastDotDiagnosticTick = Kernel.TickCount;
 
-        Skills.TryGetValue(rarity, out var skills);
-
-        var dotSkills = skills?.Where(s => s.IsDot).ToList() ?? new List<SkillInfo>();
+        var dotSkills = DotSkills;
         var limit = PlayerConfig.Get("RSBot.Skills.numDotTargetLimit", 2);
 
         Log.Debug(
-            $"[Skills] No DoT for target {entity.UniqueId} (rarity {rarity}): "
+            $"[Skills] No DoT for target {entity.UniqueId}: "
                 + $"dotSkills={dotSkills.Count}, "
                 + $"cooldown={dotSkills.Count(s => s.HasCooldown)}, "
                 + $"noMana={dotSkills.Count(s => Game.Player.Mana < s.Record.Consume_MP)}, "
@@ -379,14 +378,7 @@ public static class SkillManager
     /// <returns><c>true</c> when another DoT may be applied; otherwise <c>false</c>.</returns>
     public static bool HasUsableDotFor(SpawnedEntity entity)
     {
-        if (entity is not SpawnedMonster monster)
-            return false;
-
-        var rarity = MonsterRarity.General;
-        if (Skills.TryGetValue(monster.Rarity, out var monsterSkills) && monsterSkills.Count > 0)
-            rarity = monster.Rarity;
-
-        return FindDotSkillForTarget(entity, rarity, false) != null;
+        return entity is SpawnedMonster && FindDotSkillForTarget(entity, false) != null;
     }
 
     /// <summary>
@@ -401,25 +393,17 @@ public static class SkillManager
         if (!PlayerConfig.Get("RSBot.Skills.checkWarlockMode", false))
             return false;
 
-        if (entity is not SpawnedMonster monster)
-            return false;
-
-        var rarity = MonsterRarity.General;
-        if (Skills.TryGetValue(monster.Rarity, out var monsterSkills) && monsterSkills.Count > 0)
-            rarity = monster.Rarity;
-
-        if (!Skills.TryGetValue(rarity, out var skills))
+        if (entity is not SpawnedMonster)
             return false;
 
         // A DoT is ready right now - there is no reason to wait.
-        if (FindDotSkillForTarget(entity, rarity, true) != null)
+        if (FindDotSkillForTarget(entity, true) != null)
             return false;
 
         // Wait only for a DoT that is missing on the target, allowed for it and will be castable again
         // soon; a skill without enough mana would keep the bot waiting for nothing.
-        return skills.Any(s =>
-            s.IsDot
-            && !HasDotOnTarget(entity, s)
+        return DotSkills.Any(s =>
+            !HasDotOnTarget(entity, s)
             && CanUseSkillOnTarget(s, entity)
             && s.HasCooldown
             && Game.Player.Mana >= s.Record.Consume_MP

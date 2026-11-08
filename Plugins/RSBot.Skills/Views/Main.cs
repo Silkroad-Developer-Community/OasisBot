@@ -383,6 +383,7 @@ public partial class Main : DoubleBufferedControl
             LoadBuffs();
             LoadMasteries();
             LoadAttacks(comboMonsterType.SelectedIndex);
+            LoadDots();
 
             listSkills.BeginUpdate();
             listSkills.Items.Clear();
@@ -476,6 +477,72 @@ public partial class Main : DoubleBufferedControl
 
         SkillsManager.SaveSkills("RSBot.Skills.Buffs", savedBuffs);
         SkillsManager.ApplyBuffSkills();
+    }
+
+    /// <summary>
+    ///     Loads the DoT skills of warlock mode.
+    /// </summary>
+    private void LoadDots()
+    {
+        lock (_lock)
+        {
+            listDotSkills.BeginUpdate();
+            listDotSkills.Items.Clear();
+
+            var dotIds = PlayerConfig.GetArray<uint>("RSBot.Skills.DotSkills");
+            foreach (var skillId in dotIds)
+            {
+                var skillInfo = Game.Player.Skills.GetSkillInfoById(skillId);
+                if (skillInfo == null)
+                    continue;
+
+                var item = new ListViewItem(skillInfo.Record.GetRealName()) { Tag = skillInfo };
+                item.SubItems.Add("lv. " + skillInfo.Record.Basic_Level);
+                listDotSkills.Items.Add(item);
+                item.LoadSkillImageAsync();
+            }
+
+            listDotSkills.EndUpdate();
+        }
+    }
+
+    /// <summary>
+    ///     Saves the DoT skills of warlock mode.
+    /// </summary>
+    private void SaveDots()
+    {
+        var savedDots = listDotSkills.Items.Cast<ListViewItem>().Select(p => ((SkillInfo)p.Tag).Id).ToArray();
+
+        PlayerConfig.SetArray("RSBot.Skills.DotSkills", savedDots);
+        SkillsManager.ApplyDotSkills();
+    }
+
+    /// <summary>
+    ///     Handles the Click event of the btnRemoveDotSkill control.
+    /// </summary>
+    private void btnRemoveDotSkill_Click(object sender, EventArgs e)
+    {
+        foreach (ListViewItem item in listDotSkills.SelectedItems)
+            item.Remove();
+
+        SaveDots();
+    }
+
+    /// <summary>
+    ///     Handles the Click event of the menuAddDot control.
+    /// </summary>
+    private void menuAddDot_Click(object sender, EventArgs e)
+    {
+        foreach (ListViewItem item in listSkills.SelectedItems)
+        {
+            var selectedRefSkill = item.Tag as SkillInfo;
+            if (selectedRefSkill == null || !selectedRefSkill.IsDot)
+                continue;
+
+            listDotSkills.Items.Add((ListViewItem)item.Clone());
+        }
+
+        SaveDots();
     }
 
     /// <summary>
