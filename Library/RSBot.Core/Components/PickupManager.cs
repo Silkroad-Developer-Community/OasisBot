@@ -23,6 +23,12 @@ public class PickupManager
     private const int MaxPickupsPerPass = 6;
 
     /// <summary>
+    ///     How long one pickup pass may take in total. The pass runs on the bot thread, so an unbounded walk
+    ///     to a distant item stopped the attack loop; after this budget the rest is left for the next pass.
+    /// </summary>
+    private const int MaxPickupPassDuration = 2500;
+
+    /// <summary>
     ///     Gets or sets a value indicating whether this <see cref="PickupManager" /> is running.
     /// </summary>
     /// <value>
@@ -150,6 +156,7 @@ public class PickupManager
             }
 
             var attempts = 0;
+            var passDeadline = Kernel.TickCount + MaxPickupPassDuration;
 
             foreach (
                 var item in entities.OrderBy(item =>
@@ -161,6 +168,10 @@ public class PickupManager
                     return;
 
                 if (++attempts > MaxPickupsPerPass)
+                    return;
+
+                // The budget is spent: give the bot back to combat and continue on the next pass.
+                if (Kernel.TickCount > passDeadline)
                     return;
 
                 while (Game.Player.InAction)
@@ -177,9 +188,13 @@ public class PickupManager
                     if (Game.SelectedEntity is SpawnedMonster)
                         continue;
 
-                    Game.Player.MoveTo(item.Movement.Source);
+                    // A step without sleeping: Player.MoveTo(..., sleep: true) blocks the bot thread for the
+                    // whole walk, which stopped the attack loop for several seconds. The wait below is bounded
+                    // by the pass budget instead.
+                    if (!Game.Player.MoveTo(item.Movement.Source, false))
+                        continue;
 
-                    var deadline = Kernel.TickCount + 3000;
+                    var deadline = Math.Min(passDeadline, Kernel.TickCount + 3000);
                     while (
                         item.Movement.Source.DistanceTo(Game.Player.Position) > PickupRange
                         && Kernel.TickCount < deadline
