@@ -34,7 +34,10 @@ internal class ActionBuffRemoveResponse : IPacketHandler
 
             if (!SpawnManager.TryGetEntity<SpawnedBionic>(p => p.State.TryGetActiveBuff(token, out _), out var bionic))
             {
-                Log.Warn($"{token} not found while trying remove buff with token!");
+                // The buff is already gone (for example a DoT applied to a monster that died and was
+                // removed from the spawns). This is normal during combat and must not fill the log with
+                // warnings, otherwise real problems are hard to spot.
+                Log.Debug($"{token} not found while trying remove buff with token!");
                 continue;
             }
 

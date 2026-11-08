@@ -150,7 +150,15 @@ public static class SkillManager
         {
             var dotSkill = FindDotSkillForTarget(entity, rarity, true);
             if (dotSkill != null)
+            {
+                Log.Debug(
+                    $"[Skills] DoT '{dotSkill.Record?.GetRealName()}' ({dotSkill.Id}) on target {entity.UniqueId}, "
+                        + $"dots on target: {entity.State.ActiveBuffs.Count(b => b.IsDot)}, "
+                        + $"DoT targets alive: {CountDotTargets()}"
+                );
+
                 return dotSkill;
+            }
         }
 
         if (entity.State.HitState == ActionHitStateFlag.KnockDown)
@@ -250,7 +258,14 @@ public static class SkillManager
     /// <returns>The number of monsters with an active DoT.</returns>
     private static int CountDotTargets()
     {
-        if (!SpawnManager.TryGetEntities<SpawnedMonster>(m => m.State.ActiveBuffs.Any(b => b.IsDot), out var entities))
+        // Only living monsters are counted. A DoT stays on a corpse until it disappears, and counting
+        // corpses made the limit look reached while another living monster could still be DoTed.
+        if (
+            !SpawnManager.TryGetEntities<SpawnedMonster>(
+                m => m.State.LifeState == LifeState.Alive && m.State.ActiveBuffs.Any(b => b.IsDot),
+                out var entities
+            )
+        )
             return 0;
 
         return entities.Count();

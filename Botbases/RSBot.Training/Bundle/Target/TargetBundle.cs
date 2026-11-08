@@ -113,7 +113,12 @@ internal class TargetBundle : IBundle
             // when it is the only one available would leave the character idle while being attacked.
             if (GetNearestEnemy() != null)
             {
-                Log.Debug("[TargetBundle] Target has enough DoTs, switching to the next target!");
+                Log.Debug(
+                    "[TargetBundle] Switching target: dots on it "
+                        + $"{selectedState.ActiveBuffs.Count(b => b.IsDot)}, "
+                        + $"two dots: {selectedState.HasTwoDots()}, "
+                        + $"another DoT possible: {SkillManager.HasUsableDotFor(Game.SelectedEntity)}"
+                );
 
                 var target = Game.SelectedEntity;
 
