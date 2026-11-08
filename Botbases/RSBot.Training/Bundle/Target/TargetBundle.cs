@@ -17,6 +17,12 @@ internal class TargetBundle : IBundle
 
     private Dictionary<uint, int> _blacklist;
 
+    /// <summary>
+    ///     The last time the "no other target, keeping the current one" note was written. The check runs on
+    ///     every tick, so the note is throttled instead of filling the log with the same line.
+    /// </summary>
+    private int _lastKeepLogTick;
+
     #endregion Fields
 
     #region Constructor
@@ -113,7 +119,7 @@ internal class TargetBundle : IBundle
             // when it is the only one available would leave the character idle while being attacked.
             if (GetNearestEnemy() != null)
             {
-                Log.Debug(
+                Log.Notify(
                     "[TargetBundle] Switching target: dots on it "
                         + $"{selectedState.ActiveBuffs.Count(b => b.IsDot)}, "
                         + $"two dots: {selectedState.HasTwoDots()}, "
@@ -133,8 +139,10 @@ internal class TargetBundle : IBundle
                     Game.SelectedEntity = null;
                 }
             }
-            else
+            else if (Kernel.TickCount - _lastKeepLogTick >= 5000)
             {
+                _lastKeepLogTick = Kernel.TickCount;
+
                 Log.Debug("[TargetBundle] Target has enough DoTs, but no other target is available; keeping it.");
             }
         }

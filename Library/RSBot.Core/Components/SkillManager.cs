@@ -252,6 +252,11 @@ public static class SkillManager
         if (limit <= 0)
             return true;
 
+        // The client rejects a third DoT on one monster (error 0x29), so a monster that already carries
+        // two DoTs is not a valid target for another one.
+        if (bionic.State.HasTwoDots())
+            return false;
+
         // A DoT that is already on the target does not add another affected monster.
         if (bionic.State.ActiveBuffs.Any(b => b.IsDot))
             return true;
