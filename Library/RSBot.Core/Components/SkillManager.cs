@@ -165,6 +165,8 @@ public static class SkillManager
 
                 return dotSkill;
             }
+
+            LogDotDiagnostic(entity, rarity);
         }
 
         if (entity.State.HitState == ActionHitStateFlag.KnockDown)
@@ -306,6 +308,38 @@ public static class SkillManager
             && (!requireReady || s.CanBeCasted)
             && CanUseSkillOnTarget(s, entity)
             && !HasDotOnTarget(entity, s)
+        );
+    }
+
+    private static int _lastDotDiagnosticTick;
+
+    /// <summary>
+    ///     Explains in the log why no DoT was chosen for the target (throttled to one line per two seconds):
+    ///     how many DoT skills the rarity list has, how many are on cooldown, need more mana, are already on
+    ///     the target or are blocked by the target limit.
+    /// </summary>
+    /// <param name="entity">The selected entity.</param>
+    /// <param name="rarity">The rarity whose skill list was used.</param>
+    private static void LogDotDiagnostic(SpawnedEntity entity, MonsterRarity rarity)
+    {
+        if (Kernel.TickCount - _lastDotDiagnosticTick < 2000)
+            return;
+
+        _lastDotDiagnosticTick = Kernel.TickCount;
+
+        Skills.TryGetValue(rarity, out var skills);
+
+        var dotSkills = skills?.Where(s => s.IsDot).ToList() ?? new List<SkillInfo>();
+        var limit = PlayerConfig.Get("RSBot.Skills.numDotTargetLimit", 2);
+
+        Log.Debug(
+            $"[Skills] No DoT for target {entity.UniqueId} (rarity {rarity}): "
+                + $"dotSkills={dotSkills.Count}, "
+                + $"cooldown={dotSkills.Count(s => s.HasCooldown)}, "
+                + $"noMana={dotSkills.Count(s => Game.Player.Mana < s.Record.Consume_MP)}, "
+                + $"alreadyOnTarget={dotSkills.Count(s => HasDotOnTarget(entity, s))}, "
+                + $"limitBlocked={dotSkills.Count(s => !CanUseSkillOnTarget(s, entity))}, "
+                + $"dotTargetsAlive={CountDotTargets()}, limit={limit}, mana={Game.Player.Mana}"
         );
     }
 
