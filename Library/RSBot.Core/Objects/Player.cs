@@ -841,8 +841,10 @@ public class Player : SpawnedBionic
             return false;
 
         var result = slotItem.Use();
-        if (result)
-            _lastUniversalPillTick = Kernel.TickCount;
+
+        // The attempt is throttled, not the successful use: when the server does not answer (the callback
+        // times out) the previous code retried on every tick and the bot burned pills and log lines.
+        _lastUniversalPillTick = Kernel.TickCount;
 
         return result;
     }
@@ -865,8 +867,10 @@ public class Player : SpawnedBionic
             return false;
 
         var result = slotItem.Use();
-        if (result)
-            _lastPurificationPillTick = Kernel.TickCount;
+
+        // Same as the universal pill: a failed attempt still counts, otherwise the pill is used again on the
+        // next tick and the whole stack is spent while the server is not answering.
+        _lastPurificationPillTick = Kernel.TickCount;
 
         return result;
     }
