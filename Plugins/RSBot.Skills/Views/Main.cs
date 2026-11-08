@@ -132,6 +132,9 @@ public partial class Main : DoubleBufferedControl
 
         foreach (var checkbox in groupAdvancedSetup.Controls.OfType<CheckBox>())
             checkbox.Checked = PlayerConfig.Get(key + checkbox.Name, checkbox.Checked);
+
+        foreach (var num in groupAdvancedSetup.Controls.OfType<NumUpDown>())
+            num.Value = PlayerConfig.Get(key + num.Name, num.Value);
     }
 
     /// <summary>
@@ -163,6 +166,9 @@ public partial class Main : DoubleBufferedControl
 
         foreach (var checkbox in groupAdvancedSetup.Controls.OfType<CheckBox>())
             PlayerConfig.Set(key + checkbox.Name, checkbox.Checked);
+
+        foreach (var num in groupAdvancedSetup.Controls.OfType<NumUpDown>())
+            PlayerConfig.Set(key + num.Name, num.Value);
     }
 
     /// <summary>

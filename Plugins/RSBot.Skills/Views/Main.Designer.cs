@@ -76,6 +76,7 @@
             checkUseTeleportSkill = new SDUI.Controls.CheckBox();
             checkUseDefaultAttack = new SDUI.Controls.CheckBox();
             checkWarlockMode = new SDUI.Controls.CheckBox();
+            numDotTargetLimit = new SDUI.Controls.NumUpDown();
             tabControl2 = new SDUI.Controls.TabControl();
             tabPage3 = new System.Windows.Forms.TabPage();
             listSkills = new SDUI.Controls.ListView();
@@ -788,6 +789,7 @@
             groupAdvancedSetup.Controls.Add(checkUseTeleportSkill);
             groupAdvancedSetup.Controls.Add(checkUseDefaultAttack);
             groupAdvancedSetup.Controls.Add(checkWarlockMode);
+            groupAdvancedSetup.Controls.Add(numDotTargetLimit);
             groupAdvancedSetup.Location = new System.Drawing.Point(7, 422);
             groupAdvancedSetup.Margin = new System.Windows.Forms.Padding(7, 5, 0, 0);
             groupAdvancedSetup.Name = "groupAdvancedSetup";
@@ -865,6 +867,22 @@
             checkWarlockMode.Text = "Change target after 2 DoTs";
             checkWarlockMode.UseVisualStyleBackColor = false;
             checkWarlockMode.CheckedChanged += settings_CheckedChanged;
+            // 
+            // numDotTargetLimit
+            // 
+            numDotTargetLimit.BackColor = System.Drawing.Color.Transparent;
+            numDotTargetLimit.Font = new System.Drawing.Font("Segoe UI", 9.25F);
+            numDotTargetLimit.ForeColor = System.Drawing.Color.FromArgb(0, 0, 0);
+            numDotTargetLimit.Location = new System.Drawing.Point(19, 68);
+            numDotTargetLimit.Margin = new System.Windows.Forms.Padding(4);
+            numDotTargetLimit.Maximum = new decimal(new int[] { 20, 0, 0, 0 });
+            numDotTargetLimit.Minimum = new decimal(new int[] { 0, 0, 0, 0 });
+            numDotTargetLimit.MinimumSize = new System.Drawing.Size(80, 31);
+            numDotTargetLimit.Name = "numDotTargetLimit";
+            numDotTargetLimit.Size = new System.Drawing.Size(80, 31);
+            numDotTargetLimit.TabIndex = 1;
+            numDotTargetLimit.Value = new decimal(new int[] { 2, 0, 0, 0 });
+            numDotTargetLimit.ValueChanged += numSettings_ValueChanged;
             // 
             // tabControl2
             // 
@@ -1186,6 +1204,7 @@
         private SDUI.Controls.CheckBox checkLearnMasteryBotStopped;
         private SDUI.Controls.GroupBox groupAdvancedSetup;
         private SDUI.Controls.CheckBox checkWarlockMode;
+        private SDUI.Controls.NumUpDown numDotTargetLimit;
         private System.Windows.Forms.ToolStripSeparator toolStripSeparator2;
         private System.Windows.Forms.ToolStripMenuItem useToolStripMenuItem;
         private System.Windows.Forms.ToolStripMenuItem useToPartyMemberToolStripMenuItem;

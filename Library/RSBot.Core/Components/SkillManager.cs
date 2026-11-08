@@ -1,4 +1,4 @@
-﻿using System;
+using System;
 using System.Collections.Generic;
 using System.Linq;
 using System.Threading;
@@ -161,7 +161,7 @@ public static class SkillManager
                     continue;
 
                 var selectedSkill = Skills[rarity][_lastIndex];
-                if (!selectedSkill.CanBeCasted)
+                if (!selectedSkill.CanBeCasted || !CanUseSkillOnTarget(selectedSkill, entity))
                     continue;
 
                 closestSkill = selectedSkill;
@@ -180,7 +180,7 @@ public static class SkillManager
             for (var i = 0; i < Skills[rarity].Count; i++)
             {
                 var s = Skills[rarity][i];
-                if (!s.CanBeCasted)
+                if (!s.CanBeCasted || !CanUseSkillOnTarget(s, entity))
                     continue;
 
                 var difference = Math.Abs(
@@ -196,6 +196,43 @@ public static class SkillManager
         }
 
         return closestSkill;
+    }
+
+    /// <summary>
+    ///     Checks whether the skill may be used on the selected target. A DoT skill can only be applied to a
+    ///     limited number of monsters at the same time, so a monster without a DoT is skipped while the
+    ///     limit is reached. The limit is configured by <c>RSBot.Skills.DotTargetLimit</c> (0 disables it).
+    /// </summary>
+    /// <param name="skill">The skill that is about to be used.</param>
+    /// <param name="entity">The selected entity.</param>
+    /// <returns><c>true</c> when the skill may be used; otherwise <c>false</c>.</returns>
+    private static bool CanUseSkillOnTarget(SkillInfo skill, SpawnedEntity entity)
+    {
+        if (!skill.IsDot || entity is not SpawnedBionic bionic)
+            return true;
+
+        var limit = PlayerConfig.Get("RSBot.Skills.numDotTargetLimit", 2);
+        if (limit <= 0)
+            return true;
+
+        // A DoT that is already on the target does not add another affected monster.
+        if (bionic.State.ActiveBuffs.Any(b => b.IsDot))
+            return true;
+
+        return CountDotTargets() < limit;
+    }
+
+    /// <summary>
+    ///     Counts the monsters that currently have an active DoT. A DoT stays on a corpse until it
+    ///     disappears, so dead monsters count as well.
+    /// </summary>
+    /// <returns>The number of monsters with an active DoT.</returns>
+    private static int CountDotTargets()
+    {
+        if (!SpawnManager.TryGetEntities<SpawnedMonster>(m => m.State.ActiveBuffs.Any(b => b.IsDot), out var entities))
+            return 0;
+
+        return entities.Count();
     }
 
     /// <summary>

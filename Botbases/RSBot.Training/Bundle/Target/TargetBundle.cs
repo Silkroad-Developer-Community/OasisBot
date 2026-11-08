@@ -99,13 +99,29 @@ internal class TargetBundle : IBundle
         var warlockModeEnabled = PlayerConfig.Get("RSBot.Skills.checkWarlockMode", false);
         if (warlockModeEnabled && Game.SelectedEntity?.State.HasTwoDots() == true)
         {
-            Log.Debug("[TargetBundle] Target has 2 DoTs, switching to the next target!");
+            // Every other target search excludes monsters with two DoTs, so dropping the current target
+            // when it is the only one available would leave the character idle while being attacked.
+            if (GetNearestEnemy() != null)
+            {
+                Log.Debug("[TargetBundle] Target has 2 DoTs, switching to the next target!");
 
-            if (Game.Player.InAction)
-                SkillManager.CancelAction();
+                var target = Game.SelectedEntity;
 
-            Game.SelectedEntity.TryDeselect();
-            Game.SelectedEntity = null;
+                if (Game.Player.InAction)
+                    SkillManager.CancelAction();
+
+                // The monster can despawn while the action is cancelled. Only deselect the target that
+                // was captured above and never touch a selected entity that is already gone.
+                if (Game.SelectedEntity == target)
+                {
+                    target?.TryDeselect();
+                    Game.SelectedEntity = null;
+                }
+            }
+            else
+            {
+                Log.Debug("[TargetBundle] Target has 2 DoTs, but no other target is available; keeping it.");
+            }
         }
 
         if (Game.SelectedEntity != null && Game.SelectedEntity is not SpawnedMonster)
