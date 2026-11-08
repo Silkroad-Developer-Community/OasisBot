@@ -13,6 +13,12 @@ public class SkillInfo
     private int _cooldownTick;
 
     /// <summary>
+    ///     Tick until which the skill must not be used again. Set when the server rejects a cast (for
+    ///     example with a cooldown error), so the bot does not repeat the same rejected cast.
+    /// </summary>
+    private int _forcedCooldownUntil;
+
+    /// <summary>
     ///     The skill buff duration
     /// </summary>
     private readonly int _duration;
@@ -103,7 +109,9 @@ public class SkillInfo
     /// <value>
     ///     <c>true</c> if this instance has cooldown; otherwise, <c>false</c>.
     /// </value>
-    public bool HasCooldown => Kernel.TickCount - _cooldownTick < Record.Action_ReuseDelay;
+    public bool HasCooldown =>
+        Kernel.TickCount - _cooldownTick < Record.Action_ReuseDelay
+        || Kernel.TickCount < _forcedCooldownUntil;
 
     /// <summary>
     ///     Gets or sets a value indicating whether this instance can be used.
@@ -191,6 +199,16 @@ public class SkillInfo
     public void SetCoolDown(int milliseconds)
     {
         _cooldownTick = Kernel.TickCount - milliseconds;
+    }
+
+    /// <summary>
+    ///     Marks the skill as unusable for a short time. The server rejects a cast while the skill is still
+    ///     on its own cooldown; without this the bot would retry the same rejected cast on every tick.
+    /// </summary>
+    /// <param name="milliseconds">For how long the skill must not be used.</param>
+    public void MarkCooldown(int milliseconds = 1500)
+    {
+        _forcedCooldownUntil = Kernel.TickCount + milliseconds;
     }
 
     /// <summary>

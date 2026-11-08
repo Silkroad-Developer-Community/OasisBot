@@ -44,6 +44,10 @@ internal class ActionSkillCastResponse : IPacketHandler
                     break;
 
                 case 0x05:
+                    // The skill is still on its cooldown. Quiet it for a moment: otherwise the skill
+                    // selection returns the same skill on the next tick and the cast is rejected again.
+                    MarkRequestedSkillCooldown();
+
                     Log.Debug("Skill cooldown error. Still have time!");
                     break;
 
@@ -74,6 +78,11 @@ internal class ActionSkillCastResponse : IPacketHandler
 
             skillInfo?.Update();
 
+            // A DoT is applied by the server a moment after the cast. Without a short block the skill
+            // selection returns the same DoT until its buff shows up, which looks like a cast spam.
+            if (skillInfo?.IsDot == true)
+                skillInfo.MarkCooldown(2000);
+
             EventManager.FireEvent("OnCastSkill", action.SkillId);
 
             return;
@@ -91,5 +100,20 @@ internal class ActionSkillCastResponse : IPacketHandler
         EventManager.FireEvent("OnEnemySkillOnPlayer");
 
         executor.StartAttackingTimer();
+    }
+
+    /// <summary>
+    ///     Marks the skill that was sent to the server as unusable for a short time. The cooldown error does
+    ///     not name the skill, so the last request is used.
+    /// </summary>
+    private static void MarkRequestedSkillCooldown()
+    {
+        var skillId = SkillManager.LastRequestedSkillId;
+        if (skillId == 0)
+            return;
+
+        var skill = Game.Player.Skills.GetSkillInfoById(skillId) ?? SkillManager.Buffs.Find(p => p.Id == skillId);
+
+        skill?.MarkCooldown();
     }
 }

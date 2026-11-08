@@ -85,7 +85,11 @@ internal class AttackBundle : IBundle
             if (Game.Player.InAction)
                 return;
 
-            if (PlayerConfig.Get("RSBot.Skills.checkUseDefaultAttack", true))
+            // In warlock mode the monster has to receive its DoTs first: while the DoT skill is on its
+            // cooldown the bot waits a moment instead of switching to the basic attack.
+            var waitForDot = SkillManager.ShouldWaitForDot(Game.SelectedEntity);
+
+            if (!waitForDot && PlayerConfig.Get("RSBot.Skills.checkUseDefaultAttack", true))
                 SkillManager.CastAutoAttack();
 
             return;

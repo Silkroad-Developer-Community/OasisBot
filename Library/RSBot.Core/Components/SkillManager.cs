@@ -24,6 +24,12 @@ public static class SkillManager
     public static uint LastCastedSkillId;
 
     /// <summary>
+    ///     The id of the skill that was sent to the server last. The server answers a rejected cast with a
+    ///     cooldown error that does not name the skill, so the request is remembered here to quiet it.
+    /// </summary>
+    public static uint LastRequestedSkillId;
+
+    /// <summary>
     ///     Basic skills
     /// </summary>
     private static IEnumerable<uint> _baseSkills;
@@ -322,6 +328,43 @@ public static class SkillManager
     }
 
     /// <summary>
+    ///     Gets a value indicating whether the bot should wait for a DoT instead of using the basic attack:
+    ///     warlock mode is on, the target carries no DoT yet, and the DoT skill exists but is on cooldown.
+    ///     Without this the bot hits the monster with the basic attack while the DoT is about to be ready.
+    /// </summary>
+    /// <param name="entity">The selected entity.</param>
+    /// <returns><c>true</c> when the basic attack should be skipped for now; otherwise <c>false</c>.</returns>
+    public static bool ShouldWaitForDot(SpawnedEntity entity)
+    {
+        if (!PlayerConfig.Get("RSBot.Skills.checkWarlockMode", false))
+            return false;
+
+        if (entity is not SpawnedMonster monster)
+            return false;
+
+        var rarity = MonsterRarity.General;
+        if (Skills.TryGetValue(monster.Rarity, out var monsterSkills) && monsterSkills.Count > 0)
+            rarity = monster.Rarity;
+
+        if (!Skills.TryGetValue(rarity, out var skills))
+            return false;
+
+        // A DoT is ready right now - there is no reason to wait.
+        if (FindDotSkillForTarget(entity, rarity, true) != null)
+            return false;
+
+        // Wait only for a DoT that is missing on the target, allowed for it and will be castable again
+        // soon; a skill without enough mana would keep the bot waiting for nothing.
+        return skills.Any(s =>
+            s.IsDot
+            && !HasDotOnTarget(entity, s)
+            && CanUseSkillOnTarget(s, entity)
+            && s.HasCooldown
+            && Game.Player.Mana >= s.Record.Consume_MP
+        );
+    }
+
+    /// <summary>
     ///     Check required of the using skill
     /// </summary>
     /// <param name="skill">The using skill</param>
@@ -423,6 +466,8 @@ public static class SkillManager
         Log.Debug(
             $"Skill Attacking to: {targetId} State: {entity.State.LifeState} Health: {entity.Health} HasHealth: {entity.HasHealth} Dst: {Math.Round(entity.DistanceToPlayer, 1)}"
         );
+
+        LastRequestedSkillId = skill.Id;
 
         PacketManager.SendPacket(packet, PacketDestination.Server);
 
