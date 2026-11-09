@@ -41,6 +41,7 @@ internal class Botbase
 
         Area = new Area
         {
+            Name = currentArea.Name,
             Position = new Position(
                 currentArea.Region,
                 currentArea.X,

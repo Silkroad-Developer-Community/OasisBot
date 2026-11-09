@@ -27,16 +27,24 @@ namespace RSBot.Training
 
             if (currentArea == null)
             {
-                currentArea = new TrainingAreaConfig();
+                currentArea = new TrainingAreaConfig
+                {
+                    Name = "Custom Area",
+                    Region = pos.Region,
+                    X = pos.XOffset,
+                    Y = pos.YOffset,
+                    Z = pos.ZOffset,
+                    IsActive = true
+                };
+
+                PlayerConfig.Profile.Training.Areas.Add(currentArea);
             }
 
             currentArea.Region = pos.Region;
             currentArea.X = pos.XOffset;
             currentArea.Y = pos.YOffset;
             currentArea.Z = pos.ZOffset;
-            currentArea.IsActive = true;
-
-            PlayerConfig.Profile.Training.Areas.Add(currentArea);
+            currentArea.IsActive = true;            
 
             Log.Notify(
                 "[Training area] New training area coordinates set. "

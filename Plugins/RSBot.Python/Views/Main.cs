@@ -141,12 +141,12 @@ public partial class Main : DoubleBufferedControl
     #region events
     private void OnTeleportStart()
     {
-        _pyPlugins.CallPluginEvent("on_teleported", AppendLog, new PyInt(1));
+        _pyPlugins.CallPluginEvent("on_teleported", AppendLog, 1);
     }
 
     private void OnTeleportComplete()
     {
-        _pyPlugins.CallPluginEvent("on_teleported", AppendLog, new PyInt(2));
+        _pyPlugins.CallPluginEvent("on_teleported", AppendLog, 2);
     }
 
     private void OnClientPacketReceive(Packet packet)

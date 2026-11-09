@@ -73,6 +73,8 @@ internal static class AutoLogin
             Log.NotifyLang("SelectedFirstServer", server.Name);
         }
 
+        Game.JoinedServer = server.Name;
+
         // is server check [Lazy :)]
         if (!server.Status)
         {
