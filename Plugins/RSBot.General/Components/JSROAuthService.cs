@@ -40,7 +40,7 @@ internal static class JSROAuthService
         client.DefaultRequestHeaders.TryAddWithoutValidation("Connection", "keep-alive");
 
         var selectedAccount = Accounts.SavedAccounts?.Find(p =>
-            p.Username == GlobalConfig.Get<string>("RSBot.General.AutoLoginAccountUsername")
+            p.Username == GlobalConfig.Profile.Bot.AutoLoginAccountUsername
         );
 
         if (selectedAccount == null)
@@ -76,7 +76,7 @@ internal static class JSROAuthService
             Match match = Regex.Match(responseBody, pattern);
             if (match.Success)
             {
-                GlobalConfig.Set("RSBot.JSRO.token", match.Value);
+                GlobalConfig.Profile.Jsro.Token = match.Value;
                 GlobalConfig.Save();
                 return true;
             }

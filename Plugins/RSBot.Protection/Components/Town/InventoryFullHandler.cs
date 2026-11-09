@@ -28,7 +28,7 @@ public class InventoryFullHandler : AbstractTownHandler
         if (!Kernel.Bot.Running)
             return;
 
-        if (!PlayerConfig.Get<bool>("RSBot.Protection.checkInventory"))
+        if (!PlayerConfig.Profile.Protection.CheckInventoryFull)
             return;
 
         if (!Game.Player.Inventory.Full)

@@ -1,4 +1,4 @@
-﻿using System;
+using System;
 using System.Collections.Generic;
 using System.Linq;
 using RSBot.Core;
@@ -41,7 +41,7 @@ internal class PartyBuffingBundle : IBundle
         if (Game.Player.HasActiveVehicle)
             return;
 
-        var selectedGroup = PlayerConfig.Get("RSBot.Party.Buffing.SelectedGroup", "Default");
+        var selectedGroup = PlayerConfig.Profile.Party.Buffing.SelectedGroup;
 
         SpawnManager.TryGetEntities<SpawnedPlayer>(
             p => BuffingPartyMembers.Any(s => s.Group == selectedGroup && s.Name == p.Name),
@@ -109,7 +109,7 @@ internal class PartyBuffingBundle : IBundle
         // Don't need to use clear, because gc will handle the unnecessary objects
         BuffingPartyMembers = new List<BuffingPartyMember>();
 
-        var settings = PlayerConfig.Get("RSBot.Party.Buffing", string.Empty);
+        var settings = PlayerConfig.Profile.Party.Buffing.Members;
         var collection = settings.Split(new[] { ';' }, StringSplitOptions.RemoveEmptyEntries);
 
         foreach (var item in collection)

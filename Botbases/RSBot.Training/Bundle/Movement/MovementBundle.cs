@@ -42,7 +42,7 @@ internal class MovementBundle : IBundle
             return;
 
         if (
-            PlayerConfig.Get("RSBot.Party.AlwaysFollowPartyMaster", false)
+            PlayerConfig.Profile.Party.AlwaysFollowPartyMaster
             && Game.Party.IsInParty
             && !Game.Party.IsLeader
         )
@@ -98,8 +98,8 @@ internal class MovementBundle : IBundle
     {
         Config = new MovementConfig
         {
-            WalkAround = PlayerConfig.Get("RSBot.Training.radioWalkAround", true),
-            WalkToCenter = PlayerConfig.Get<bool>("RSBot.Training.radioCenter"),
+            WalkAround = PlayerConfig.Profile.Training.WalkAround,
+            WalkToCenter = PlayerConfig.Profile.Training.ReturnToCenter,
         };
     }
 

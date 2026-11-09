@@ -25,7 +25,7 @@ public class FatigueHandler : AbstractTownHandler
         _disconnectTimer?.Dispose();
         _disconnectTimer = null;
 
-        int shardFatigueSecondsToDC = PlayerConfig.Get<int>("RSBot.Protection.numShardFatigueMinToDC") * 60;
+        int shardFatigueSecondsToDC = PlayerConfig.Profile.Protection.ShardFatigueMinToDc * 60;
 
         int secondsToDC = ShardFatigueFullExpSeconds - shardFatigueSecondsToDC;
 
@@ -35,7 +35,7 @@ public class FatigueHandler : AbstractTownHandler
             return;
         }
 
-        if (Kernel.Bot.Running && PlayerConfig.Get<bool>("RSBot.Protection.checkShardFatigue"))
+        if (Kernel.Bot.Running && PlayerConfig.Profile.Protection.CheckShardFatigue)
         {
             TimeSpan remaining = TimeSpan.FromSeconds(secondsToDC);
             Log.Debug(
@@ -62,7 +62,7 @@ public class FatigueHandler : AbstractTownHandler
             return;
         }
 
-        if (!PlayerConfig.Get<bool>("RSBot.Protection.checkShardFatigue"))
+        if (!PlayerConfig.Profile.Protection.CheckShardFatigue)
             return;
 
         Kernel.Bot.Stop();

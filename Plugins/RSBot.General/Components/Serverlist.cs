@@ -1,6 +1,7 @@
-﻿using System.Collections.Generic;
-using System.Linq;
+﻿using RSBot.Core;
 using RSBot.General.Models;
+using System.Collections.Generic;
+using System.Linq;
 
 namespace RSBot.General.Components;
 
@@ -39,5 +40,6 @@ public static class Serverlist
     internal static void SetJoining(ushort shardId)
     {
         Joining = Servers.FirstOrDefault(p => p.Id == shardId);
+        Game.JoinedServer = Joining.Name;
     }
 }

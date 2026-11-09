@@ -8,52 +8,31 @@ public static class GeneralConfig
     /// <summary>
     /// The config
     /// </summary>
-    private static Config _config;
+    private static Config<GeneralConfigProfile> _config;
+
+    /// <summary>
+    /// Direktes typisiertes Profil
+    /// </summary>
+    public static GeneralConfigProfile Profile => _config?.Data ?? (_config = LoadGeneralConfig()).Data;
 
     /// <summary>
     /// Load config from file
     /// </summary>
     public static void Load()
     {
-        var path = Path.Combine(Kernel.BasePath, "User", "Settings.rs");
-        _config = new Config(path);
+        _config = LoadGeneralConfig();
     }
 
     /// <summary>
-    /// Returns a value indicating if the given config key exists.
+    /// Load config from file
     /// </summary>
-    /// <param name="key">The key.</param>
-    /// <returns></returns>
-    public static bool Exists(string key)
+    private static Config<GeneralConfigProfile> LoadGeneralConfig()
     {
-        if (_config == null)
-            Load();
-        return _config.Exists(key);
-    }
-
-    /// <summary>
-    /// Gets the specified key.
-    /// </summary>
-    /// <param name="key">The key.</param>
-    /// <param name="defaultValue">The default value.</param>
-    public static T Get<T>(string key, T defaultValue = default)
-    {
-        if (_config == null)
-            Load();
-        return _config.Get(key, defaultValue);
-    }
-
-    /// <summary>
-    /// Sets the specified key inside the config.
-    /// </summary>
-    /// <param name="key">The key.</param>
-    /// <param name="value">The value.</param>
-    public static void Set<T>(string key, T value)
-    {
-        if (_config == null)
-            Load();
-        _config.Set(key, value);
-    }
+        var path = Path.Combine(Kernel.BasePath, "User", "Settings.json");
+        var cfg = new Config<GeneralConfigProfile>(path);
+        cfg.Load();
+        return cfg;
+    }     
 
     /// <summary>
     /// Saves the specified file.
@@ -71,5 +50,14 @@ public static class GeneralConfig
         {
             Log.Debug($"[GeneralConfig] Could not save settings: {ex.Message}");
         }
+    }
+
+    public class GeneralConfigProfile
+    {
+        public bool AutoTheme { get; set; } = true;
+        public bool AutoUpdate { get; set; } = true;
+        public bool ShowExitDialog { get; set; } = true;
+        public string Language { get; set; } = "en_US";
+        public DateTime LastUpdateCheck { get; set; } = DateTime.Now;
     }
 }

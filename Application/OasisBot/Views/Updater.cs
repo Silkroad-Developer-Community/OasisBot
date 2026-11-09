@@ -27,7 +27,7 @@ public partial class Updater : UIWindow
     /// <summary>
     ///     Final update address
     /// </summary>
-    private string _updateUrl => GlobalConfig.Get("RSBot.DebugEnvironment", false) ? _localhostUrl : _githubUrl;
+    private string _updateUrl => GlobalConfig.Profile.DebugEnvironment ? _localhostUrl : _githubUrl;
 
     /// <summary>
     ///     Get or sets the web client
@@ -143,32 +143,24 @@ public partial class Updater : UIWindow
     /// <returns><c>true</c> if there is otherwise, <c>false</c>.</returns>
     public async Task<bool> Check()
     {
-        if (!GeneralConfig.Exists("RSBot.AutoUpdate"))
-        {
-            GeneralConfig.Set("RSBot.AutoUpdate", true);
-            GeneralConfig.Save();
-        }
 
-        if (!GeneralConfig.Get("RSBot.AutoUpdate", true))
+        if (!GeneralConfig.Profile.AutoUpdate)
             return false;
 
         // Rate limiting: Only check once every 12 hours unless in debug environment
-        var lastCheckStr = GeneralConfig.Get<string>("RSBot.LastUpdateCheck", "0");
-        if (long.TryParse(lastCheckStr, out var lastCheckTicks))
-        {
-            var lastCheck = new DateTime(lastCheckTicks);
-            if (DateTime.Now < lastCheck.AddHours(12) && !GlobalConfig.Get("RSBot.DebugEnvironment", false))
-                return false;
-        }
+        var lastCheck = GeneralConfig.Profile.LastUpdateCheck;
+        if (DateTime.Now < lastCheck.AddHours(12) && !GlobalConfig.Profile.DebugEnvironment)
+            return false;
+        
 
         if (
             !File.Exists(Path.Combine(Kernel.BasePath, "unins000.exe"))
-            && !GlobalConfig.Get("RSBot.DebugEnvironment", false)
+            && !GlobalConfig.Profile.DebugEnvironment
         )
             return false;
 
         // Update the last check time immediately to prevent multiple instances from triggering simultaneously
-        GeneralConfig.Set("RSBot.LastUpdateCheck", DateTime.Now.Ticks.ToString());
+        GeneralConfig.Profile.LastUpdateCheck = DateTime.Now;
         GeneralConfig.Save();
 
         try

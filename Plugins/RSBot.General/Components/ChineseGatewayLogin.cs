@@ -90,7 +90,7 @@ internal static class ChineseGatewayLogin
 
     private static byte[] ReadSilpsetToken()
     {
-        var silkroadDirectory = GlobalConfig.Get<string>("RSBot.SilkroadDirectory");
+        var silkroadDirectory = GlobalConfig.Profile.SilkroadDirectory;
         if (string.IsNullOrWhiteSpace(silkroadDirectory))
             throw new InvalidOperationException("Silkroad directory is not configured.");
 

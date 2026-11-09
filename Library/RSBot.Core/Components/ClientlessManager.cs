@@ -88,8 +88,8 @@ public class ClientlessManager
             return;
 
         int delay = 10000;
-        if (GlobalConfig.Get("RSBot.General.EnableWaitAfterDC", false))
-            delay = GlobalConfig.Get<int>("RSBot.General.WaitAfterDC") * 60 * 1000;
+        if (GlobalConfig.Profile.Bot.EnableWaitAfterDC)
+            delay = (int)GlobalConfig.Profile.Bot.WaitAfterDC * 60 * 1000;
 
         Log.Warn($"Attempting relogin in {delay / 1000} seconds...");
         await Task.Delay(delay);

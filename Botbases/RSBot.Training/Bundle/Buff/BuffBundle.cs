@@ -89,7 +89,7 @@ internal class BuffBundle : IBundle
     /// </summary>
     public void Refresh()
     {
-        _buffBetweenAttacks = PlayerConfig.Get<bool>("RSBot.Skills.checkCastBuffsBetweenAttacks", false);
+        _buffBetweenAttacks = PlayerConfig.Profile.Skills.CastBuffsBetweenAttacks;
         _invoked = false;
     }
 

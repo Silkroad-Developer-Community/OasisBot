@@ -53,7 +53,7 @@ internal static class RuSroAuthService
     public static async Task<bool> Auth()
     {
         var selectedAccount = Accounts.SavedAccounts?.Find(p =>
-            p.Username == GlobalConfig.Get<string>("RSBot.General.AutoLoginAccountUsername")
+            p.Username == GlobalConfig.Profile.Bot.AutoLoginAccountUsername
         );
 
         if (selectedAccount == null)
@@ -96,7 +96,7 @@ internal static class RuSroAuthService
 
     private static async Task<string> GetAccessTokenAsync(string email)
     {
-        string savedAccessToken = GlobalConfig.Get<string>(AccessTokenConfigKey, "");
+        string savedAccessToken = GlobalConfig.Profile.RuSro.AccessToken;
         if (TokenBelongsToAccount(email, savedAccessToken) && IsAccessTokenValid(savedAccessToken))
             return savedAccessToken;
 
@@ -116,8 +116,8 @@ internal static class RuSroAuthService
 
     private static async Task<OAuthTokenResponse> TryRefreshTokenAsync(string email)
     {
-        string refreshToken = GlobalConfig.Get<string>(RefreshTokenConfigKey, "");
-        string accessToken = GlobalConfig.Get<string>(AccessTokenConfigKey, "");
+        string refreshToken = GlobalConfig.Profile.RuSro.RefreshToken;
+        string accessToken = GlobalConfig.Profile.RuSro.AccessToken;
 
         if (string.IsNullOrWhiteSpace(refreshToken) || !TokenBelongsToAccount(email, accessToken))
             return null;
@@ -467,32 +467,34 @@ internal static class RuSroAuthService
     {
         string refreshToken = tokenResponse.RefreshToken;
         if (string.IsNullOrWhiteSpace(refreshToken))
-            refreshToken = GlobalConfig.Get<string>(RefreshTokenConfigKey, "");
+            refreshToken = GlobalConfig.Profile.RuSro.RefreshToken;
 
-        GlobalConfig.Set(AccessTokenConfigKey, tokenResponse.AccessToken);
-        GlobalConfig.Set(RefreshTokenConfigKey, refreshToken);
-        GlobalConfig.Set(TokenOwnerConfigKey, email);
-        GlobalConfig.Set(EmailCodePendingConfigKey, false);
-        GlobalConfig.Set(EmailCodeAddressConfigKey, "");
-        GlobalConfig.Set(EmailSignInTokenConfigKey, "");
-        GlobalConfig.Set(EmailRequestGroupIdConfigKey, "");
-        GlobalConfig.Set(EmailCodeRequestedAtConfigKey, "");
+        GlobalConfig.Profile.RuSro.AccessToken = tokenResponse.AccessToken;
+        GlobalConfig.Profile.RuSro.RefreshToken = refreshToken;
+        GlobalConfig.Profile.RuSro.TokenOwner = email;
+        GlobalConfig.Profile.RuSro.EmailCodePending = false;
+
+        GlobalConfig.Profile.RuSro.EmailCodeAddress = "";
+        GlobalConfig.Profile.RuSro.EmailSignInToken = "";
+        GlobalConfig.Profile.RuSro.EmailRequestGroupId = "";
+        GlobalConfig.Profile.RuSro.EmailCodeRequestedAt = "";
+
         GlobalConfig.Save();
     }
 
     private static void ResetAuthorizationState()
     {
-        GlobalConfig.Set(AccessTokenConfigKey, "");
-        GlobalConfig.Set(RefreshTokenConfigKey, "");
-        GlobalConfig.Set(TokenOwnerConfigKey, "");
-        GlobalConfig.Set(EmailCodePendingConfigKey, false);
-        GlobalConfig.Set(EmailCodeAddressConfigKey, "");
-        GlobalConfig.Set(EmailSignInTokenConfigKey, "");
-        GlobalConfig.Set(EmailRequestGroupIdConfigKey, "");
-        GlobalConfig.Set(EmailCodeRequestedAtConfigKey, "");
-        GlobalConfig.Set(HardwareIdConfigKey, "");
-        GlobalConfig.Set(LauncherIdConfigKey, "");
-        GlobalConfig.Set("RSBot.RuSro.sessionId", "");
+        GlobalConfig.Profile.RuSro.AccessToken = "";
+        GlobalConfig.Profile.RuSro.RefreshToken = "";
+        GlobalConfig.Profile.RuSro.TokenOwner = "";
+        GlobalConfig.Profile.RuSro.EmailCodePending = false;
+        GlobalConfig.Profile.RuSro.EmailCodeAddress = "";
+        GlobalConfig.Profile.RuSro.EmailSignInToken = "";
+        GlobalConfig.Profile.RuSro.EmailRequestGroupId = "";
+        GlobalConfig.Profile.RuSro.EmailCodeRequestedAt = "";
+        GlobalConfig.Profile.RuSro.HardwareId = "";
+        GlobalConfig.Profile.RuSro.LauncherId = "";
+        GlobalConfig.Profile.RuSro.SessionId = "";
         GlobalConfig.Save();
 
         Log.Debug(
@@ -507,13 +509,13 @@ internal static class RuSroAuthService
         out DateTimeOffset codeRequestedAt
     )
     {
-        signInToken = GlobalConfig.Get<string>(EmailSignInTokenConfigKey, "");
-        requestGroupId = GlobalConfig.Get<string>(EmailRequestGroupIdConfigKey, "");
-        string pendingEmail = GlobalConfig.Get<string>(EmailCodeAddressConfigKey, "");
-        string requestedAt = GlobalConfig.Get<string>(EmailCodeRequestedAtConfigKey, "");
+        signInToken = GlobalConfig.Profile.RuSro.EmailSignInToken;
+        requestGroupId = GlobalConfig.Profile.RuSro.EmailRequestGroupId;
+        string pendingEmail = GlobalConfig.Profile.RuSro.EmailCodeAddress;
+        string requestedAt = GlobalConfig.Profile.RuSro.EmailCodeRequestedAt;
 
         bool hasPendingCode =
-            GlobalConfig.Get<bool>(EmailCodePendingConfigKey)
+            GlobalConfig.Profile.RuSro.EmailCodePending
             && string.Equals(pendingEmail, email, StringComparison.OrdinalIgnoreCase)
             && !string.IsNullOrWhiteSpace(signInToken)
             && !string.IsNullOrWhiteSpace(requestGroupId);
@@ -531,17 +533,17 @@ internal static class RuSroAuthService
         DateTimeOffset codeRequestedAt
     )
     {
-        GlobalConfig.Set(EmailCodePendingConfigKey, true);
-        GlobalConfig.Set(EmailCodeAddressConfigKey, email);
-        GlobalConfig.Set(EmailSignInTokenConfigKey, signInToken);
-        GlobalConfig.Set(EmailRequestGroupIdConfigKey, requestGroupId);
-        GlobalConfig.Set(EmailCodeRequestedAtConfigKey, codeRequestedAt.ToString("O"));
+        GlobalConfig.Profile.RuSro.EmailCodePending = true;
+        GlobalConfig.Profile.RuSro.EmailCodeAddress = email;
+        GlobalConfig.Profile.RuSro.EmailSignInToken = signInToken;
+        GlobalConfig.Profile.RuSro.EmailRequestGroupId = requestGroupId;
+        GlobalConfig.Profile.RuSro.EmailCodeRequestedAt = codeRequestedAt.ToString("O");
         GlobalConfig.Save();
     }
 
     private static bool TokenBelongsToAccount(string email, string accessToken)
     {
-        string tokenOwner = GlobalConfig.Get<string>(TokenOwnerConfigKey, "");
+        string tokenOwner = GlobalConfig.Profile.RuSro.TokenOwner;
         if (!string.IsNullOrWhiteSpace(tokenOwner))
             return string.Equals(tokenOwner, email, StringComparison.OrdinalIgnoreCase);
 
@@ -580,20 +582,20 @@ internal static class RuSroAuthService
     private static (string HardwareId, string LauncherId) GetOrCreateDeviceIdentity()
     {
         bool changed = false;
-        string hardwareId = GlobalConfig.Get<string>(HardwareIdConfigKey, "");
-        string launcherId = GlobalConfig.Get<string>(LauncherIdConfigKey, "");
+        string hardwareId = GlobalConfig.Profile.RuSro.HardwareId;
+        string launcherId = GlobalConfig.Profile.RuSro.LauncherId;
 
         if (hardwareId?.Length != 12 || hardwareId.Any(character => !Chars.Contains(character)))
         {
             hardwareId = GenerateRandomString(12);
-            GlobalConfig.Set(HardwareIdConfigKey, hardwareId);
+            GlobalConfig.Profile.RuSro.HardwareId = hardwareId;
             changed = true;
         }
 
         if (!Guid.TryParse(launcherId, out _))
         {
             launcherId = GenerateLauncherId();
-            GlobalConfig.Set(LauncherIdConfigKey, launcherId);
+            GlobalConfig.Profile.RuSro.LauncherId = launcherId;
             changed = true;
         }
 
@@ -605,14 +607,14 @@ internal static class RuSroAuthService
 
     private static void RotateDeviceIdentityAfterPendingEmailCode()
     {
-        if (!GlobalConfig.Get<bool>(EmailCodePendingConfigKey))
+        if (!GlobalConfig.Profile.RuSro.EmailCodePending)
             return;
 
         string hardwareId = GenerateRandomString(12);
         string launcherId = GenerateLauncherId();
 
-        GlobalConfig.Set(HardwareIdConfigKey, hardwareId);
-        GlobalConfig.Set(LauncherIdConfigKey, launcherId);
+        GlobalConfig.Profile.RuSro.HardwareId = hardwareId;
+        GlobalConfig.Profile.RuSro.LauncherId = launcherId;
         GlobalConfig.Save();
 
         Log.Debug(
@@ -762,9 +764,9 @@ internal static class RuSroAuthService
 
     private static async Task ConnectToWSAndSend()
     {
-        string launcherId = GlobalConfig.Get<string>("RSBot.RuSro.launcherid");
-        string hwid = GlobalConfig.Get<string>("RSBot.RuSro.hwid");
-        string accessToken = GlobalConfig.Get<string>("RSBot.RuSro.accessToken");
+        string launcherId = GlobalConfig.Profile.RuSro.LauncherId;
+        string hwid = GlobalConfig.Profile.RuSro.HardwareId;
+        string accessToken = GlobalConfig.Profile.RuSro.AccessToken;
         string sub = ExtractSubFromToken(accessToken);
 
         Log.Debug("Sub: " + sub);
@@ -1047,7 +1049,9 @@ internal static class RuSroAuthService
         Log.Debug($"Extracted login: {login}");
         Log.Debug($"Extracted password: {password}");
 
-        GlobalConfig.Set("RSBot.RuSro.login", login);
-        GlobalConfig.Set("RSBot.RuSro.password", password);
+        GlobalConfig.Profile.RuSro.Login = login;
+        GlobalConfig.Profile.RuSro.Password = password;
+
+        GlobalConfig.Save();
     }
 }
