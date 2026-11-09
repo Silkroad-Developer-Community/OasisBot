@@ -332,7 +332,7 @@ public partial class Main : DoubleBufferedControl
             PlayerConfig.Profile.Training.Areas.Add(currentArea);
         }
 
-        currentArea.Region = pos.Region;
+        currentArea.Region = pos.Region.Id;
         currentArea.X = pos.XOffset;
         currentArea.Y = pos.YOffset;
         currentArea.Z = pos.ZOffset;

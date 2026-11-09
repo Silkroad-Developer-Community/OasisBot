@@ -1,4 +1,4 @@
-﻿using RSBot.Core;
+using RSBot.Core;
 using RSBot.Core.Components.Command;
 using RSBot.Core.Event;
 
@@ -24,7 +24,7 @@ internal class AreaCommandExecutor : ICommandExecutor
         activeArea.X = Game.Player.Position.XOffset;
         activeArea.Y = Game.Player.Position.YOffset;
         activeArea.Z = Game.Player.Position.ZOffset;
-        activeArea.Region = Game.Player.Position.Region;
+        activeArea.Region = Game.Player.Position.Region.Id;
         activeArea.Radius = 50;
         
         PlayerConfig.Save();

@@ -1,4 +1,4 @@
-﻿using Python.Runtime;
+using Python.Runtime;
 using RSBot.Core;
 using RSBot.Core.Event;
 using RSBot.Core.Objects;
@@ -66,7 +66,7 @@ namespace RSBot.Python.Components.API.Core.Training
 
                 var trainingArea = PlayerConfig.Profile.Training.Areas.Find(a => a.Name == area.Name);
 
-                trainingArea.Region = pos.Region;
+                trainingArea.Region = pos.Region.Id;
                 trainingArea.X = pos.XOffset;
                 trainingArea.Y = pos.YOffset;
                 trainingArea.Z = pos.ZOffset;

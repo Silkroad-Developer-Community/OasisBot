@@ -604,7 +604,7 @@ public partial class Main : UIWindow
             }
 
 
-            currentArea.Region = pos.Region;
+            currentArea.Region = pos.Region.Id;
             currentArea.X = pos.XOffset;
             currentArea.Y = pos.YOffset;
             currentArea.Z = pos.ZOffset;

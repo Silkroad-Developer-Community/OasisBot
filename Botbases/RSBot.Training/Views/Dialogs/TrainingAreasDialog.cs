@@ -1,4 +1,4 @@
-﻿using System;
+using System;
 using System.Linq;
 using System.Windows.Forms;
 using RSBot.Core;
@@ -43,7 +43,7 @@ public partial class TrainingAreasDialog : UIWindowBase
             var targetArea = trainingConfig.Areas[index];
 
             targetArea.Name = trainingArea.Name;
-            targetArea.Region = trainingArea.Position.Region;
+            targetArea.Region = trainingArea.Position.Region.Id;
             targetArea.X = trainingArea.Position.XOffset;
             targetArea.Y = trainingArea.Position.YOffset;
             targetArea.Z = trainingArea.Position.ZOffset;
@@ -54,7 +54,7 @@ public partial class TrainingAreasDialog : UIWindowBase
             var newArea = new TrainingAreaConfig
             {
                 Name = trainingArea.Name,
-                Region = trainingArea.Position.Region,
+                Region = trainingArea.Position.Region.Id,
                 X = trainingArea.Position.XOffset,
                 Y = trainingArea.Position.YOffset,
                 Z = trainingArea.Position.ZOffset,

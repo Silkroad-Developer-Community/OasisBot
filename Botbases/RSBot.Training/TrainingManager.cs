@@ -1,4 +1,4 @@
-﻿using System.Timers;
+using System.Timers;
 using RSBot.Core;
 using RSBot.Core.Components;
 using RSBot.Core.Event;
@@ -30,7 +30,7 @@ namespace RSBot.Training
                 currentArea = new TrainingAreaConfig
                 {
                     Name = "Custom Area",
-                    Region = pos.Region,
+                    Region = pos.Region.Id,
                     X = pos.XOffset,
                     Y = pos.YOffset,
                     Z = pos.ZOffset,
@@ -40,7 +40,7 @@ namespace RSBot.Training
                 PlayerConfig.Profile.Training.Areas.Add(currentArea);
             }
 
-            currentArea.Region = pos.Region;
+            currentArea.Region = pos.Region.Id;
             currentArea.X = pos.XOffset;
             currentArea.Y = pos.YOffset;
             currentArea.Z = pos.ZOffset;

@@ -53,6 +53,11 @@ public class ProfileManager
     public static string SelectedCharacter { get; set; }
 
     /// <summary>
+    ///     The selected account
+    /// </summary>
+    public static string SelectedAccount { get; set; }
+
+    /// <summary>
     ///     The selected profile
     /// </summary>
     public static string SelectedProfile => _config.Data.SelectedProfile ?? "Default";

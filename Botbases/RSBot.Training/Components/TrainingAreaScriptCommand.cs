@@ -1,4 +1,4 @@
-﻿using System.Collections.Generic;
+using System.Collections.Generic;
 using RSBot.Core;
 using RSBot.Core.Components.Scripting;
 using RSBot.Core.Event;
@@ -65,7 +65,7 @@ internal class TrainingAreaScriptCommand : IScriptCommand
             if(currentArea == null)            
                 currentArea = new TrainingAreaConfig();         
 
-            currentArea.Region = region;
+            currentArea.Region = region.Id;
             currentArea.X = xPos;
             currentArea.Y = yPos;
             currentArea.Z = zPos;
