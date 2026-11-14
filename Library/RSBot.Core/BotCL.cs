@@ -16,7 +16,7 @@ namespace RSBot.Core
             Kernel.PluginManager.LoadAssemblies(true);
             Kernel.BotbaseManager.LoadAssemblies(true);
 
-            var botName = GlobalConfig.Get("RSBot.BotName", "RSBot.Training");
+            var botName = GlobalConfig.Profile.Bot.BotbaseName;
             var selectedBotbase = Kernel.BotbaseManager.Bots.FirstOrDefault(bot => bot.Value.Name == botName);
             if (selectedBotbase.Value != null)
             {

@@ -30,10 +30,10 @@ internal class AgentLoginRequestHook : IPacketHook
     /// <returns></returns>
     public Packet ReplacePacket(Packet packet)
     {
-        if (!GlobalConfig.Get<bool>("RSBot.General.EnableAutomatedLogin"))
+        if (!GlobalConfig.Profile.Bot.EnableAutomatedLogin)
             return packet;
 
-        var username = GlobalConfig.Get<string>("RSBot.General.AutoLoginAccountUsername");
+        var username = GlobalConfig.Profile.Bot.AutoLoginAccountUsername;
 
         var selectedAccount = Accounts.SavedAccounts.Find(p => p.Username == username);
         if (selectedAccount == null)
@@ -47,18 +47,18 @@ internal class AgentLoginRequestHook : IPacketHook
 
         if (Game.ClientType == GameClientType.RuSro)
         {
-            packet.WriteString(GlobalConfig.Get<string>("RSBot.RuSro.login"));
-            packet.WriteString(Sha256.ComputeHash(GlobalConfig.Get<string>("RSBot.RuSro.password")));
+            packet.WriteString(GlobalConfig.Profile.RuSro.Login);
+            packet.WriteString(Sha256.ComputeHash(GlobalConfig.Profile.RuSro.Password));
         }
         else if (Game.ClientType == GameClientType.Japanese)
         {
-            packet.WriteString(GlobalConfig.Get<string>("RSBot.JSRO.login"));
-            packet.WriteString(Sha256.ComputeHash(GlobalConfig.Get<string>("RSBot.JSRO.token")));
+            packet.WriteString(GlobalConfig.Profile.Jsro.Login);
+            packet.WriteString(Sha256.ComputeHash(GlobalConfig.Profile.Jsro.Token));
         }
         else
         {
             if (Game.ClientType == GameClientType.Global && selectedAccount.Channel == 0x02)
-                packet.WriteString(GlobalConfig.Get<string>("RSBot.JCPlanet.login"));
+                packet.WriteString(GlobalConfig.Profile.JcPlanet.Login);
             else
                 packet.WriteString(selectedAccount.Username);
 

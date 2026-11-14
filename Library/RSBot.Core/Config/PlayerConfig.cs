@@ -1,7 +1,8 @@
-﻿using System.Collections.Generic;
-using System.IO;
-using RSBot.Core.Components;
+﻿using RSBot.Core.Components;
+using RSBot.Core.Config.PlayerConfigProfile;
 using RSBot.Core.Event;
+using RSBot.Core.PlayerConfigProfile;
+using System.IO;
 
 namespace RSBot.Core;
 
@@ -10,7 +11,7 @@ public static class PlayerConfig
     /// <summary>
     ///     The config
     /// </summary>
-    private static Config _config;
+    private static Config<PlayerConfigProfile> _config;
 
     /// <summary>
     ///     The config directory
@@ -18,105 +19,21 @@ public static class PlayerConfig
     private static string _configDirectory => Path.Combine(Kernel.BasePath, "User", ProfileManager.SelectedProfile);
 
     /// <summary>
+    ///     The joined servername
+    /// </summary>
+    private static string _server => Game.JoinedServer;
+
+    public static PlayerConfigProfile   Profile => _config?.Data ?? new();
+
+    /// <summary>
     ///     Load config from file
     /// </summary>
     /// <param name="file">The config file path</param>
     public static void Load(string charName)
     {
-        _config = new Config(Path.Combine(_configDirectory, charName + ".rs"));
-
-        Log.Notify("[Player] settings have been loaded!");
-    }
-
-    /// <summary>
-    ///     Existses the specified key.
-    /// </summary>
-    /// <param name="key">The key.</param>
-    /// <returns></returns>
-    public static bool Exists(string key)
-    {
-        if (_config == null)
-            return false;
-
-        return _config.Exists(key);
-    }
-
-    /// <summary>
-    ///     Gets the specified key.
-    /// </summary>
-    /// <param name="key">The key.</param>
-    /// <param name="defaultValue">The default value.</param>
-    public static T Get<T>(string key, T defaultValue = default)
-    {
-        if (_config == null)
-            return defaultValue;
-
-        return _config.Get(key, defaultValue);
-    }
-
-    /// <summary>
-    ///     Gets the enum value with specified key.
-    /// </summary>
-    /// <param name="key">The key.</param>
-    /// <param name="defaultValue">The default value.</param>
-    public static TEnum GetEnum<TEnum>(string key, TEnum defaultValue = default)
-        where TEnum : struct
-    {
-        if (_config == null)
-            return defaultValue;
-
-        return _config.GetEnum(key, defaultValue);
-    }
-
-    /// <summary>
-    ///     Sets the specified key inside the config.
-    /// </summary>
-    /// <param name="key">The key.</param>
-    /// <param name="value">The value.</param>
-    public static void Set<T>(string key, T value)
-    {
-        if (_config != null)
-            _config.Set(key, value);
-    }
-
-    /// <summary>
-    ///     Gets the array.
-    /// </summary>
-    /// <param name="key">The key.</param>
-    /// <param name="delimiter">The delimiter.</param>
-    /// <returns></returns>
-    public static T[] GetArray<T>(string key, char delimiter = ',')
-    {
-        if (_config == null)
-            return new T[] { };
-
-        return _config.GetArray<T>(key, delimiter);
-    }
-
-    /// <summary>
-    ///     Gets the enum value with specified key.
-    /// </summary>
-    /// <param name="key">The key.</param>
-    /// <param name="defaultValue">The default value.</param>
-    public static TEnum[] GetEnums<TEnum>(string key, char delimiter = ',')
-        where TEnum : struct
-    {
-        if (_config == null)
-            return new TEnum[] { };
-
-        return _config.GetEnums<TEnum>(key, delimiter);
-    }
-
-    /// <summary>
-    ///     Sets the array.
-    /// </summary>
-    /// <param name="key">The key.</param>
-    /// <param name="values">The values.</param>
-    /// <param name="delimiter">The delimiter.</param>
-    public static void SetArray<T>(string key, IEnumerable<T> values, string delimiter = ",")
-    {
-        if (_config != null)
-            _config.SetArray(key, values, delimiter);
+        _config = new Config<PlayerConfigProfile>(Path.Combine(_configDirectory, _server + "_" + charName + ".json"));
+        _config.Load();
+        Log.Notify("[Player] Config have been loaded!");
     }
 
     /// <summary>
@@ -132,5 +49,27 @@ public static class PlayerConfig
 
         Log.Notify("[Player] have been saved!");
         EventManager.FireEvent("OnSavePlayerConfig");
+    }
+
+    public class PlayerConfigProfile
+    {
+        public ProtectionConfig Protection { get; set; } = new();
+        public TrainingConfig Training { get; set; } = new();
+        public TradeConfig Trade { get; set; } = new();
+        public SkillConfig Skills { get; set; } = new();
+        public InventoryConfig Inventory { get; set; } = new();
+        public PartyConfig Party { get; set; } = new();
+        public TownConfig Shopping { get; set; } = new();
+        public PickupConfig Pickup { get; set; } = new();
+        public LureConfig Lure { get; set; } = new();
+        public AlarmConfig Alarms { get; set; } = new();
+        public AvoidanceConfig Avoidance { get; set; } = new();
+        public CommandsConfig Commands { get; set; } = new();
+        public StatisticsConfig Statistics { get; set; } = new();
+        public QuestConfig Quests { get; set; } = new();
+
+        public bool AutoSelectUniqueOnMap { get; set; } = false;
+        public bool EnableCommandCenter { get; set; } = false;
+        public string LastWhisper { get; set; } = string.Empty;
     }
 }

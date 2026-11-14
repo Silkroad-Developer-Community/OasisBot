@@ -66,11 +66,11 @@ internal class BerzerkBundle : IBundle
     {
         Config = new BerzerkConfig
         {
-            WhenFull = PlayerConfig.Get<bool>("RSBot.Training.checkBerzerkWhenFull"),
-            BeeingAttackedByAwareMonster = PlayerConfig.Get<bool>("RSBot.Training.checkBerzerkAvoidance"),
-            SurroundedByMonsters = PlayerConfig.Get<bool>("RSBot.Training.checkBerzerkMonsterAmount"),
-            SurroundingMonsterAmount = PlayerConfig.Get<byte>("RSBot.Training.numBerzerkMonsterAmount", 5),
-            WhenTargetSpecificRartiyMonster = PlayerConfig.Get<bool>("RSBot.Training.checkBerserkOnMonsterRarity"),
+            WhenFull = PlayerConfig.Profile.Training.BerserkWhenFull,
+            BeeingAttackedByAwareMonster = PlayerConfig.Profile.Training.BerserkAvoidance,
+            SurroundedByMonsters = PlayerConfig.Profile.Training.BerserkOnMonsterAmount,
+            SurroundingMonsterAmount = PlayerConfig.Profile.Training.MinBerserkMonsterAmount,
+            WhenTargetSpecificRartiyMonster = PlayerConfig.Profile.Training.BerserkOnMonsterRarity,
         };
     }
 

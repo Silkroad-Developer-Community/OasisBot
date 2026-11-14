@@ -30,7 +30,7 @@ internal class UseItemAtTrainplaceSubscriber
         if (Kernel.Bot.Botbase.Area.Position.DistanceToPlayer() > 100)
             return;
 
-        var itemsToUse = PlayerConfig.GetArray<string>("RSBot.Inventory.ItemsAtTrainplace");
+        var itemsToUse = PlayerConfig.Profile.Inventory.ItemsAtTrainplace;
 
         foreach (var item in itemsToUse)
         {

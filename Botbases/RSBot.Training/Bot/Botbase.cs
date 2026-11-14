@@ -31,15 +31,24 @@ internal class Botbase
     /// </summary>
     public void Reload()
     {
+        var currentArea = PlayerConfig.Profile.Training.Areas.Find(p => p.IsActive);
+
+        if (currentArea == null)
+        {
+            Log.Error("[Botbase] No active training area found!");
+            return;
+        }
+
         Area = new Area
         {
+            Name = currentArea.Name,
             Position = new Position(
-                PlayerConfig.Get<ushort>("RSBot.Area.Region"),
-                PlayerConfig.Get<float>("RSBot.Area.X"),
-                PlayerConfig.Get<float>("RSBot.Area.Y"),
-                PlayerConfig.Get<float>("RSBot.Area.Z")
+                currentArea.Region,
+                currentArea.X,
+                currentArea.Y,
+                currentArea.Z
             ),
-            Radius = Math.Clamp(PlayerConfig.Get("RSBot.Area.Radius", 50), 5, 100),
+            Radius = Math.Clamp(currentArea.Radius, 5, 100),
         };
     }
 
@@ -73,7 +82,7 @@ internal class Botbase
             item?.Use();
         }
 
-        var noAttack = PlayerConfig.Get("RSBot.Skills.checkBoxNoAttack", false);
+        var noAttack = PlayerConfig.Profile.Skills.DoNotAttack;
 
         //Check for protection
         Bundles.Protection.Invoke();

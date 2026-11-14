@@ -1,10 +1,11 @@
-using System;
 using Python.Runtime;
 using RSBot.Core;
 using RSBot.Core.Event;
 using RSBot.Core.Objects;
+using RSBot.Core.PlayerConfigProfile;
 using RSBot.Python.Components.API.Interface;
 using RSBot.Python.Views;
+using System;
 
 namespace RSBot.Python.Components.API.Core.Training
 {
@@ -28,15 +29,13 @@ namespace RSBot.Python.Components.API.Core.Training
 
         private bool SetTrainingArea(string name)
         {
-            var areas = PlayerConfig.GetArray<string>("RSBot.Training.Areas");
+            var areas = PlayerConfig.Profile.Training.Areas;
             foreach (var area in areas)
             {
-                var split = area.Split("|", StringSplitOptions.TrimEntries | StringSplitOptions.RemoveEmptyEntries);
-                if (split.Length <= 0)
+                if (area == null)
                     continue;
 
-                if (!Area.TryParse(split, out var trainingArea))
-                    continue;
+                var trainingArea = new Area(area.Name, new Position(area.Region,area.X,area.Y,area.Z), area.Radius);
 
                 var regionName = Game.ReferenceManager.GetTranslation(trainingArea.Position.Region.ToString());
 
@@ -65,17 +64,22 @@ namespace RSBot.Python.Components.API.Core.Training
                 var area = Kernel.Bot.Botbase.Area;
                 Position pos = new(x, y, region);
 
-                PlayerConfig.Set("RSBot.Area.Region", pos.Region.Id);
-                PlayerConfig.Set("RSBot.Area.X", pos.XOffset);
-                PlayerConfig.Set("RSBot.Area.Y", pos.YOffset);
-                PlayerConfig.Set("RSBot.Area.Z", pos.ZOffset);
-                PlayerConfig.Set("RSBot.Area.Radius", radius);
+                var trainingArea = PlayerConfig.Profile.Training.Areas.Find(a => a.Name == area.Name);
+
+                trainingArea.Region = pos.Region.Id;
+                trainingArea.X = pos.XOffset;
+                trainingArea.Y = pos.YOffset;
+                trainingArea.Z = pos.ZOffset;
+                trainingArea.Radius = radius;
+
+                PlayerConfig.Save();
 
                 Log.Notify(
                     "[Python-API] New training area coordinates set. "
                         + $"X: {pos.XOffset}, Y: {pos.YOffset}, Z: {pos.ZOffset}, Region: {pos.Region}"
                 );
                 EventManager.FireEvent("OnSetTrainingArea");
+
                 return true;
             }
             catch (Exception e)
@@ -95,26 +99,22 @@ namespace RSBot.Python.Components.API.Core.Training
             using (Py.GIL())
             {
                 var result = new PyDict();
-                var areas = PlayerConfig.GetArray<string>("RSBot.Training.Areas");
+                var areas = PlayerConfig.Profile.Training.Areas;
                 foreach (var area in areas)
                 {
-                    var split = area.Split("|", StringSplitOptions.TrimEntries | StringSplitOptions.RemoveEmptyEntries);
-                    if (split.Length <= 0)
+                    if (area == null)
                         continue;
 
-                    if (!Area.TryParse(split, out var trainingArea))
-                        continue;
+                    var regionName = Game.ReferenceManager.GetTranslation(area.Region.ToString());
 
-                    var regionName = Game.ReferenceManager.GetTranslation(trainingArea.Position.Region.ToString());
-
-                    if (trainingArea.Name.Equals(name, StringComparison.OrdinalIgnoreCase))
+                    if (area.Name.Equals(name, StringComparison.OrdinalIgnoreCase))
                     {
-                        result.SetItem(new PyString("name"), new PyString(trainingArea.Name));
-                        result.SetItem(new PyString("x"), new PyFloat(trainingArea.Position.X));
-                        result.SetItem(new PyString("y"), new PyFloat(trainingArea.Position.Y));
-                        result.SetItem(new PyString("z"), new PyFloat(trainingArea.Position.ZOffset));
-                        result.SetItem(new PyString("radius"), new PyInt(trainingArea.Radius));
-                        result.SetItem(new PyString("region"), new PyInt(trainingArea.Position.Region));
+                        result.SetItem(new PyString("name"), new PyString(area.Name));
+                        result.SetItem(new PyString("x"), new PyFloat(area.X));
+                        result.SetItem(new PyString("y"), new PyFloat(area.Y));
+                        result.SetItem(new PyString("z"), new PyFloat(area.Z));
+                        result.SetItem(new PyString("radius"), new PyInt(area.Radius));
+                        result.SetItem(new PyString("region"), new PyInt(area.Region));
                         result.SetItem(new PyString("region_name"), new PyString(regionName));
                         return result;
                     }

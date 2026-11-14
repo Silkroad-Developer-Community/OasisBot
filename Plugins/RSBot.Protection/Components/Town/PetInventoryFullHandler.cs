@@ -28,7 +28,7 @@ public class PetInventoryFullHandler : AbstractTownHandler
         if (!Kernel.Bot.Running)
             return;
 
-        if (!PlayerConfig.Get<bool>("RSBot.Protection.checkFullPetInventory"))
+        if (!PlayerConfig.Profile.Protection.ReturnOnFullPetInventory)
             return;
 
         if (Game.Player.AbilityPet == null)

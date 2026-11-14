@@ -39,21 +39,16 @@ public struct ProxyConfig
             TimeOut = 5000,
         };
 
-        var values = GlobalConfig.GetArray<string>("RSBot.Network.Proxy", '|', StringSplitOptions.TrimEntries);
-        if (values.Length != 6)
+        config.ProxyIp = GlobalConfig.Profile.Bot.Proxy.Ip;
+        config.UserName = GlobalConfig.Profile.Bot.Proxy.Username;
+        config.Password = GlobalConfig.Profile.Bot.Proxy.Password;
+
+        if (!int.TryParse(GlobalConfig.Profile.Bot.Proxy.Port.ToString(), out config.ProxyPort))
             return false;
 
-        if (!bool.TryParse(values[0], out var active) || !active)
+        if (!byte.TryParse(GlobalConfig.Profile.Bot.Proxy.Version.ToString(), out config.Version))
             return false;
-
-        config.ProxyIp = values[1];
-        config.UserName = values[3];
-        config.Password = values[4];
-
-        if (!int.TryParse(values[2], out config.ProxyPort))
-            return false;
-
-        if (!byte.TryParse(values[5], out config.Version))
+        if (string.IsNullOrWhiteSpace(config.UserName) || string.IsNullOrWhiteSpace(config.Password))
             return false;
 
         return true;

@@ -63,11 +63,11 @@ internal class LoopBundle : IBundle
     {
         Config = new LoopConfig
         {
-            WalkScript = PlayerConfig.Get<string>("RSBot.Walkback.File"),
-            UseSpeedDrug = PlayerConfig.Get<bool>("RSBot.Training.checkUseSpeedDrug", true),
-            UseVehicle = PlayerConfig.Get<bool>("RSBot.Training.checkUseMount", true),
-            CastBuffs = PlayerConfig.Get<bool>("RSBot.Training.checkCastBuffs", true),
-            UseReverse = PlayerConfig.Get<bool>("RSBot.Training.checkBoxUseReverse", false),
+            WalkScript = PlayerConfig.Profile.Training.WalkbackFile,
+            UseSpeedDrug = PlayerConfig.Profile.Training.UseSpeedDrug,
+            UseVehicle = PlayerConfig.Profile.Training.UseMount,
+            CastBuffs = PlayerConfig.Profile.Skills.CastBuffsInTowns,
+            UseReverse = PlayerConfig.Profile.Training.UseReverseScroll,
         };
     }
 
@@ -117,7 +117,7 @@ internal class LoopBundle : IBundle
             return;
         }
 
-        if (PlayerConfig.Get<bool>("RSBot.Protection.checkStopBotOnReturnToTown"))
+        if (PlayerConfig.Profile.Protection.StopBotOnReturnToTown)
         {
             Kernel.Bot.Stop();
             return;

@@ -1,5 +1,4 @@
 ﻿using System;
-using System.Linq;
 using RSBot.Core;
 using RSBot.Core.Network;
 using RSBot.Core.Objects.Spawn;
@@ -74,9 +73,9 @@ internal class CommandsBundle
     {
         Config = new CommandsConfig
         {
-            PlayerList = PlayerConfig.GetArray<string>("RSBot.Party.Commands.PlayersList"),
-            ListenFromList = PlayerConfig.Get<bool>("RSBot.Party.Commands.ListenOnlyList"),
-            ListenOnlyMaster = PlayerConfig.Get<bool>("RSBot.Party.Commands.ListenFromMaster"),
+            PlayerList = PlayerConfig.Profile.Party.CommandAllowedPlayers,
+            ListenFromList = PlayerConfig.Profile.Party.ListenCommandsOnlyFromList,
+            ListenOnlyMaster = PlayerConfig.Profile.Party.ListenCommandsFromMaster,
         };
     }
 }

@@ -29,7 +29,7 @@ public class LevelUpHandler : AbstractTownHandler
         if (!Kernel.Bot.Running)
             return;
 
-        if (!PlayerConfig.Get<bool>("RSBot.Protection.checkLevelUp"))
+        if (!PlayerConfig.Profile.Protection.CheckLevelUp)
             return;
 
         if (PlayerInTownScriptRegion())

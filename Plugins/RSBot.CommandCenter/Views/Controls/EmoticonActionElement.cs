@@ -49,7 +49,25 @@ internal partial class EmoticonActionElement : DoubleBufferedControl
 
         SelectedActionName = actionItem.ActionName;
 
-        PlayerConfig.Set($"RSBot.CommandCenter.MappedEmotes.{Emoticon.Name}", actionItem.ActionName);
+        switch(Emoticon.Type)
+        {
+            case EmoticonType.Yes:
+                PlayerConfig.Profile.Commands.EmoticonYes = actionItem.ActionName;
+                break;
+            case EmoticonType.No:
+                PlayerConfig.Profile.Commands.EmoticonNo = actionItem.ActionName;
+                break;
+            case EmoticonType.Rush:
+                PlayerConfig.Profile.Commands.EmoticonRush = actionItem.ActionName;
+                break;
+            case EmoticonType.Greeting:
+                PlayerConfig.Profile.Commands.EmoticonGreeting = actionItem.ActionName;
+                break;
+            case EmoticonType.Smile:
+                PlayerConfig.Profile.Commands.EmoticonSmile = actionItem.ActionName;
+                break;
+        }
+        PlayerConfig.Save();
     }
 
     private record ActionComboBoxItem(string ActionName, string ActionDescription)

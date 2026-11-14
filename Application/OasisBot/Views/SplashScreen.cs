@@ -46,7 +46,7 @@ public partial class SplashScreen : UIWindow
             return;
         }
 
-        Kernel.Language = GeneralConfig.Get("RSBot.Language", "en_US");
+        Kernel.Language = GeneralConfig.Profile.Language;
 
         LanguageManager.Translate(_mainForm, Kernel.Language);
 
@@ -57,8 +57,8 @@ public partial class SplashScreen : UIWindow
         }
 
         if (
-            !GlobalConfig.Exists("RSBot.SilkroadDirectory")
-            || !File.Exists(GlobalConfig.Get<string>("RSBot.SilkroadDirectory") + "\\media.pk2")
+            GlobalConfig.Profile.SilkroadDirectory == string.Empty
+            || !File.Exists(GlobalConfig.Profile.SilkroadDirectory + "\\media.pk2")
         )
         {
             var dialog = new OpenFileDialog
@@ -74,8 +74,8 @@ public partial class SplashScreen : UIWindow
 
             if (result == DialogResult.OK && File.Exists(Path.Combine(silkroadDirectory, "media.pk2")))
             {
-                GlobalConfig.Set("RSBot.SilkroadDirectory", silkroadDirectory);
-                GlobalConfig.Set("RSBot.SilkroadExecutable", Path.GetFileName(dialog.FileName));
+                GlobalConfig.Profile.SilkroadDirectory = silkroadDirectory;
+                GlobalConfig.Profile.SilkroadExecutable = Path.GetFileName(dialog.FileName);
 
                 var title = LanguageManager.GetLang("ClientTypeInputDialogTitle");
                 var content = LanguageManager.GetLang("ClientTypeInputDialogContent");
@@ -91,13 +91,14 @@ public partial class SplashScreen : UIWindow
                 if (clientTypeDialog.ShowDialog() == DialogResult.OK)
                 {
                     if (Enum.TryParse<GameClientType>(clientTypeDialog.Value.ToString(), out var clientType))
-                        GlobalConfig.Set("RSBot.Game.ClientType", clientType);
+                        GlobalConfig.Profile.Bot.ClientType = clientType;
                 }
                 else
                 {
                     MessageBox.Show(LanguageManager.GetLang("ClientTypeNotSelected"));
-                    GlobalConfig.Set("RSBot.Game.ClientType", GameClientType.Vietnam);
+                    GlobalConfig.Profile.Bot.ClientType = GameClientType.Vietnam;
                 }
+                GlobalConfig.Save();
             }
             else
             {
@@ -121,7 +122,7 @@ public partial class SplashScreen : UIWindow
     /// </param>
     private void ReferenceDataLoaderCompleted(object sender, RunWorkerCompletedEventArgs e)
     {
-        var detectDarkLight = GeneralConfig.Get("RSBot.Theme.Auto", true);
+        var detectDarkLight = GeneralConfig.Profile.AutoTheme;
         if (detectDarkLight)
         {
             if (WindowsHelper.IsDark())
@@ -131,7 +132,7 @@ public partial class SplashScreen : UIWindow
         }
         else
         {
-            ColorScheme.BackColor = Color.FromArgb(GlobalConfig.Get("SDUI.Color", Color.White.ToArgb()));
+            ColorScheme.BackColor = Color.FromArgb(GlobalConfig.Profile.ThemeColor);
         }
 
         _mainForm.RefreshTheme();
@@ -225,7 +226,7 @@ public partial class SplashScreen : UIWindow
             return;
         }
 
-        Game.ReferenceManager.Load(GlobalConfig.Get("RSBot.TranslationIndex", -1), referenceDataLoader);
+        Game.ReferenceManager.Load(GlobalConfig.Profile.TranslationIndex, referenceDataLoader);
     }
 
     private void referenceDataLoader_ProgressChanged(object sender, ProgressChangedEventArgs e)

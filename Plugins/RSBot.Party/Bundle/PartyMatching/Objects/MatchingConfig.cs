@@ -1,5 +1,6 @@
 ﻿using RSBot.Core;
 using RSBot.Core.Objects.Party;
+using static System.Runtime.InteropServices.JavaScript.JSType;
 
 namespace RSBot.Party.Bundle.PartyMatching.Objects;
 
@@ -13,8 +14,8 @@ internal struct MatchingConfig
     /// </value>
     public bool ExperienceAutoShare
     {
-        get => PlayerConfig.Get<bool>("RSBot.Party.EXPAutoShare");
-        set => PlayerConfig.Set("RSBot.Party.EXPAutoShare", value);
+        get => PlayerConfig.Profile.Party.ExpAutoShare;
+        set => PlayerConfig.Profile.Party.ExpAutoShare = value;
     }
 
     /// <summary>
@@ -25,8 +26,8 @@ internal struct MatchingConfig
     /// </value>
     public bool ItemAutoShare
     {
-        get => PlayerConfig.Get<bool>("RSBot.Party.ItemAutoShare");
-        set => PlayerConfig.Set("RSBot.Party.ItemAutoShare", value);
+        get => PlayerConfig.Profile.Party.ItemAutoShare;
+        set => PlayerConfig.Profile.Party.ItemAutoShare = value;
     }
 
     /// <summary>
@@ -37,8 +38,8 @@ internal struct MatchingConfig
     /// </value>
     public bool AllowInvitations
     {
-        get => PlayerConfig.Get<bool>("RSBot.Party.AllowInvitations");
-        set => PlayerConfig.Set("RSBot.Party.AllowInvitations", value);
+        get => PlayerConfig.Profile.Party.AllowInvitations;
+        set => PlayerConfig.Profile.Party.AllowInvitations = value;
     }
 
     /// <summary>
@@ -47,8 +48,8 @@ internal struct MatchingConfig
     /// <value>The purpose.</value>
     public PartyPurpose Purpose
     {
-        get => (PartyPurpose)PlayerConfig.Get<byte>("RSBot.Party.Matching.Purpose");
-        set => PlayerConfig.Set("RSBot.Party.Matching.Purpose", (byte)value);
+        get => PlayerConfig.Profile.Party.Matching.Purpose;
+        set => PlayerConfig.Profile.Party.Matching.Purpose = value;
     }
 
     /// <summary>
@@ -57,8 +58,8 @@ internal struct MatchingConfig
     /// <value>The title.</value>
     public string Title
     {
-        get => PlayerConfig.Get("RSBot.Party.Matching.Title", "For opening hunting on the silkroad!");
-        set => PlayerConfig.Set("RSBot.Party.Matching.Title", value);
+        get => PlayerConfig.Profile.Party.Matching.Title;
+        set => PlayerConfig.Profile.Party.Matching.Title = value;
     }
 
     /// <summary>
@@ -67,8 +68,8 @@ internal struct MatchingConfig
     /// <value><c>true</c> if [automatic reform]; otherwise, <c>false</c>.</value>
     public bool AutoReform
     {
-        get => PlayerConfig.Get("RSBot.Party.Matching.AutoReform", false);
-        set => PlayerConfig.Set("RSBot.Party.Matching.AutoReform", value);
+        get => PlayerConfig.Profile.Party.Matching.AutoReform;
+        set => PlayerConfig.Profile.Party.Matching.AutoReform = value;
     }
 
     /// <summary>
@@ -77,8 +78,8 @@ internal struct MatchingConfig
     /// <value><c>true</c> if [automatic accept  from matching invite]; otherwise, <c>false</c>.</value>
     public bool AutoAccept
     {
-        get => PlayerConfig.Get("RSBot.Party.Matching.AutoAccept", true);
-        set => PlayerConfig.Set("RSBot.Party.Matching.AutoAccept", value);
+        get => PlayerConfig.Profile.Party.Matching.AutoAccept;
+        set => PlayerConfig.Profile.Party.Matching.AutoAccept = value;
     }
 
     /// <summary>
@@ -87,8 +88,8 @@ internal struct MatchingConfig
     /// <value>The level from.</value>
     public byte LevelFrom
     {
-        get => PlayerConfig.Get<byte>("RSBot.Party.Matching.LevelFrom", 1);
-        set => PlayerConfig.Set("RSBot.Party.Matching.LevelFrom", value);
+        get => PlayerConfig.Profile.Party.Matching.LevelFrom;
+        set => PlayerConfig.Profile.Party.Matching.LevelFrom = value;
     }
 
     /// <summary>
@@ -97,7 +98,7 @@ internal struct MatchingConfig
     /// <value>The level to.</value>
     public byte LevelTo
     {
-        get => PlayerConfig.Get<byte>("RSBot.Party.Matching.LevelTo", 140);
-        set => PlayerConfig.Set("RSBot.Party.Matching.LevelTo", value);
+        get => PlayerConfig.Profile.Party.Matching.LevelTo;
+        set => PlayerConfig.Profile.Party.Matching.LevelTo = value;
     }
 }

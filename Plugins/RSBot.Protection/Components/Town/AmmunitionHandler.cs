@@ -38,7 +38,7 @@ public class AmmunitionHandler : AbstractTownHandler
 
     private static void CheckForAmmunition()
     {
-        if (!PlayerConfig.Get<bool>("RSBot.Protection.checkNoArrows"))
+        if (!PlayerConfig.Profile.Protection.CheckNoArrows)
             return;
 
         var currentAmmunition = Game.Player.GetAmmunitionAmount(true);

@@ -1,4 +1,4 @@
-﻿using System;
+using System;
 using System.ComponentModel;
 using System.Linq;
 using System.Threading.Tasks;
@@ -39,34 +39,74 @@ public partial class Main : DoubleBufferedControl
     /// </summary>
     private void LoadSettings()
     {
-        const string key = "RSBot.Protection.";
+        var config = PlayerConfig.Profile.Protection;
 
-        foreach (var checkbox in groupHPMP.Controls.OfType<CheckBox>())
-            checkbox.Checked = PlayerConfig.Get(key + checkbox.Name, checkbox.Checked);
+        // groupHPMP
+        checkUseHPPotionsPlayer.Checked = config.UseHpPotions;
+        numPlayerHPPotionMin.Value = config.MinHpPotionPercent;
 
-        foreach (var num in groupHPMP.Controls.OfType<NumUpDown>())
-            num.Value = PlayerConfig.Get(key + num.Name, num.Value);
+        checkUseMPPotionsPlayer.Checked = config.UseMpPotions;
+        numPlayerMPPotionMin.Value = config.MinMpPotionPercent;
 
-        foreach (var checkbox in groupBadStatus.Controls.OfType<CheckBox>())
-            checkbox.Checked = PlayerConfig.Get(key + checkbox.Name, checkbox.Checked);
+        checkUseVigorHP.Checked = config.UseVigorHp;
+        numPlayerHPVigorPotionMin.Value = config.MinPlayerHpVigorPercent;
 
-        foreach (var checkbox in groupPet.Controls.OfType<CheckBox>())
-            checkbox.Checked = PlayerConfig.Get(key + checkbox.Name, checkbox.Checked);
+        checkUseVigorMP.Checked = config.UseVigorMp;
+        numPlayerMPVigorPotionMin.Value = config.MinPlayerMpVigorPercent;
 
-        foreach (var num in groupPet.Controls.OfType<NumUpDown>())
-            num.Value = PlayerConfig.Get(key + num.Name, num.Value);
+        checkUseSkillHP.Checked = config.UseSkillHp;
+        numPlayerSkillHPMin.Value = config.MinSkillHpPercent;
 
-        foreach (var checkbox in groupBackTown.Controls.OfType<CheckBox>())
-            checkbox.Checked = PlayerConfig.Get(key + checkbox.Name, checkbox.Checked);
+        checkUseSkillMP.Checked = config.UseSkillMp;
+        numPlayerSkillMPMin.Value = config.MinSkillMpPercent;
 
-        foreach (var num in groupBackTown.Controls.OfType<NumUpDown>())
-            num.Value = PlayerConfig.Get(key + num.Name, num.Value);
+        // groupBadStatus
+        checkUseUniversalPills.Checked = config.UseUniversalPills;
+        checkUseBadStatusSkill.Checked = config.UseBadStatusSkill;
 
-        foreach (var checkbox in groupStatPoints.Controls.OfType<CheckBox>())
-            checkbox.Checked = PlayerConfig.Get(key + checkbox.Name, checkbox.Checked);
+        // groupPet
+        checkUsePetHP.Checked = config.UsePetHp;
+        numPetMinHP.Value = config.MinPetHpPercent;
 
-        foreach (var num in groupStatPoints.Controls.OfType<NumUpDown>())
-            num.Value = PlayerConfig.Get(key + num.Name, num.Value);
+        checkUseHGP.Checked = config.UsePetHgp;
+        numPetMinHGP.Value = config.MinPetHgpPercent;
+
+        checkAutoSummonAttackPet.Checked = config.AutoSummonAttackPet;
+        checkReviveAttackPet.Checked = config.AutoReviveAttackPet;
+        checkUseAbnormalStatePotion.Checked = config.UseAbnormalStatePotion;
+
+        // groupBackTown
+        checkDead.Checked = config.CheckDead;
+        numDeadTimeout.Value = config.DeadTimeoutSeconds;
+
+        checkDurability.Checked = config.CheckDurability;
+        checkInventory.Checked = config.CheckInventoryFull;
+        checkNoArrows.Checked = config.CheckNoArrows;
+
+        checkNoHPPotions.Checked = config.CheckNoHpPotions;
+        numHPPotionsLeft.Value = config.MinHpPotionsLeft;
+
+        checkNoMPPotions.Checked = config.CheckNoMpPotions;
+        numMPPotionsLeft.Value = config.MinMpPotionsLeft;
+
+        checkLevelUp.Checked = config.CheckLevelUp;
+        checkFullPetInventory.Checked = config.ReturnOnFullPetInventory;
+        checkStopBotOnReturnToTown.Checked = config.StopBotOnReturnToTown;
+
+        checkShardFatigue.Checked = config.CheckShardFatigue;
+        numShardFatigueMinToDC.Value = config.ShardFatigueMinToDc;
+
+        // groupStatPoints
+        checkIncBotStopped.Checked = config.IncreaseWhenBotStopped;
+        checkIncStr.Checked = config.AutoIncreaseStr;
+        checkIncInt.Checked = config.AutoIncreaseInt;
+
+        numIncStr.Maximum = 3;
+        numIncInt.Maximum = 3;
+        numIncInt.Value = Math.Clamp(config.PointsToInt, (int)numIncInt.Minimum, 3);
+        numIncStr.Value = Math.Clamp(config.PointsToStr, (int)numIncStr.Minimum, 3 - (int)numIncInt.Value);
+        numIncStr.Maximum = 3 - numIncInt.Value;
+        numIncInt.Maximum = 3 - numIncStr.Value;
     }
 
     /// <summary>
@@ -74,46 +114,78 @@ public partial class Main : DoubleBufferedControl
     /// </summary>
     private void ApplySettings()
     {
-        const string key = "RSBot.Protection.";
-        foreach (var checkbox in groupHPMP.Controls.OfType<CheckBox>())
-            PlayerConfig.Set(key + checkbox.Name, checkbox.Checked);
+        var config = PlayerConfig.Profile.Protection;
 
-        foreach (var num in groupHPMP.Controls.OfType<NumUpDown>())
-            PlayerConfig.Set(key + num.Name, num.Value);
+        // groupHPMP
+        config.UseHpPotions = checkUseHPPotionsPlayer.Checked;
+        config.MinHpPotionPercent = (int)numPlayerHPPotionMin.Value;
 
-        foreach (var checkbox in groupBadStatus.Controls.OfType<CheckBox>())
-            PlayerConfig.Set(key + checkbox.Name, checkbox.Checked);
+        config.UseMpPotions = checkUseMPPotionsPlayer.Checked;
+        config.MinMpPotionPercent = (int)numPlayerMPPotionMin.Value;
 
-        foreach (var checkbox in groupPet.Controls.OfType<CheckBox>())
-            PlayerConfig.Set(key + checkbox.Name, checkbox.Checked);
+        config.UseVigorHp = checkUseVigorHP.Checked;
+        config.MinPlayerHpVigorPercent = (int)numPlayerHPVigorPotionMin.Value;
 
-        foreach (var num in groupPet.Controls.OfType<NumUpDown>())
-            PlayerConfig.Set(key + num.Name, num.Value);
+        config.UseVigorMp = checkUseVigorMP.Checked;
+        config.MinPlayerMpVigorPercent = (int)numPlayerMPVigorPotionMin.Value;
 
-        foreach (var checkbox in groupBackTown.Controls.OfType<CheckBox>())
-            PlayerConfig.Set(key + checkbox.Name, checkbox.Checked);
+        config.UseSkillHp = checkUseSkillHP.Checked;
+        config.MinSkillHpPercent = (int)numPlayerSkillHPMin.Value;
 
-        foreach (var num in groupBackTown.Controls.OfType<NumUpDown>())
-            PlayerConfig.Set(key + num.Name, num.Value);
+        config.UseSkillMp = checkUseSkillMP.Checked;
+        config.MinSkillMpPercent = (int)numPlayerSkillMPMin.Value;
 
-        foreach (var checkbox in groupStatPoints.Controls.OfType<CheckBox>())
-            PlayerConfig.Set(key + checkbox.Name, checkbox.Checked);
+        // groupBadStatus
+        config.UseUniversalPills = checkUseUniversalPills.Checked;
+        config.UseBadStatusSkill = checkUseBadStatusSkill.Checked;
 
-        foreach (var num in groupStatPoints.Controls.OfType<NumUpDown>())
-            PlayerConfig.Set(key + num.Name, num.Value);
+        // groupPet
+        config.UsePetHp = checkUsePetHP.Checked;
+        config.MinPetHpPercent = (int)numPetMinHP.Value;
 
-        SkillInfo skill = null;
+        config.UsePetHgp = checkUseHGP.Checked;
+        config.MinPetHgpPercent = (int)numPetMinHGP.Value;
 
-        skill = comboSkillPlayerHP.SelectedItem as SkillInfo;
-        PlayerConfig.Set(key + "HpSkill", skill?.Id);
+        config.AutoSummonAttackPet = checkAutoSummonAttackPet.Checked;
+        config.AutoReviveAttackPet = checkReviveAttackPet.Checked;
+        config.UseAbnormalStatePotion = checkUseAbnormalStatePotion.Checked;
 
-        skill = comboSkillPlayerMP.SelectedItem as SkillInfo;
-        PlayerConfig.Set(key + "MpSkill", skill?.Id);
+        // groupBackTown
+        config.CheckDead = checkDead.Checked;
+        config.DeadTimeoutSeconds = (int)numDeadTimeout.Value;
 
-        skill = comboSkillBadStatus.SelectedItem as SkillInfo;
-        PlayerConfig.Set(key + "BadStatusSkill", skill?.Id);
+        config.CheckDurability = checkDurability.Checked;
+        config.CheckInventoryFull = checkInventory.Checked;
+        config.CheckNoArrows = checkNoArrows.Checked;
 
-        skill = null;
+        config.CheckNoHpPotions = checkNoHPPotions.Checked;
+        config.MinHpPotionsLeft = (int)numHPPotionsLeft.Value;
+
+        config.CheckNoMpPotions = checkNoMPPotions.Checked;
+        config.MinMpPotionsLeft = (int)numMPPotionsLeft.Value;
+
+        config.CheckLevelUp = checkLevelUp.Checked;
+        config.ReturnOnFullPetInventory = checkFullPetInventory.Checked;
+        config.StopBotOnReturnToTown = checkStopBotOnReturnToTown.Checked;
+
+        config.CheckShardFatigue = checkShardFatigue.Checked;
+        config.ShardFatigueMinToDc = (int)numShardFatigueMinToDC.Value;
+
+        // groupStatPoints
+        config.IncreaseWhenBotStopped = checkIncBotStopped.Checked;
+        config.AutoIncreaseStr = checkIncStr.Checked;
+        config.PointsToStr = (int)numIncStr.Value;
+        config.AutoIncreaseInt = checkIncInt.Checked;
+        config.PointsToInt = (int)numIncInt.Value;
+
+        if (_skillSettingsLoaded)
+        {
+            config.HpSkillId = (comboSkillPlayerHP.SelectedItem as SkillInfo)?.Id ?? 0;
+            config.MpSkillId = (comboSkillPlayerMP.SelectedItem as SkillInfo)?.Id ?? 0;
+            config.BadStatusSkillId = (comboSkillBadStatus.SelectedItem as SkillInfo)?.Id ?? 0;
+        }
+
+        PlayerConfig.Save();
     }
 
     /// <summary>
@@ -121,11 +193,25 @@ public partial class Main : DoubleBufferedControl
     /// </summary>
     private void RefreshSkills()
     {
+        if (InvokeRequired)
+        {
+            Invoke(RefreshSkills);
+            return;
+        }
+
         _skillSettingsLoaded = false;
 
         comboSkillBadStatus.Items.Clear();
         comboSkillPlayerHP.Items.Clear();
         comboSkillPlayerMP.Items.Clear();
+
+        if (Game.Player?.Skills?.KnownSkills == null)
+        {
+            _skillSettingsLoaded = true;
+            return;
+        }
+
+        var config = PlayerConfig.Profile.Protection;
 
         foreach (var skill in Game.Player.Skills.KnownSkills)
         {
@@ -140,20 +226,17 @@ public partial class Main : DoubleBufferedControl
 
             // TODO: Check is the cure skill?
             var index = comboSkillBadStatus.Items.Add(skill);
-            var skillId = PlayerConfig.Get<uint>("RSBot.Protection.BadStatusSkill");
-            if (skillId == skill.Id)
+            if (config.BadStatusSkillId == skill.Id)
                 comboSkillBadStatus.SelectedIndex = index;
 
             // TODO: Check is the hp skill?
             index = comboSkillPlayerHP.Items.Add(skill);
-            skillId = PlayerConfig.Get<uint>("RSBot.Protection.HpSkill");
-            if (skillId == skill.Id)
+            if (config.HpSkillId == skill.Id)
                 comboSkillPlayerHP.SelectedIndex = index;
 
             // TODO: Check is the mp skill?
             index = comboSkillPlayerMP.Items.Add(skill);
-            skillId = PlayerConfig.Get<uint>("RSBot.Protection.MpSkill");
-            if (skillId == skill.Id)
+            if (config.MpSkillId == skill.Id)
                 comboSkillPlayerMP.SelectedIndex = index;
         }
 
@@ -199,22 +282,69 @@ public partial class Main : DoubleBufferedControl
     /// <param name="skill">The learned skill.</param>
     private void OnSkillLearned(SkillInfo skill)
     {
+        if (InvokeRequired)
+        {
+            Invoke(new Action<SkillInfo>(OnSkillLearned), skill);
+            return;
+        }
+
         RefreshSkills();
     }
 
     /// <summary>
-    ///     Call after skill learned
+    ///     Call after skill upgraded
     /// </summary>
-    /// <param name="skill">The learned skill.</param>
+    /// <param name="oldSkill">The old skill.</param>
+    /// <param name="newSkill">The new skill.</param>
     private void OnSkillUpgraded(SkillInfo oldSkill, SkillInfo newSkill)
     {
-        // TODO: Update old skill ids in config
+        if (InvokeRequired)
+        {
+            Invoke(new Action<SkillInfo, SkillInfo>(OnSkillUpgraded), oldSkill, newSkill);
+            return;
+        }
+
+        var config = PlayerConfig.Profile.Protection;
+        var changed = false;
+
+        if (config.HpSkillId == oldSkill.Id)
+        {
+            config.HpSkillId = newSkill.Id;
+            changed = true;
+        }
+
+        if (config.MpSkillId == oldSkill.Id)
+        {
+            config.MpSkillId = newSkill.Id;
+            changed = true;
+        }
+
+        if (config.BadStatusSkillId == oldSkill.Id)
+        {
+            config.BadStatusSkillId = newSkill.Id;
+            changed = true;
+        }
+
+        if (changed)
+            PlayerConfig.Save();
+
+        RefreshSkills();
     }
 
     /// <summary>
     /// </summary>
     private void OnLoadCharacter()
     {
+        if (InvokeRequired)
+        {
+            Invoke(OnLoadCharacter);
+            return;
+        }
+
+        _settingsLoaded = false;
+        LoadSettings();
+        _settingsLoaded = true;
+
         RefreshSkills();
     }
 
@@ -227,7 +357,8 @@ public partial class Main : DoubleBufferedControl
     {
         numIncStr.Maximum = 3 - numIncInt.Value;
 
-        PlayerConfig.Set("RSBot.Protection.numIncInt", numIncInt.Value);
+        if (_settingsLoaded)
+            ApplySettings();
     }
 
     /// <summary>
@@ -239,11 +370,15 @@ public partial class Main : DoubleBufferedControl
     {
         numIncInt.Maximum = 3 - numIncStr.Value;
 
-        PlayerConfig.Set("RSBot.Protection.numIncStr", numIncStr.Value);
+        if (_settingsLoaded)
+            ApplySettings();
     }
 
     private void OnIncreaseStat()
     {
+        if (Game.Player == null)
+            return;
+
         if (Game.Player.StatPoints < numIncInt.Value + numIncStr.Value)
         {
             buttonRun.Text = "Run";

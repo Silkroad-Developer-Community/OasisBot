@@ -192,14 +192,13 @@ public class Proxy
                 host.Dispose();
                 return;
             }
-            var directory = GlobalConfig.Get<string>("RSBot.SilkroadDirectory");
+            var directory = GlobalConfig.Profile.SilkroadDirectory;
             await host.StartAsync(
                     Path.Combine(Kernel.BasePath, "XigncodeHost.exe"),
-                    Path.Combine(directory, GlobalConfig.Get<string>("RSBot.SilkroadExecutable")),
+                    Path.Combine(directory, GlobalConfig.Profile.SilkroadExecutable),
                     Path.Combine(directory, "XIGNCODE"),
                     Game.Clientless
-                        ? GlobalConfig.Get<string>("RSBot.General.AutoLoginAccountUsername") ?? string.Empty
-                        : string.Empty
+                        ? GlobalConfig.Profile.Bot.AutoLoginAccountUsername : string.Empty
                 )
                 .ConfigureAwait(false);
             lock (_probeGate)

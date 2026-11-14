@@ -17,11 +17,17 @@ internal class AreaCommandExecutor : ICommandExecutor
                 $"[RSBot] Setting training area to X={Game.Player.Position.X:0.00} Y={Game.Player.Position.Y:0.00} R=50"
             );
 
-        PlayerConfig.Set("RSBot.Area.Region", Game.Player.Position.Region.Id);
-        PlayerConfig.Set("RSBot.Area.X", Game.Player.Position.XOffset.ToString("0.0"));
-        PlayerConfig.Set("RSBot.Area.Y", Game.Player.Position.YOffset.ToString("0.0"));
-        PlayerConfig.Set("RSBot.Area.Z", Game.Player.Position.ZOffset.ToString("0.0"));
-        PlayerConfig.Get("RSBot.Area.Radius", 50);
+        var activeArea = PlayerConfig.Profile.Training.Areas.Find(a => a.IsActive);
+        if (activeArea == null)        
+            return false;
+
+        activeArea.X = Game.Player.Position.XOffset;
+        activeArea.Y = Game.Player.Position.YOffset;
+        activeArea.Z = Game.Player.Position.ZOffset;
+        activeArea.Region = Game.Player.Position.Region.Id;
+        activeArea.Radius = 50;
+        
+        PlayerConfig.Save();
 
         EventManager.FireEvent("OnSetTrainingArea");
 

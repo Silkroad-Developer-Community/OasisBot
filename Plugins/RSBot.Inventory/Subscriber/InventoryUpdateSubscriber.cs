@@ -18,7 +18,7 @@ internal static class InventoryUpdateSubscriber
 
     private static void OnInventoryUpdate()
     {
-        var autoSort = PlayerConfig.Get("RSBot.Inventory.AutoSort", false);
+        var autoSort = PlayerConfig.Profile.Inventory.AutoSort;
         if (!autoSort)
             return;
 

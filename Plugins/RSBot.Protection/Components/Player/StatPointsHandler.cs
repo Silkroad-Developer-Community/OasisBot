@@ -32,7 +32,7 @@ public class StatPointsHandler
     /// </summary>
     private static void OnPlayerLevelUp(byte oldLevel)
     {
-        var enabledIfBotIsStopped = PlayerConfig.Get<bool>("RSBot.Protection.checkIncBotStopped", true);
+        var enabledIfBotIsStopped = PlayerConfig.Profile.Protection.IncreaseWhenBotStopped;
         if (!Kernel.Bot.Running && !enabledIfBotIsStopped)
             return;
 
@@ -43,11 +43,11 @@ public class StatPointsHandler
 
     public static void IncreaseStatPoints(int stepCount)
     {
-        var incStr = PlayerConfig.Get<bool>("RSBot.Protection.checkIncStr");
-        var incInt = PlayerConfig.Get<bool>("RSBot.Protection.checkIncInt");
+        var incStr = PlayerConfig.Profile.Protection.AutoIncreaseStr;
+        var incInt = PlayerConfig.Profile.Protection.AutoIncreaseInt;
 
-        var numStr = PlayerConfig.Get("RSBot.Protection.numIncStr", 0);
-        var numInt = PlayerConfig.Get("RSBot.Protection.numIncInt", 0);
+        var numStr = PlayerConfig.Profile.Protection.PointsToStr;
+        var numInt = PlayerConfig.Profile.Protection.PointsToInt;
 
         for (var iLevelUp = 0; iLevelUp < stepCount; iLevelUp++)
         {

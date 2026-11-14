@@ -21,7 +21,10 @@ namespace RSBot.Chat
                 Bundle.Chat.SendChatPacket(type, message, receiver);
 
             if (type == ChatType.Private)
-                PlayerConfig.Set("RSBot.Chat.LastWhisper", receiver);
+            {
+                PlayerConfig.Profile.LastWhisper = receiver;
+                PlayerConfig.Save();
+            }                
         }
 
         private void SubscribeEvents()
@@ -31,7 +34,7 @@ namespace RSBot.Chat
 
         private void OnEnterGame()
         {
-            lastWhisper = PlayerConfig.Get<string>("RSBot.Chat.LastWhisper");
+            lastWhisper = PlayerConfig.Profile.LastWhisper;
         }
     }
 }

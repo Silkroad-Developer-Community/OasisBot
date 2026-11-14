@@ -319,8 +319,7 @@ public partial class Main : DoubleBufferedControl
 
         if (_selectedIndex == 0)
         {
-            var useItemsAtTrainingPlace = PlayerConfig.GetArray<string>("RSBot.Inventory.ItemsAtTrainplace");
-
+            var useItemsAtTrainingPlace = PlayerConfig.Profile.Inventory.ItemsAtTrainplace;
             if (useItemsAtTrainingPlace.Contains(item.Record.CodeName))
                 lvItem.Font = new Font(lvItem.Font, FontStyle.Bold);
         }
@@ -447,11 +446,11 @@ public partial class Main : DoubleBufferedControl
         var canUse = (inventoryItem.Record.CanUse & ObjectUseType.Yes) != 0;
         if (canUse)
         {
-            var useItems = PlayerConfig.GetArray<string>("RSBot.Inventory.ItemsAtTrainplace");
+            var useItems = PlayerConfig.Profile.Inventory.ItemsAtTrainplace;
             useItemAtTrainingPlaceMenuItem.Checked = useItems.Contains(inventoryItem.Record.CodeName);
             useItemAtTrainingPlaceMenuItem.Enabled = true;
 
-            var purposiveItems = PlayerConfig.GetArray<string>("RSBot.Inventory.AutoUseAccordingToPurpose");
+            var purposiveItems = PlayerConfig.Profile.Inventory.AutoUseAccordingToPurpose;
             autoUseAccordingToPurposeToolStripMenuItem.Checked = purposiveItems.Contains(inventoryItem.Record.CodeName);
             autoUseAccordingToPurposeToolStripMenuItem.Enabled = true;
         }
@@ -583,7 +582,8 @@ public partial class Main : DoubleBufferedControl
 
     private void checkAutoSort_CheckedChanged(object sender, EventArgs e)
     {
-        PlayerConfig.Set("RSBot.Inventory.AutoSort", checkAutoSort.Checked);
+        PlayerConfig.Profile.Inventory.AutoSort = checkAutoSort.Checked;
+        PlayerConfig.Save();
     }
 
     private void useItemAtTrainingPlaceMenuItem_Click(object sender, EventArgs e)
@@ -592,7 +592,7 @@ public partial class Main : DoubleBufferedControl
             return;
 
         var lvItem = listViewMain.SelectedItems[0];
-        var itemsToUse = PlayerConfig.GetArray<string>("RSBot.Inventory.ItemsAtTrainplace").ToList();
+        var itemsToUse = PlayerConfig.Profile.Inventory.ItemsAtTrainplace;
         var selectedItem = (InventoryItem)lvItem.Tag;
         if (selectedItem == null)
             return;
@@ -611,7 +611,8 @@ public partial class Main : DoubleBufferedControl
         }
 
         useItemAtTrainingPlaceMenuItem.Checked = !useItemAtTrainingPlaceMenuItem.Checked;
-        PlayerConfig.SetArray("RSBot.Inventory.ItemsAtTrainplace", itemsToUse);
+        PlayerConfig.Profile.Inventory.ItemsAtTrainplace = itemsToUse;
+        PlayerConfig.Save();
     }
 
     private void autoUseAccordingToPurposeToolStripMenuItem_Click(object sender, EventArgs e)
@@ -621,7 +622,7 @@ public partial class Main : DoubleBufferedControl
 
         var lvItem = listViewMain.SelectedItems[0];
 
-        var itemsToUse = PlayerConfig.GetArray<string>("RSBot.Inventory.AutoUseAccordingToPurpose").ToList();
+        var itemsToUse = PlayerConfig.Profile.Inventory.AutoUseAccordingToPurpose;
         var selectedItem = (InventoryItem)lvItem.Tag;
         if (selectedItem == null)
             return;
@@ -640,7 +641,8 @@ public partial class Main : DoubleBufferedControl
         }
 
         useItemAtTrainingPlaceMenuItem.Checked = !useItemAtTrainingPlaceMenuItem.Checked;
-        PlayerConfig.SetArray("RSBot.Inventory.AutoUseAccordingToPurpose", itemsToUse);
+        PlayerConfig.Profile.Inventory.AutoUseAccordingToPurpose = itemsToUse;
+        PlayerConfig.Save();
     }
 
     /// <summary>
@@ -650,6 +652,6 @@ public partial class Main : DoubleBufferedControl
     /// <param name="e"></param>
     private void Main_Load(object sender, EventArgs e)
     {
-        checkAutoSort.Checked = PlayerConfig.Get("RSBot.Inventory.AutoSort", false);
+        checkAutoSort.Checked = PlayerConfig.Profile.Inventory.AutoSort;
     }
 }

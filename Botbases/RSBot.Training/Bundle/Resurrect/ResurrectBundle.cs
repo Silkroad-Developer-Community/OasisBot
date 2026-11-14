@@ -17,11 +17,11 @@ internal class ResurrectBundle : IBundle
         if (Game.Party == null || Game.Party.Members == null || Game.Player.HasActiveVehicle)
             return;
 
-        if (!PlayerConfig.Get<bool>("RSBot.Skills.checkResurrectParty"))
+        if (!PlayerConfig.Profile.Skills.ResurrectPartyMembers)
             return;
 
-        ushort resDelay = PlayerConfig.Get<ushort>("RSBot.Skills.numResDelay", 120);
-        ushort resRadius = PlayerConfig.Get<ushort>("RSBot.Skills.numResRadius", 100);
+        ushort resDelay = PlayerConfig.Profile.Skills.ResDelaySeconds;
+        ushort resRadius = PlayerConfig.Profile.Skills.ResRadius;
 
         foreach (var member in Game.Party.Members)
         {

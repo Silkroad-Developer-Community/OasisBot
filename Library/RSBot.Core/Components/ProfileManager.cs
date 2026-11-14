@@ -1,4 +1,5 @@
 using System;
+using System.Collections.Generic;
 using System.Collections.ObjectModel;
 using System.Collections.Specialized;
 using System.IO;
@@ -11,7 +12,7 @@ public class ProfileManager
     /// <summary>
     ///     The profile config
     /// </summary>
-    private static readonly Config _config;
+    private static readonly Config<ProfileConfig> _config;
 
     /// <summary>
     ///     Get active profiles
@@ -23,8 +24,12 @@ public class ProfileManager
     /// </summary>
     static ProfileManager()
     {
-        _config = new Config(GetProfileConfigFileName());
-        _profiles = new ObservableCollection<string>(_config.GetArray<string>("RSBot.Profiles", '|'));
+        _config = new Config<ProfileConfig>(GetProfileConfigFileName());
+        _config.Load();
+
+        _profiles = new ObservableCollection<string>(_config.Data.Profiles ?? ["Default"]);
+
+        MigrateOldProfiles();
 
         if (!_profiles.Contains("Default"))
             _profiles.Insert(0, "Default");
@@ -55,17 +60,17 @@ public class ProfileManager
     /// <summary>
     ///     The selected profile
     /// </summary>
-    public static string SelectedProfile => _config.Get("RSBot.SelectedProfile", "Default");
+    public static string SelectedProfile => _config.Data.SelectedProfile ?? "Default";
 
     /// <summary>
     ///     Show the profile dialog <c>true</c>; otherwise <c>false</c>
     /// </summary>
     public static bool ShowProfileDialog
     {
-        get => _config.Get("RSBot.ShowProfileDialog", false);
+        get => _config.Data.ShowProfileDialog;
         set
         {
-            _config.Set("RSBot.ShowProfileDialog", value);
+            _config.Data.ShowProfileDialog = value;
             _config.Save();
         }
     }
@@ -83,7 +88,7 @@ public class ProfileManager
     /// </summary>
     private static void Profiles_CollectionChanged(object? sender, NotifyCollectionChangedEventArgs e)
     {
-        _config.SetArray("RSBot.Profiles", _profiles, "|");
+        _config.Data.Profiles = _profiles.ToList();
         _config.Save();
     }
 
@@ -93,10 +98,10 @@ public class ProfileManager
     /// <param name="profile">The profile</param>
     public static bool SetSelectedProfile(string profile)
     {
-        if (!_profiles.Any(p => p == profile))
+        if (!_profiles.Any(p => p.Equals(profile, StringComparison.InvariantCultureIgnoreCase)))
             return false;
 
-        _config.Set("RSBot.SelectedProfile", profile);
+        _config.Data.SelectedProfile = profile;
         _config.Save();
 
         return true;
@@ -185,16 +190,50 @@ public class ProfileManager
     /// <returns></returns>
     public static string GetProfileConfigFileName()
     {
-        return Path.Combine(Kernel.BasePath, "User", "Profiles.rs");
+        return Path.Combine(Kernel.BasePath, "User", "Profiles.json");
     }
 
     public static string GetProfileFile(string profileName)
     {
-        return Path.Combine(Kernel.BasePath, "User", $"{profileName}.rs");
+        return Path.Combine(Kernel.BasePath, "User", $"{profileName}.json");
     }
 
     public static string GetProfileDirectory(string profileName)
     {
         return Path.Combine(Kernel.BasePath, "User", profileName);
+    }
+
+    private static void MigrateOldProfiles()
+    {
+        var oldPath = Path.Combine(Kernel.BasePath, "User", "Profiles.rs");
+        if (File.Exists(oldPath) && !File.Exists(GetProfileConfigFileName()))
+        {
+            try
+            {
+                foreach (var line in File.ReadAllLines(oldPath))
+                {
+                    if (string.IsNullOrWhiteSpace(line) || !line.Contains('{')) continue;
+                    var key = line.Split('{')[0].Trim();
+                    var value = line.Split('{')[1].TrimEnd('}').Trim();
+                    if (key == "RSBot.Profiles" && !string.IsNullOrEmpty(value))
+                        _config.Data.Profiles = value.Split('|', StringSplitOptions.RemoveEmptyEntries).ToList();
+                    else if (key == "RSBot.SelectedProfile" && !string.IsNullOrEmpty(value))
+                        _config.Data.SelectedProfile = value;
+                    else if (key == "RSBot.ShowProfileDialog" && bool.TryParse(value, out var show))
+                        _config.Data.ShowProfileDialog = show;
+                }
+                _config.Save();
+            }
+            catch (Exception ex)
+            {
+                Log.Warn($"[ProfileManager] Error migrating old profiles: {ex.Message}");
+            }
+        }
+    }
+    public class ProfileConfig
+    {
+        public List<string> Profiles { get; set; } = ["Default"];
+        public string SelectedProfile { get; set; } = "Default";
+        public bool ShowProfileDialog { get; set; } = false;
     }
 }

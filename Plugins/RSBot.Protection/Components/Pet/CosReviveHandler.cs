@@ -32,7 +32,7 @@ public class CosReviveHandler
         if (!Kernel.Bot.Running)
             return;
 
-        if (!PlayerConfig.Get<bool>("RSBot.Protection.checkReviveAttackPet"))
+        if (!PlayerConfig.Profile.Protection.AutoReviveAttackPet)
             return;
 
         var item = Game.Player.Inventory.GetItemAt(slot);
@@ -63,7 +63,7 @@ public class CosReviveHandler
         if (!Kernel.Bot.Running)
             return;
 
-        if (!PlayerConfig.Get<bool>("RSBot.Protection.checkReviveAttackPet"))
+        if (!PlayerConfig.Profile.Protection.AutoReviveAttackPet)
             return;
 
         if (Game.Player.ReviveFellow())

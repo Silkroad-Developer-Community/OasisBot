@@ -55,8 +55,8 @@ public class ClientManager
                 return false;
             }
         }
-        var silkroadDirectory = GlobalConfig.Get<string>("RSBot.SilkroadDirectory");
-        var path = Path.Combine(silkroadDirectory, GlobalConfig.Get<string>("RSBot.SilkroadExecutable"));
+        var silkroadDirectory = GlobalConfig.Profile.SilkroadDirectory;
+        var path = Path.Combine(silkroadDirectory, GlobalConfig.Profile.SilkroadExecutable);
         if (vtcLayout != null)
         {
             try
@@ -77,8 +77,8 @@ public class ClientManager
         byte[] buffer = Encoding.Unicode.GetBytes(fullPath + "\0");
         uint pathLen = (uint)buffer.Length;
 
-        var gatewayIndex = GlobalConfig.Get<byte>("RSBot.GatewayIndex");
-        var divisionIndex = GlobalConfig.Get<byte>("RSBot.DivisionIndex");
+        var gatewayIndex = GlobalConfig.Profile.GatewayIndex;
+        var divisionIndex = GlobalConfig.Profile.DivisionIndex;
         var contentId = Game.ReferenceManager.DivisionInfo.Locale;
 
         var args = $"/{contentId} {divisionIndex} {gatewayIndex} 0";
@@ -96,8 +96,8 @@ public class ClientManager
 
         if (Game.ClientType == GameClientType.RuSro)
         {
-            string login = GlobalConfig.Get<string>("RSBot.RuSro.login");
-            string password = GlobalConfig.Get<string>("RSBot.RuSro.password");
+            string login = GlobalConfig.Profile.RuSro.Login;
+            string password = GlobalConfig.Profile.RuSro.Password;
             args = $"-LOGIN:{login} -PASSWORD:{password}";
         }
 
@@ -684,7 +684,7 @@ public class ClientManager
             new FileStream(Path.Combine(Path.GetTempPath(), tmpConfigFile), FileMode.Create)
         );
 
-        writer.Write(GlobalConfig.Get<bool>("RSBot.Loader.DebugMode"));
+        writer.Write(GlobalConfig.Profile.LoaderDebugMode);
         writer.WriteAscii(redirectIp);
         writer.Write(Kernel.Proxy.Port);
         writer.Write(division.GatewayServers.Count);

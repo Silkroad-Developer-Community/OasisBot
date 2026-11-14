@@ -74,8 +74,8 @@ public static class Kernel
     /// </summary>
     public static bool EnableCollisionDetection
     {
-        get => GlobalConfig.Get("RSBot.EnableCollisionDetection", false);
-        set => GlobalConfig.Set("RSBot.EnableCollisionDetection", value);
+        get => GlobalConfig.Profile.EnableCollisionDetection;
+        set => GlobalConfig.Profile.EnableCollisionDetection = value;
     }
 
     /// <summary>
@@ -88,9 +88,9 @@ public static class Kernel
 #if DEBUG
             return true;
 #endif
-            return GlobalConfig.Get("RSBot.DebugEnvironment", false);
+            return GlobalConfig.Profile.DebugEnvironment;
         }
-        set => GlobalConfig.Set("RSBot.DebugEnvironment", value);
+        set => GlobalConfig.Profile.DebugEnvironment = value;
     }
 
     /// <summary>

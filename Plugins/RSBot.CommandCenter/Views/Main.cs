@@ -21,7 +21,7 @@ public partial class Main : DoubleBufferedControl
 
     private void RefreshView()
     {
-        checkEnable.Checked = PlayerConfig.Get("RSBot.CommandCenter.Enabled", true);
+        checkEnable.Checked = PlayerConfig.Profile.EnableCommandCenter;
 
         panelActions.Hide();
         panelActions.Controls.Clear();
@@ -72,17 +72,36 @@ public partial class Main : DoubleBufferedControl
             return;
 
         foreach (var emoticon in Emoticons.Items)
-            PlayerConfig.Set(
-                $"RSBot.CommandCenter.MappedEmotes.{emoticon.Name}",
-                Emoticons.GetEmoticonDefaultCommand(emoticon.Name)
-            );
+        {
+            switch (emoticon.Type)
+            {
+                case EmoticonType.Yes:
+                    PlayerConfig.Profile.Commands.EmoticonYes = "start";
+                    break;
+                case EmoticonType.No:
+                    PlayerConfig.Profile.Commands.EmoticonNo = "stop";
+                    break;
+                case EmoticonType.Rush:
+                    PlayerConfig.Profile.Commands.EmoticonRush = "area";
+                    break;
+                case EmoticonType.Greeting:
+                    PlayerConfig.Profile.Commands.EmoticonGreeting = "area";
+                    break;
+                case EmoticonType.Smile:
+                    PlayerConfig.Profile.Commands.EmoticonSmile = "show";
+                    break;
+            }
+        }
+
+        PlayerConfig.Save();
 
         RefreshView();
     }
 
     private void checkEnable_CheckedChanged(object sender, EventArgs e)
     {
-        PlayerConfig.Set("RSBot.CommandCenter.Enabled", checkEnable.Checked);
+        PlayerConfig.Profile.EnableCommandCenter = checkEnable.Checked;
+        PlayerConfig.Save();
     }
 
     private void btnSave_Click(object sender, EventArgs e)

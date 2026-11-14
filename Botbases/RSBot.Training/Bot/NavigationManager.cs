@@ -199,11 +199,18 @@ internal static class NavigationManager
                 return false;
         }
 
+        var currentArea = PlayerConfig.Profile.Training.Areas.Find(p => p.IsActive);
+        if (currentArea == null)
+        {
+            Log.Error("No active training area found!");
+            return false;
+        }
+
         var targetPos = new Position(
-            PlayerConfig.Get<ushort>("RSBot.Area.Region"),
-            PlayerConfig.Get<float>("RSBot.Area.X"),
-            PlayerConfig.Get<float>("RSBot.Area.Y"),
-            PlayerConfig.Get<float>("RSBot.Area.Z")
+            currentArea.Region,
+            currentArea.X,
+            currentArea.Y,
+            currentArea.Z
         );
 
         var playerPos = Game.Player.Movement.Source;

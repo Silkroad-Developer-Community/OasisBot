@@ -111,7 +111,7 @@ internal class CharacterListing : IPacketHandler
             Log.NotifyLang("PlayerDetected", name, level);
         }
 
-        var username = GlobalConfig.Get<string>("RSBot.General.AutoLoginAccountUsername");
+        var username = GlobalConfig.Profile.Bot.AutoLoginAccountUsername;
         var selectedAccount = Accounts.SavedAccounts?.Find(p => p.Username == username);
         if (selectedAccount == null)
             return;
@@ -138,11 +138,11 @@ internal class CharacterListing : IPacketHandler
                 return;
             }
 
-            if (GlobalConfig.Get<bool>("RSBot.General.CharacterAutoSelectFirst"))
+            if (GlobalConfig.Profile.Bot.CharacterAutoSelectFirst)
             {
                 selectedAccount.SelectedCharacter = lobbyCharacters.FirstOrDefault().name;
             }
-            else if (GlobalConfig.Get<bool>("RSBot.General.CharacterAutoSelectHigher"))
+            else if (GlobalConfig.Profile.Bot.CharacterAutoSelectHigher)
             {
                 selectedAccount.SelectedCharacter = lobbyCharacters.MaxBy(p => p.level).name;
             }

@@ -23,11 +23,11 @@ public static class CosHealthRecoveryHandler
     /// </summary>
     private static void OnCosHealthUpdate(Cos cos)
     {
-        var useHPPotions = PlayerConfig.Get<bool>("RSBot.Protection.checkUsePetHP");
+        var useHPPotions = PlayerConfig.Profile.Protection.UsePetHp;
         if (!useHPPotions)
             return;
 
-        var minHp = PlayerConfig.Get("RSBot.Protection.numPetMinHP", 80);
+        var minHp = PlayerConfig.Profile.Protection.MinPetHpPercent;
 
         if (cos == null)
             return;

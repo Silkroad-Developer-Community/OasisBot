@@ -1,4 +1,4 @@
-﻿using System;
+using System;
 using System.Linq;
 using System.Threading;
 using RSBot.Core;
@@ -40,6 +40,15 @@ namespace RSBot.Skills
         {
             ApplyAttackSkills();
             ApplyBuffSkills();
+
+            if (PlayerConfig.Profile.Skills.ResurrectionSkillId != 0)
+                SkillManager.ResurrectionSkill = Game.Player.Skills.GetSkillInfoById(PlayerConfig.Profile.Skills.ResurrectionSkillId);
+
+            if (PlayerConfig.Profile.Skills.ImbueSkillId != 0)
+                SkillManager.ImbueSkill = Game.Player.Skills.GetSkillInfoById(PlayerConfig.Profile.Skills.ImbueSkillId);
+
+            if (PlayerConfig.Profile.Skills.TeleportSkillId != 0)
+                SkillManager.TeleportSkill = Game.Player.Skills.GetSkillInfoById(PlayerConfig.Profile.Skills.TeleportSkillId);
         }
 
         private void OnSkillUpgraded(SkillInfo oldSkill, SkillInfo newSkill)
@@ -58,8 +67,7 @@ namespace RSBot.Skills
 
         private void OnResurrectionRequest()
         {
-            const string key = "RSBot.Skills.";
-            if (Game.AcceptanceRequest != null && PlayerConfig.Get<bool>(key + "checkAcceptResurrection"))
+            if (Game.AcceptanceRequest != null && PlayerConfig.Profile.Skills.AcceptResurrection)
                 Game.AcceptanceRequest.Accept();
         }
 
@@ -68,20 +76,21 @@ namespace RSBot.Skills
         /// </summary>
         private void OnSpUpdated()
         {
-            var gap = PlayerConfig.Get<decimal>("RSBot.Skills.numMasteryGap");
-            var selectedMasteryName = PlayerConfig.Get<string>("RSBot.Skills.selectedMastery");
+            var gap = PlayerConfig.Profile.Skills.MasteryGap;
+            var selectedMasteryName = PlayerConfig.Profile.Skills.SelectedMastery;
             var mastery = Game.Player.Skills.Masteries.FirstOrDefault(m => m.Record.NameCode == selectedMasteryName);
-            var checkLearnMastery = PlayerConfig.Get<bool>("RSBot.Skills.checkLearnMastery");
-            var checkLearnMasteryBotStopped = PlayerConfig.Get<bool>("RSBot.Skills.checkLearnMasteryBotStopped");
+            var checkLearnMastery = PlayerConfig.Profile.Skills.AutoLearnMastery;
+            var checkLearnMasteryBotStopped = PlayerConfig.Profile.Skills.LearnMasteryWhenBotStopped;
             if (selectedMasteryName == null || !checkLearnMastery)
                 return;
             if (!checkLearnMasteryBotStopped && !Kernel.Bot.Running)
                 return;
-            if (mastery.Level + gap == Game.Player.Level)
+            if (mastery == null || mastery.Level + gap == Game.Player.Level)
                 return;
             UpdateMastery(mastery.Level, mastery.Record, gap);
         }
         #endregion
+
         public void UpdateMastery(byte level, RefSkillMastery record, decimal gap = 0)
         {
             if (_isUpdatingMastery)
@@ -117,7 +126,8 @@ namespace RSBot.Skills
 
             for (var i = 0; i < _numMonsterTypes; i++)
             {
-                var skillIds = PlayerConfig.GetArray<uint>("RSBot.Skills.Attacks_" + i);
+                if (!PlayerConfig.Profile.Skills.AttackSkillsByRarity.TryGetValue(i, out var skillIds))
+                    continue;
 
                 foreach (var skillId in skillIds)
                 {
@@ -171,7 +181,7 @@ namespace RSBot.Skills
 
             Game.Player.TryGetAbilitySkills(out var abilitySkills);
 
-            foreach (var buffId in PlayerConfig.GetArray<uint>("RSBot.Skills.Buffs"))
+            foreach (var buffId in PlayerConfig.Profile.Skills.BuffSkills)
             {
                 var skillInfo = Game.Player.Skills.GetSkillInfoById(buffId);
                 if (skillInfo == null)
@@ -187,14 +197,34 @@ namespace RSBot.Skills
 
         public static void SaveSkills(string monsterType, uint[] skills)
         {
-            PlayerConfig.SetArray(monsterType, skills);
+            if (monsterType == "RSBot.Skills.Buffs" || monsterType == "Buffs")
+            {
+                PlayerConfig.Profile.Skills.BuffSkills.Clear();
+                PlayerConfig.Profile.Skills.BuffSkills.AddRange(skills);
+            }
+            else
+            {
+                var indexStr = monsterType.Replace("RSBot.Skills.Attacks_", "");
+                if (int.TryParse(indexStr, out var rarityIndex))
+                {
+                    if (!PlayerConfig.Profile.Skills.AttackSkillsByRarity.ContainsKey(rarityIndex))
+                        PlayerConfig.Profile.Skills.AttackSkillsByRarity[rarityIndex] = new();
+
+                    PlayerConfig.Profile.Skills.AttackSkillsByRarity[rarityIndex].Clear();
+                    PlayerConfig.Profile.Skills.AttackSkillsByRarity[rarityIndex].AddRange(skills);
+                }
+            }
+
+            PlayerConfig.Save();
         }
 
         public static void CheckSkillWithdrawnOrUpgraded(SkillInfo oldSkill, SkillInfo newSkill)
         {
             for (var i = 0; i < _numMonsterTypes; i++)
             {
-                var skills = PlayerConfig.GetArray<uint>($"RSBot.Skills.Attacks_{i}").ToList();
+                if (!PlayerConfig.Profile.Skills.AttackSkillsByRarity.TryGetValue(i, out var skills))
+                    continue;
+
                 var index = skills.IndexOf(oldSkill.Id);
                 if (index == -1)
                     continue;
@@ -203,11 +233,9 @@ namespace RSBot.Skills
                     skills.RemoveAt(index);
                 else
                     skills[index] = newSkill.Id;
-
-                PlayerConfig.SetArray($"RSBot.Skills.Attacks_{i}", skills);
             }
 
-            var buffs = PlayerConfig.GetArray<uint>("RSBot.Skills.Buffs").ToList();
+            var buffs = PlayerConfig.Profile.Skills.BuffSkills;
             var buffIndex = buffs.IndexOf(oldSkill.Id);
             if (buffIndex != -1)
             {
@@ -216,41 +244,48 @@ namespace RSBot.Skills
                     buffs.RemoveAt(buffIndex);
                 else
                     buffs[buffIndex] = newSkill.Id;
-
-                PlayerConfig.SetArray("RSBot.Skills.Buffs", buffs);
             }
 
-            var resurrectionSkill = PlayerConfig.Get<uint>("RSBot.Skills.ResurrectionSkill");
-            if (resurrectionSkill == oldSkill.Id)
+            if (PlayerConfig.Profile.Skills.ResurrectionSkillId == oldSkill.Id)
             {
                 if (oldSkill.Id == newSkill.Id)
+                {
                     SkillManager.ResurrectionSkill = null;
+                    PlayerConfig.Profile.Skills.ResurrectionSkillId = 0;
+                }
                 else
-                    resurrectionSkill = newSkill.Id;
-
-                PlayerConfig.Set("RSBot.Skills.ResurrectionSkill", resurrectionSkill);
+                {
+                    PlayerConfig.Profile.Skills.ResurrectionSkillId = newSkill.Id;
+                    SkillManager.ResurrectionSkill = newSkill;
+                }
             }
 
-            var selectedImbue = PlayerConfig.Get<uint>("RSBot.Skills.Imbue");
-            if (selectedImbue == oldSkill.Id)
+            if (PlayerConfig.Profile.Skills.ImbueSkillId == oldSkill.Id)
             {
                 if (oldSkill.Id == newSkill.Id)
+                {
                     SkillManager.ImbueSkill = null;
+                    PlayerConfig.Profile.Skills.ImbueSkillId = 0;
+                }
                 else
-                    selectedImbue = newSkill.Id;
-
-                PlayerConfig.Set("RSBot.Skills.Imbue", selectedImbue);
+                {
+                    PlayerConfig.Profile.Skills.ImbueSkillId = newSkill.Id;
+                    SkillManager.ImbueSkill = newSkill;
+                }
             }
 
-            var selectedTeleportSkill = PlayerConfig.Get<uint>("RSBot.Skills.TeleportSkill");
-            if (selectedTeleportSkill == oldSkill.Id)
+            if (PlayerConfig.Profile.Skills.TeleportSkillId == oldSkill.Id)
             {
                 if (oldSkill.Id == newSkill.Id)
+                {
                     SkillManager.TeleportSkill = null;
+                    PlayerConfig.Profile.Skills.TeleportSkillId = 0;
+                }
                 else
-                    selectedTeleportSkill = newSkill.Id;
-
-                PlayerConfig.Set("RSBot.Skills.TeleportSkill", selectedTeleportSkill);
+                {
+                    PlayerConfig.Profile.Skills.TeleportSkillId = newSkill.Id;
+                    SkillManager.TeleportSkill = newSkill;
+                }
             }
 
             ApplyAttackSkills();
@@ -262,23 +297,27 @@ namespace RSBot.Skills
         public static void SetImbueSkill(SkillInfo imbue)
         {
             SkillManager.ImbueSkill = imbue;
-            PlayerConfig.Set("RSBot.Skills.Imbue", imbue == null ? 0 : imbue.Id);
+            PlayerConfig.Profile.Skills.ImbueSkillId = imbue == null ? 0 : imbue.Id;
+            PlayerConfig.Save();
         }
 
         public static void SetResurrectionSkill(SkillInfo skill)
         {
             SkillManager.ResurrectionSkill = skill;
-            PlayerConfig.Set("RSBot.Skills.ResurrectionSkill", skill == null ? 0 : skill.Id);
+            PlayerConfig.Profile.Skills.ResurrectionSkillId = skill == null ? 0 : skill.Id;
+            PlayerConfig.Save();
         }
 
         public static void SetMasteryToLearn(string mastery)
         {
-            PlayerConfig.Set("RSBot.Skills.selectedMastery", mastery);
+            PlayerConfig.Profile.Skills.SelectedMastery = mastery;
+            PlayerConfig.Save();
         }
 
         public static void SetTeleportSkill(uint skillId)
         {
-            PlayerConfig.Set("RSBot.Skills.TeleportSkill", skillId);
+            PlayerConfig.Profile.Skills.TeleportSkillId = skillId;
+            PlayerConfig.Save();
 
             SkillManager.TeleportSkill = Game.Player.Skills.GetSkillInfoById(skillId);
         }

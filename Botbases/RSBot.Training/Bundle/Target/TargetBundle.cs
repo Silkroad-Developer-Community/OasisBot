@@ -96,7 +96,7 @@ internal class TargetBundle : IBundle
             return;
         }
 
-        var warlockModeEnabled = PlayerConfig.Get("RSBot.Skills.checkWarlockMode", false);
+        var warlockModeEnabled = PlayerConfig.Profile.Skills.WarlockMode;
         if (warlockModeEnabled && Game.SelectedEntity?.State.HasTwoDots() == true)
             return;
 
@@ -119,7 +119,7 @@ internal class TargetBundle : IBundle
 
     private SpawnedMonster GetFromCurrentAttackers()
     {
-        var attackWeakerFirst = PlayerConfig.Get<bool>("RSBot.Training.checkAttackWeakerFirst");
+        var attackWeakerFirst = PlayerConfig.Profile.Training.AttackWeakerFirst;
         if (!attackWeakerFirst || !IsEmergencySituation())
             return null;
 
@@ -154,8 +154,8 @@ internal class TargetBundle : IBundle
     /// <returns></returns>
     private SpawnedMonster GetNearestEnemy()
     {
-        var warlockModeEnabled = PlayerConfig.Get<bool>("RSBot.Skills.checkWarlockMode");
-        var ignorePillar = PlayerConfig.Get<bool>("RSBot.Training.checkBoxDimensionPillar");
+        var warlockModeEnabled = PlayerConfig.Profile.Skills.WarlockMode;
+        var ignorePillar = PlayerConfig.Profile.Training.AttackWeakerFirst;
 
         if (
             !SpawnManager.TryGetEntities<SpawnedMonster>(

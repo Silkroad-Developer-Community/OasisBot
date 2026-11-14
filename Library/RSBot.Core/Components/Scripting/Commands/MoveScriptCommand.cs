@@ -128,7 +128,7 @@ internal class MoveScriptCommand : IScriptCommand
         Position previousPosition = Game.Player.Position;
         Position pos = new(xSector, ySector, xOffset, yOffset, zOffset);
 
-        if (PlayerConfig.Get("RSBot.Training.checkUseSpeedDrug", true))
+        if (PlayerConfig.Profile.Training.UseSpeedDrug)
         {
             if (
                 !Game.Player.HasActiveVehicle
@@ -144,14 +144,14 @@ internal class MoveScriptCommand : IScriptCommand
             }
         }
 
-        if (PlayerConfig.Get("RSBot.Training.checkUseMount", true))
+        if (PlayerConfig.Profile.Training.UseMount)
         {
             if (
                 !Game.Player.HasActiveVehicle
                 && !Game.Player.InAction
                 && !(
                     ScriptManager.Running
-                    && ScriptManager.File == PlayerConfig.Get("RSBot.Lure.SelectedScriptPath", string.Empty)
+                    && ScriptManager.File == PlayerConfig.Profile.Lure.SelectedScriptPath
                 )
             )
             {

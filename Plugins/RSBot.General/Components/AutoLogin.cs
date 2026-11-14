@@ -42,7 +42,7 @@ internal static class AutoLogin
 
         _busy = true;
 
-        if (!GlobalConfig.Get<bool>("RSBot.General.EnableAutomatedLogin"))
+        if (!GlobalConfig.Profile.Bot.EnableAutomatedLogin)
         {
             _busy = false;
 
@@ -51,11 +51,9 @@ internal static class AutoLogin
             return;
         }
 
-        var autoLoginUsername = !string.IsNullOrEmpty(ProfileManager.SelectedAccount)
-            ? ProfileManager.SelectedAccount
-            : GlobalConfig.Get<string>("RSBot.General.AutoLoginAccountUsername");
-
-        var selectedAccount = Accounts.SavedAccounts?.Find(p => p.Username == autoLoginUsername);
+        var selectedAccount = Accounts.SavedAccounts?.Find(p =>
+            p.Username == GlobalConfig.Profile.Bot.AutoLoginAccountUsername
+        );
         if (selectedAccount == null)
         {
             _busy = false;
@@ -75,6 +73,8 @@ internal static class AutoLogin
             Log.NotifyLang("SelectedFirstServer", server.Name);
         }
 
+        Game.JoinedServer = server.Name;
+
         // is server check [Lazy :)]
         if (!server.Status)
         {
@@ -90,9 +90,9 @@ internal static class AutoLogin
 
         //Wait for the configured delay before sending the login request
         //It is possible to cancel in case of manual login to the server
-        if (GlobalConfig.Get("RSBot.General.EnableLoginDelay", false))
+        if (GlobalConfig.Profile.Bot.EnableLoginDelay)
         {
-            var delay = GlobalConfig.Get("RSBot.General.LoginDelay", 10) * 1000;
+            int delay = (int)GlobalConfig.Profile.Bot.LoginDelay * 1000;
             Cts = new CancellationTokenSource();
 
             try
@@ -123,7 +123,7 @@ internal static class AutoLogin
         if (Accounts.Joined == null)
             return;
 
-        if (!GlobalConfig.Get<bool>("RSBot.General.EnableAutomatedLogin"))
+        if (!GlobalConfig.Profile.Bot.EnableAutomatedLogin)
             return;
 
         var secondaryPassword = Accounts.Joined.SecondaryPassword;
@@ -165,13 +165,13 @@ internal static class AutoLogin
         loginPacket.WriteByte(Game.ReferenceManager.DivisionInfo.Locale);
         if (Game.ClientType == GameClientType.RuSro)
         {
-            loginPacket.WriteString(GlobalConfig.Get<string>("RSBot.RuSro.login"));
-            loginPacket.WriteString(GlobalConfig.Get<string>("RSBot.RuSro.password"));
+            loginPacket.WriteString(GlobalConfig.Profile.RuSro.Login);
+            loginPacket.WriteString(GlobalConfig.Profile.RuSro.Password);
         }
         else if (Game.ClientType == GameClientType.Japanese)
         {
             loginPacket.WriteString(string.Empty);
-            loginPacket.WriteString(GlobalConfig.Get<string>("RSBot.JSRO.token"));
+            loginPacket.WriteString(GlobalConfig.Profile.Jsro.Token);
         }
         else
         {
@@ -237,12 +237,12 @@ internal static class AutoLogin
     public static void SendStaticCaptcha()
     {
         if (
-            !GlobalConfig.Get<bool>("RSBot.General.EnableStaticCaptcha")
-            || !GlobalConfig.Get<bool>("RSBot.General.EnableAutomatedLogin")
+            !GlobalConfig.Profile.Bot.EnableStaticCaptcha
+            || !GlobalConfig.Profile.Bot.EnableAutomatedLogin
         )
             return;
 
-        var captcha = GlobalConfig.Get<string>("RSBot.General.StaticCaptcha");
+        var captcha = GlobalConfig.Profile.Bot.StaticCaptcha;
         captcha ??= string.Empty;
 
         Log.NotifyLang("EnteringCaptcha", captcha);
@@ -259,7 +259,7 @@ internal static class AutoLogin
     /// <param name="character">The character.</param>
     public static void EnterGame(string character)
     {
-        if (!GlobalConfig.Get<bool>("RSBot.General.EnableAutomatedLogin"))
+        if (!GlobalConfig.Profile.Bot.EnableAutomatedLogin)
             return;
 
         var packet = new Packet(0x7001);

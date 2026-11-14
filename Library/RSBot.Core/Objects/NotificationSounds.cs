@@ -289,251 +289,13 @@ namespace RSBot.Core.Objects
         }
 
         /// <summary>
-        ///     Updates the player settings regarding notification sounds
-        /// </summary>
-        /// <param name="key"></param>
-        /// <param name="value"></param>
-        public void UpdatePlayerSettings(string key, object value)
-        {
-            if (null == value)
-            {
-                return;
-            }
-
-            if (string.IsNullOrWhiteSpace(key))
-            {
-                return;
-            }
-
-            if (value is string stingValue)
-            {
-                PlayerConfig.Set(key, stingValue);
-                UpdateSoundPlayerString(key, stingValue);
-            }
-            else if (value is bool boolValue)
-            {
-                PlayerConfig.Set(key, boolValue);
-                UpdateSoundPlayerBool(key, boolValue);
-            }
-        }
-
-        /// <summary>
-        ///     Updates if player should play
-        /// </summary>
-        /// <param name="key">Key</param>
-        /// <param name="play">Play</param>
-        private void UpdateSoundPlayerBool(string key, bool play)
-        {
-            // Unique in range
-            if (key.Equals("RSBot.Sounds.PlayAlarmUniqueInRange"))
-            {
-                PlayAlarmUniqueInRange = play;
-            }
-
-            // Tiger Girl
-            if (key.Equals("RSBot.Sounds.PlayUniqueAlarmTigerGirl"))
-            {
-                PlayUniqueAlarmTigerGirl = play;
-            }
-
-            // Cerberus
-            if (key.Equals("RSBot.Sounds.PlayUniqueAlarmCerberus"))
-            {
-                PlayUniqueAlarmCerberus = play;
-            }
-
-            // Captain Ivy
-            if (key.Equals("RSBot.Sounds.PlayUniqueAlarmCaptainIvy"))
-            {
-                PlayUniqueAlarmCaptainIvy = play;
-            }
-
-            // Uruchi
-            if (key.Equals("RSBot.Sounds.PlayUniqueAlarmUruchi"))
-            {
-                PlayUniqueAlarmUruchi = play;
-            }
-
-            // Isyutaru
-            if (key.Equals("RSBot.Sounds.PlayUniqueAlarmIsyutaru"))
-            {
-                PlayUniqueAlarmIsyutaru = play;
-            }
-
-            // Lord Yarkan
-            if (key.Equals("RSBot.Sounds.PlayUniqueAlarmLordYarkan"))
-            {
-                PlayUniqueAlarmLordYarkan = play;
-            }
-
-            // Demon Shaitan
-            if (key.Equals("RSBot.Sounds.PlayUniqueAlarmDemonShaitan"))
-            {
-                PlayUniqueAlarmDemonShaitan = play;
-            }
-
-            // General
-            if (key.Equals("RSBot.Sounds.PlayUniqueAlarmGeneral"))
-            {
-                PlayUniqueAlarmGeneral = play;
-            }
-        }
-
-        /// <summary>
-        ///     Updates path + player
-        /// </summary>
-        /// <param name="key">Key</param>
-        /// <param name="path">Path</param>
-        private void UpdateSoundPlayerString(string key, string path)
-        {
-            // Unique in range
-            if (key.Equals("RSBot.Sounds.PathAlarmUniqueInRange"))
-            {
-                if (false == string.IsNullOrWhiteSpace(path))
-                {
-                    if (File.Exists(path))
-                    {
-                        PathAlarmUniqueInRange = path;
-                        _playerAlarmUniqueInRange ??= new();
-                        _playerAlarmUniqueInRange.SoundLocation = path;
-                    }
-                }
-            }
-
-            // Tiger Girl
-            if (key.Equals("RSBot.Sounds.PathUniqueAlarmTigerGirl"))
-            {
-                if (false == string.IsNullOrWhiteSpace(path))
-                {
-                    if (File.Exists(path))
-                    {
-                        PathUniqueAlarmTigerGirl = path;
-                        _playerUniqueAlarmTigerGirl ??= new();
-                        _playerUniqueAlarmTigerGirl.SoundLocation = path;
-                    }
-                }
-            }
-
-            // Cerberus
-            if (key.Equals("RSBot.Sounds.PathUniqueAlarmCerberus"))
-            {
-                if (false == string.IsNullOrWhiteSpace(path))
-                {
-                    if (File.Exists(path))
-                    {
-                        PathUniqueAlarmCerberus = path;
-                        _playerUniqueAlarmCerberus ??= new();
-                        _playerUniqueAlarmCerberus.SoundLocation = path;
-                    }
-                }
-            }
-
-            // Captain Ivy
-            if (key.Equals("RSBot.Sounds.PathUniqueAlarmCaptainIvy"))
-            {
-                if (false == string.IsNullOrWhiteSpace(path))
-                {
-                    if (File.Exists(path))
-                    {
-                        PathUniqueAlarmCaptainIvy = path;
-                        _playerUniqueAlarmIvy ??= new();
-                        _playerUniqueAlarmIvy.SoundLocation = path;
-                    }
-                }
-            }
-
-            // Uruchi
-            if (key.Equals("RSBot.Sounds.PathUniqueAlarmUruchi"))
-            {
-                if (false == string.IsNullOrWhiteSpace(path))
-                {
-                    if (File.Exists(path))
-                    {
-                        PathUniqueAlarmUruchi = path;
-                        _playerUniqueAlarmUruchi ??= new();
-                        _playerUniqueAlarmUruchi.SoundLocation = path;
-                    }
-                }
-            }
-
-            // Isyutaru
-            if (key.Equals("RSBot.Sounds.PathUniqueAlarmIsyutaru"))
-            {
-                if (false == string.IsNullOrWhiteSpace(path))
-                {
-                    if (File.Exists(path))
-                    {
-                        PathUniqueAlarmIsyutaru = path;
-                        _playerUniqueAlarmIsyutaru ??= new();
-                        _playerUniqueAlarmIsyutaru.SoundLocation = path;
-                    }
-                }
-            }
-
-            // Lord Yarkan
-            if (key.Equals("RSBot.Sounds.PathUniqueAlarmLordYarkan"))
-            {
-                if (false == string.IsNullOrWhiteSpace(path))
-                {
-                    if (File.Exists(path))
-                    {
-                        PathUniqueAlarmLordYarkan = path;
-                        _playerUniqueAlarmLordYarkan ??= new();
-                        _playerUniqueAlarmLordYarkan.SoundLocation = path;
-                    }
-                }
-            }
-
-            // Demon Shaitan
-            if (key.Equals("RSBot.Sounds.PathUniqueAlarmDemonShaitan"))
-            {
-                if (false == string.IsNullOrWhiteSpace(path))
-                {
-                    if (File.Exists(path))
-                    {
-                        PathUniqueAlarmDemonShaitan = path;
-                        _playerUniqueAlarmDemonShaitan ??= new();
-                        _playerUniqueAlarmDemonShaitan.SoundLocation = path;
-                    }
-                }
-            }
-
-            // General
-            if (key.Equals("RSBot.Sounds.PathUniqueAlarmGeneral"))
-            {
-                if (false == string.IsNullOrWhiteSpace(path))
-                {
-                    if (File.Exists(path))
-                    {
-                        PathUniqueAlarmGeneral = path;
-                        _playerUniqueAlarmGeneral ??= new();
-                        _playerUniqueAlarmGeneral.SoundLocation = path;
-                    }
-                }
-            }
-
-            // Regex
-            if (key.Equals("RSBot.Sounds.RegexUniqueAlarmGeneral"))
-            {
-                try
-                {
-                    RegexUniqueAlarmGeneral = new Regex(path);
-                }
-                catch
-                {
-                    RegexUniqueAlarmGeneral = new Regex("^.*$");
-                }
-            }
-        }
-
-        /// <summary>
         ///     Loads all player settings regarding notification sounds
         /// </summary>
         public void LoadPlayerSettings()
         {
             // Unique in range
-            PlayAlarmUniqueInRange = PlayerConfig.Get("RSBot.Sounds.PlayAlarmUniqueInRange", false);
-            PathAlarmUniqueInRange = PlayerConfig.Get("RSBot.Sounds.PathAlarmUniqueInRange", string.Empty);
+            PlayAlarmUniqueInRange = PlayerConfig.Profile.Alarms.PlayAlarmUniqueInRange;
+            PathAlarmUniqueInRange = PlayerConfig.Profile.Alarms.AlarmPathUniqueInRange;
             if (false == string.IsNullOrWhiteSpace(PathAlarmUniqueInRange))
             {
                 if (File.Exists(PathAlarmUniqueInRange))
@@ -544,8 +306,8 @@ namespace RSBot.Core.Objects
             }
 
             // Tiger Girl
-            PlayUniqueAlarmTigerGirl = PlayerConfig.Get("RSBot.Sounds.PlayUniqueAlarmTigerGirl", false);
-            PathUniqueAlarmTigerGirl = PlayerConfig.Get("RSBot.Sounds.PathUniqueAlarmTigerGirl", string.Empty);
+            PlayUniqueAlarmTigerGirl = PlayerConfig.Profile.Alarms.PlayTigerGirl;
+            PathUniqueAlarmTigerGirl = PlayerConfig.Profile.Alarms.AlarmPathTigerGirl;
             if (false == string.IsNullOrWhiteSpace(PathUniqueAlarmTigerGirl))
             {
                 if (File.Exists(PathUniqueAlarmTigerGirl))
@@ -556,8 +318,8 @@ namespace RSBot.Core.Objects
             }
 
             // Cerberus
-            PlayUniqueAlarmCerberus = PlayerConfig.Get("RSBot.Sounds.PlayUniqueAlarmCerberus", false);
-            PathUniqueAlarmCerberus = PlayerConfig.Get("RSBot.Sounds.PathUniqueAlarmCerberus", string.Empty);
+            PlayUniqueAlarmCerberus = PlayerConfig.Profile.Alarms.PlayCerberus;
+            PathUniqueAlarmCerberus = PlayerConfig.Profile.Alarms.AlarmPathCerberus;
             if (false == string.IsNullOrWhiteSpace(PathUniqueAlarmCerberus))
             {
                 if (File.Exists(PathUniqueAlarmCerberus))
@@ -568,8 +330,8 @@ namespace RSBot.Core.Objects
             }
 
             // Captain Ivy
-            PlayUniqueAlarmCaptainIvy = PlayerConfig.Get("RSBot.Sounds.PlayUniqueAlarmCaptainIvy", false);
-            PathUniqueAlarmCaptainIvy = PlayerConfig.Get("RSBot.Sounds.PathUniqueAlarmCaptainIvy", string.Empty);
+            PlayUniqueAlarmCaptainIvy = PlayerConfig.Profile.Alarms.PlayCaptainIvy;
+            PathUniqueAlarmCaptainIvy = PlayerConfig.Profile.Alarms.AlarmPathCaptainIvy;
             if (false == string.IsNullOrWhiteSpace(PathUniqueAlarmCaptainIvy))
             {
                 if (File.Exists(PathUniqueAlarmCaptainIvy))
@@ -580,8 +342,8 @@ namespace RSBot.Core.Objects
             }
 
             // Uruchi
-            PlayUniqueAlarmUruchi = PlayerConfig.Get("RSBot.Sounds.PlayUniqueAlarmUruchi", false);
-            PathUniqueAlarmUruchi = PlayerConfig.Get("RSBot.Sounds.PathUniqueAlarmUruchi", string.Empty);
+            PlayUniqueAlarmUruchi = PlayerConfig.Profile.Alarms.PlayUruchi;
+            PathUniqueAlarmUruchi = PlayerConfig.Profile.Alarms.AlarmPathUruchi;
             if (false == string.IsNullOrWhiteSpace(PathUniqueAlarmUruchi))
             {
                 if (File.Exists(PathUniqueAlarmUruchi))
@@ -592,8 +354,8 @@ namespace RSBot.Core.Objects
             }
 
             // Isyutaru
-            PlayUniqueAlarmIsyutaru = PlayerConfig.Get("RSBot.Sounds.PlayUniqueAlarmIsyutaru", false);
-            PathUniqueAlarmIsyutaru = PlayerConfig.Get("RSBot.Sounds.PathUniqueAlarmIsyutaru", string.Empty);
+            PlayUniqueAlarmIsyutaru = PlayerConfig.Profile.Alarms.PlayIsyutaru;
+            PathUniqueAlarmIsyutaru = PlayerConfig.Profile.Alarms.AlarmPathIsyutaru;
             if (false == string.IsNullOrWhiteSpace(PathUniqueAlarmIsyutaru))
             {
                 if (File.Exists(PathUniqueAlarmIsyutaru))
@@ -604,8 +366,8 @@ namespace RSBot.Core.Objects
             }
 
             // Lord Yarkan
-            PlayUniqueAlarmLordYarkan = PlayerConfig.Get("RSBot.Sounds.PlayUniqueAlarmLordYarkan", false);
-            PathUniqueAlarmLordYarkan = PlayerConfig.Get("RSBot.Sounds.PathUniqueAlarmLordYarkan", string.Empty);
+            PlayUniqueAlarmLordYarkan = PlayerConfig.Profile.Alarms.PlayLordYarkan;
+            PathUniqueAlarmLordYarkan = PlayerConfig.Profile.Alarms.AlarmPathLordYarkan;
             if (false == string.IsNullOrWhiteSpace(PathUniqueAlarmLordYarkan))
             {
                 if (File.Exists(PathUniqueAlarmLordYarkan))
@@ -616,8 +378,8 @@ namespace RSBot.Core.Objects
             }
 
             // Demon Shaitan
-            PlayUniqueAlarmDemonShaitan = PlayerConfig.Get("RSBot.Sounds.PlayUniqueAlarmDemonShaitan", false);
-            PathUniqueAlarmDemonShaitan = PlayerConfig.Get("RSBot.Sounds.PathUniqueAlarmDemonShaitan", string.Empty);
+            PlayUniqueAlarmDemonShaitan = PlayerConfig.Profile.Alarms.PlayDemonShaitan;
+            PathUniqueAlarmDemonShaitan = PlayerConfig.Profile.Alarms.AlarmPathDemonShaitan;
             if (false == string.IsNullOrWhiteSpace(PathUniqueAlarmDemonShaitan))
             {
                 if (File.Exists(PathUniqueAlarmDemonShaitan))
@@ -628,8 +390,8 @@ namespace RSBot.Core.Objects
             }
 
             // General unique alarm
-            PlayUniqueAlarmGeneral = PlayerConfig.Get("RSBot.Sounds.PlayUniqueAlarmGeneral", false);
-            PathUniqueAlarmGeneral = PlayerConfig.Get("RSBot.Sounds.PathUniqueAlarmGeneral", string.Empty);
+            PlayUniqueAlarmGeneral = PlayerConfig.Profile.Alarms.PlayGeneral;
+            PathUniqueAlarmGeneral = PlayerConfig.Profile.Alarms.AlarmPathGeneral;
             if (false == string.IsNullOrWhiteSpace(PathUniqueAlarmGeneral))
             {
                 if (File.Exists(PathUniqueAlarmGeneral))
@@ -639,7 +401,7 @@ namespace RSBot.Core.Objects
                 }
             }
 
-            string regTmp = PlayerConfig.Get("RSBot.Sounds.RegexUniqueAlarmGeneral", string.Empty);
+            string regTmp = PlayerConfig.Profile.Alarms.RegexGeneral;
             try
             {
                 if (false == string.IsNullOrWhiteSpace(regTmp))

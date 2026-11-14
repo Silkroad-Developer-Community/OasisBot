@@ -43,13 +43,13 @@ public class DeadHandler : AbstractTownHandler
             return;
         }
 
-        if (!PlayerConfig.Get<bool>("RSBot.Protection.checkDead"))
+        if (!PlayerConfig.Profile.Protection.CheckDead)
             return;
 
         if (Game.Player.State.LifeState != LifeState.Dead)
             return;
 
-        var itemsToUse = PlayerConfig.GetArray<string>("RSBot.Inventory.AutoUseAccordingToPurpose");
+        var itemsToUse = PlayerConfig.Profile.Inventory.AutoUseAccordingToPurpose;
         var inventoryItem = Game.Player.Inventory.GetItem(
             new TypeIdFilter(3, 3, 13, 6),
             p => itemsToUse.Contains(p.Record.CodeName)
@@ -60,7 +60,7 @@ public class DeadHandler : AbstractTownHandler
             return;
         }
 
-        var timeOut = PlayerConfig.Get("RSBot.Protection.numDeadTimeout", 30);
+        var timeOut = PlayerConfig.Profile.Protection.DeadTimeoutSeconds;
 
         Log.WarnLang("ResurrectSPointSeconds", timeOut);
 

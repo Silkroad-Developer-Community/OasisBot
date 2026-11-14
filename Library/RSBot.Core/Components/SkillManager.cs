@@ -68,7 +68,7 @@ public static class SkillManager
     /// <summary>
     ///     Gets the config to always use skills in order.
     /// </summary>
-    public static bool UseSkillsInOrder => PlayerConfig.Get("RSBot.Skills.checkUseSkillsInOrder", false);
+    public static bool UseSkillsInOrder => PlayerConfig.Profile.Skills.UseSkillsInOrder;
 
     /// <summary>
     ///     Is the last action basic skill (Auto attack) <c>true</c>; otherwise <c>false</c>

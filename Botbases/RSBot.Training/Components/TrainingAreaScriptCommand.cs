@@ -3,6 +3,7 @@ using RSBot.Core;
 using RSBot.Core.Components.Scripting;
 using RSBot.Core.Event;
 using RSBot.Core.Objects;
+using RSBot.Core.PlayerConfigProfile;
 
 namespace RSBot.Training.Components;
 
@@ -59,11 +60,20 @@ internal class TrainingAreaScriptCommand : IScriptCommand
             )
                 return false;
 
-            PlayerConfig.Set("RSBot.Area.Region", region.Id);
-            PlayerConfig.Set("RSBot.Area.X", xPos);
-            PlayerConfig.Set("RSBot.Area.Y", yPos);
-            PlayerConfig.Set("RSBot.Area.Z", zPos);
-            PlayerConfig.Set("RSBot.Area.Radius", radius);
+            var currentArea = PlayerConfig.Profile.Training.Areas.Find(p => p.IsActive);
+
+            if(currentArea == null)            
+                currentArea = new TrainingAreaConfig();         
+
+            currentArea.Region = region.Id;
+            currentArea.X = xPos;
+            currentArea.Y = yPos;
+            currentArea.Z = zPos;
+            currentArea.Radius = radius;
+            currentArea.IsActive = true;
+            PlayerConfig.Profile.Training.Areas.Add(currentArea);
+
+            PlayerConfig.Save();
 
             EventManager.FireEvent("OnSetTrainingArea");
 

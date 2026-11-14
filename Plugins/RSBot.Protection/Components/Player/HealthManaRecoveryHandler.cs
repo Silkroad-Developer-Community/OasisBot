@@ -28,14 +28,14 @@ public class HealthManaRecoveryHandler
     /// <exception cref="System.NotImplementedException"></exception>
     private static void OnUpdateHP()
     {
-        var autoHealth = PlayerConfig.Get<bool>("RSBot.Protection.checkUseHPPotionsPlayer", true);
+        var autoHealth = PlayerConfig.Profile.Protection.UseHpPotions;
         if (!autoHealth)
             return;
 
         if ((Game.Player.BadEffect & BadEffect.Zombie) == BadEffect.Zombie)
             return;
 
-        var minHealth = PlayerConfig.Get("RSBot.Protection.numPlayerHPPotionMin", 75);
+        var minHealth = PlayerConfig.Profile.Protection.MinHpPotionPercent;
 
         var healthPercent = 100.0 * Game.Player.Health / Game.Player.MaximumHealth;
         if (healthPercent <= minHealth)
@@ -48,11 +48,11 @@ public class HealthManaRecoveryHandler
     /// <exception cref="System.NotImplementedException"></exception>
     private static void OnUpdateMP()
     {
-        var autoMana = PlayerConfig.Get<bool>("RSBot.Protection.checkUseMPPotionsPlayer", true);
+        var autoMana = PlayerConfig.Profile.Protection.UseMpPotions;
         if (!autoMana)
             return;
 
-        var minMana = PlayerConfig.Get("RSBot.Protection.numPlayerMPPotionMin", 75);
+        var minMana = PlayerConfig.Profile.Protection.MinMpPotionPercent;
 
         var manaPercent = 100.0 * Game.Player.Mana / Game.Player.MaximumMana;
         if (manaPercent <= minMana)
