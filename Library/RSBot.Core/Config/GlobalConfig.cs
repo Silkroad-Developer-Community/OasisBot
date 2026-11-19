@@ -1,5 +1,6 @@
 ﻿using System.IO;
 using RSBot.Core.Components;
+using RSBot.Core.Config.GlobalConfigProfile;
 using RSBot.Core.Event;
 using RSBot.Core.GlobalConfigProfile;
 
@@ -63,6 +64,7 @@ public static class GlobalConfig
         public JsroConfig Jsro { get; set; } = new();
         public JcPlanetConfig JcPlanet { get; set; } = new();
         public RuSroConfig RuSro { get; set; } = new();
+        public PythonPluginConfig PythonPlugins { get; set; } = new();
 
         public bool EnableCollisionDetection { get; set; } = false;
         public bool DebugEnvironment { get; set; } = false;

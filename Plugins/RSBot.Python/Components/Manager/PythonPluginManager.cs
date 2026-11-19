@@ -1,146 +1,165 @@
-﻿using System;
+﻿using Microsoft.VisualBasic.Logging;
+using Python.Runtime;
+using RSBot.Core;
+using RSBot.Python.API.Handler;
+using RSBot.Python.Models;
+using RSBot.Python.Runtime;
+using System;
+using System.Collections.Concurrent;
 using System.Collections.Generic;
 using System.IO;
 using System.Linq;
 using System.Threading.Tasks;
-using Python.Runtime;
-using RSBot.Python.Components.API.Handler;
-using RSBot.Python.Components.API.ModuleLoader;
 
 namespace RSBot.Python.Plugins
 {
     public class PythonPluginManager
     {
-        private readonly List<PyObject> _loadedPlugins = new();
+        private readonly PythonManager _manager;
+        private readonly PythonExecutor _executor;
+        private readonly PythonGuiHost _guiHost;
+        private readonly Action<string> _log;
+        private readonly ConcurrentDictionary<string, PyObject> _loadedPlugins = new(StringComparer.OrdinalIgnoreCase);
 
-        public IReadOnlyList<PyObject> LoadedPlugins => _loadedPlugins;
-
-        public List<PythonPluginInfo> ScanPlugins(string projectDir, Action<string> log)
+        public PythonPluginManager(PythonManager manager, PythonExecutor executor, PythonGuiHost guiHost, Action<string> log)
         {
-            string pluginDir = Path.Combine(projectDir, "Data", "Python", "Plugins");
-            if (!Directory.Exists(pluginDir))
+            _log = log;
+            if(manager == null)
             {
-                Directory.CreateDirectory(pluginDir);
+                _log?.Invoke("PythonManager is missing. Cannot initialize PythonPluginManager");
+                return;
             }
-
-            string[] pythonFiles = Directory.GetFiles(pluginDir, "*.py", SearchOption.TopDirectoryOnly);
-
-            var result = new List<PythonPluginInfo>();
-
-            foreach (string file in pythonFiles)
-            {
-                var info = PluginMetaReader.ReadPythonPluginInfo(file);
-                result.Add(info);
-            }
-
-            log($"[Python-API] Found {pythonFiles.Length} Plugins.");
-            return result;
+            _manager = manager;
+            _executor = executor;
+            _guiHost = guiHost;
         }
 
-        public void RunPlugin(string projectDir, string fileName, Action<string> log)
+        public IReadOnlyList<PythonPluginInfo> ScanPlugins()
         {
-            Task.Run(() =>
-            {
-                try
-                {
-                    string pluginsDir = Path.Combine(projectDir, "Data", "Python", "Plugins");
-                    string pluginPath = Path.Combine(pluginsDir, fileName);
-
-                    using (Py.GIL())
-                    {
-                        dynamic importlib = Py.Import("importlib.util");
-                        string moduleName = "plugin_" + Path.GetFileNameWithoutExtension(fileName);
-
-                        dynamic spec = importlib.spec_from_file_location(moduleName, pluginPath);
-                        dynamic module = importlib.module_from_spec(spec);
-                        spec.loader.exec_module(module);
-
-                        _loadedPlugins.Add(module);
-                    }
-                }
-                catch (Exception ex)
-                {
-                    log($"[Python-API][Error] {ex.GetType().Name}: {ex.Message}\n{ex.StackTrace}");
-                }
-            });
+            PythonPaths.EnsureDirectories();
+            return Directory.GetFiles(PythonPaths.PluginsRoot, "*.py", SearchOption.TopDirectoryOnly)
+                .Where(path => !Path.GetFileName(path).Equals("__init__.py", StringComparison.OrdinalIgnoreCase))
+                .Select(PluginMetaReader.ReadPythonPluginInfo)
+                .OrderBy(x => x.Name, StringComparer.OrdinalIgnoreCase)
+                .ToArray();
         }
-
-        public void UnloadPlugin(string fileName, Action<string> log)
+        public bool IsLoaded(string pluginId) => !string.IsNullOrWhiteSpace(pluginId) && _loadedPlugins.ContainsKey(pluginId);
+        public async Task LoadAsync(PythonPluginInfo plugin)
         {
-            using (Py.GIL())
-            {
-                try
-                {
-                    string moduleName = "plugin_" + Path.GetFileNameWithoutExtension(fileName);
-
-                    dynamic sys = Py.Import("sys");
-                    if (sys.modules.__contains__(moduleName))
-                        sys.modules.pop(moduleName, null);
-
-                    _loadedPlugins.RemoveAll(p =>
-                    {
-                        try
-                        {
-                            return p.GetAttr("__name__").ToString() == moduleName;
-                        }
-                        catch
-                        {
-                            return false;
-                        }
-                    });
-
-                    dynamic gc = Py.Import("gc");
-                    gc.collect();
-
-                    log($"[Python-API] Plugin unloaded: {fileName}");
-                }
-                catch (Exception ex)
-                {
-                    log($"[Python-API][Unload Error] {fileName}: {ex.Message}");
-                }
-            }
-        }
-
-        public void ResetPlugins()
-        {
-            if (_loadedPlugins.Count == 0)
+            if (plugin == null || IsLoaded(plugin.Id))
                 return;
 
-            using (Py.GIL())
+            await _executor.ExecuteAsync(() =>
             {
-                foreach (var m in _loadedPlugins)
-                    m.Dispose();
+                _manager.CurrentLoadingPluginId = plugin.Id;
+                try
+                {
+                    dynamic importlib = Py.Import("importlib.util");
+                    dynamic sys = Py.Import("sys");
+                    dynamic spec = importlib.spec_from_file_location(plugin.Id, plugin.FullPath);
+                    if (spec == null)
+                    {
+                        _log?.Invoke($"Unable to create module spec for {plugin.FullPath}");
+                        return;
+                    }
 
-                _loadedPlugins.Clear();
-            }
-        }
+                    PyObject module = importlib.module_from_spec(spec);
+                    sys.modules[plugin.Id] = module;
+                    spec.loader.exec_module(module);
+                    _loadedPlugins[plugin.Id] = module;
 
-        public void CallPluginEvent(string e, Action<string> log, params object[] args)
-        {
-            using (Py.GIL())
-            {
-                var pyArgs =
-                    args?.Select(a => a == null ? PyObject.None : a.ToPython()).ToArray() ?? Array.Empty<PyObject>();
-
-                foreach (PyObject plugin in _loadedPlugins)
+                    OptionalInvoke(module, "on_load");
+                    _log?.Invoke($"Activated Python plugin '{plugin.Name}'.");
+                }
+                catch
                 {
                     try
                     {
-                        if (!plugin.HasAttr(e))
+                        dynamic sys = Py.Import("sys");
+                        sys.modules.pop(plugin.Id, null);
+                    }
+                    catch { }
+                    throw;
+                }
+                finally
+                {
+                    _manager.CurrentLoadingPluginId = null;
+                }
+            }).ConfigureAwait(false);
+        }
+
+        public async Task UnloadAsync(string pluginId, string displayName = null)
+        {
+            if (string.IsNullOrWhiteSpace(pluginId))
+                return;
+
+            await _executor.ExecuteAsync(() =>
+            {
+                if (_loadedPlugins.TryGetValue(pluginId, out var module))
+                {
+                    OptionalInvoke(module, "on_unload");
+                    _loadedPlugins.TryRemove(pluginId, out _);
+
+                    dynamic sys = Py.Import("sys");
+                    sys.modules.pop(pluginId, null);
+                    module.Dispose();
+
+                    dynamic gc = Py.Import("gc");
+                    gc.collect();
+                }
+            }).ConfigureAwait(false);
+
+            _guiHost.RemovePluginPage(pluginId);
+            _log?.Invoke($"Deactivated Python plugin {displayName ?? pluginId}");
+        }
+        public Task CallEventAsync(string eventName, params object[] args)
+        {
+            if (string.IsNullOrWhiteSpace(eventName) || _loadedPlugins.Count == 0)
+                return Task.CompletedTask;
+
+            return _executor.ExecuteAsync(() =>
+            {
+                foreach (var entry in _loadedPlugins.ToArray())
+                {
+                    try
+                    {
+                        if (!entry.Value.HasAttr(eventName))
                             continue;
 
-                        using PyObject func = plugin.GetAttr(e);
-                        func.Invoke(pyArgs);
+                        using var callback = entry.Value.GetAttr(eventName);
+                        var pyArgs = args?.Select(x => x == null ? string.Empty.ToPython() : x.ToPython()).ToArray() ?? Array.Empty<PyObject>();
+                        try
+                        {
+                            using var _ = callback.Invoke(pyArgs);
+                        }
+                        finally
+                        {
+                            foreach (var arg in pyArgs)
+                                arg.Dispose();
+                        }
+                    }
+                    catch (PythonException ex)
+                    {
+                        _log?.Invoke($"[{entry.Key}] {PythonErrorHandler.FormatException(ex)}");
                     }
                     catch (Exception ex)
                     {
-                        log($"[Python-API][Plugin-Event Error] {e}: {ex.Message}");
+                        _log?.Invoke($"[{entry.Key}] {eventName}: {ex.Message}");
                     }
                 }
-
-                foreach (var a in pyArgs)
-                    a.Dispose();
-            }
+            });
         }
+        public void CallEvent(string eventName, params object[] args)
+        {
+            _ = CallEventAsync(eventName, args);
+        }
+        private static void OptionalInvoke(PyObject module, string functionName)
+        {
+            if (!module.HasAttr(functionName))
+                return;
+            using var callback = module.GetAttr(functionName);
+            using var _ = callback.Invoke();
+        }
+        
     }
 }

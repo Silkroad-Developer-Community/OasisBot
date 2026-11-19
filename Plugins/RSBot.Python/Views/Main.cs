@@ -1,17 +1,10 @@
-﻿using Python.Runtime;
-using RSBot.Core.Event;
-using RSBot.Core.Network;
-using RSBot.Core.Objects;
-using RSBot.Python.Components.API.GUI;
-using RSBot.Python.Components.API.ModuleLoader;
-using RSBot.Python.Components.Loader;
-using RSBot.Python.Plugins;
+﻿using RSBot.Core;
+using RSBot.Python.Runtime;
 using SDUI.Controls;
 using System;
 using System.ComponentModel;
 using System.Diagnostics;
-using System.IO;
-using System.Threading.Tasks;
+using System.Linq;
 using System.Windows.Forms;
 
 namespace RSBot.Python.Views;
@@ -19,29 +12,46 @@ namespace RSBot.Python.Views;
 [ToolboxItem(false)]
 public partial class Main : DoubleBufferedControl
 {
-    private readonly PythonRuntimeManager _pyRuntime = new();
-    private readonly PythonPluginManager _pyPlugins = new();
-    private string projectDir = Directory.GetParent(Application.StartupPath).FullName;
+    private PythonManager _manager;
+    private bool _updatingGrid;
 
     public Main()
     {
         InitializeComponent();
-        ModuleLoader.InitAll(this);
-        PythonRuntimeManager.GenerateStub(Directory.GetParent(Application.StartupPath).FullName);
         WireEvents();
-        SubscribeEvents();
-        InitPythonRuntime();
     }
 
-    private void SubscribeEvents()
+    public SDUI.Controls.TabControl PluginTabControl => tcPlugin;
+
+    public void AppendLog(string text)
     {
-        EventManager.SubscribeEvent("OnTeleportComplete", OnTeleportComplete);
-        EventManager.SubscribeEvent("OnTeleportStart", OnTeleportStart);
-        EventManager.SubscribeEvent("OnClientPacketReceive", OnClientPacketReceive);
-        EventManager.SubscribeEvent("OnServerPacketReceive", OnServerPacketReceive);
-        EventManager.SubscribeEvent("OnEnterGame", OnEnterGame);
-        EventManager.SubscribeEvent("OnAgentServerDisconnected", OnAgentServerDisconnected);
-        EventManager.SubscribeEvent("OnMessageReceived", OnMessageReceived);
+        if (InvokeRequired)
+        {
+            BeginInvoke(new Action(() => AppendLog(text)));
+            return;
+        }
+
+        if (tbPluginLog.IsDisposed)
+            return;
+
+        tbPluginLog.AppendText(Environment.NewLine + text);
+        tbPluginLog.ScrollToCaret();
+    }
+
+    public void AttachManager(PythonManager manager)
+    {
+        if (_manager != null)
+        {
+            _manager.LogAdded -= AppendLog;
+            _manager.PluginsChanged -= UpdateGrid;
+        }
+
+        _manager = manager ?? throw new ArgumentNullException(nameof(manager));
+        _manager.GuiHost.AttachTabControl(tcPlugin);
+        _manager.LogAdded += AppendLog;
+        _manager.PluginsChanged += UpdateGrid;
+
+        UpdateGrid();
     }
 
     private void WireEvents()
@@ -51,149 +61,81 @@ public partial class Main : DoubleBufferedControl
             if (dgvPlugin.IsCurrentCellDirty)
                 dgvPlugin.CommitEdit(DataGridViewDataErrorContexts.Commit);
         };
+
         dgvPlugin.CellValueChanged += (s, e) =>
         {
-            if (e.RowIndex < 0 || e.ColumnIndex != 0)
+            if (_updatingGrid || _manager == null || e.RowIndex < 0 || e.ColumnIndex != 0)
                 return;
 
             var row = dgvPlugin.Rows[e.RowIndex];
             bool isEnabled = Convert.ToBoolean(row.Cells[0].Value);
-            string fileName = row.Cells[5].Value.ToString();
-            string pluginName = row.Cells[1].Value.ToString();
+            string fileName = row.Cells[5].Value?.ToString();
 
-            if (isEnabled)
+            var plugin = _manager.FoundPlugins.FirstOrDefault(p =>
+                string.Equals(p.FileName, fileName, StringComparison.OrdinalIgnoreCase) ||
+                string.Equals(p.Name, row.Cells[1].Value?.ToString(), StringComparison.OrdinalIgnoreCase));
+
+            if (plugin != null)
             {
-                AppendLog($"[Python-API] Activated plugin: {fileName}");
-                RunPythonPlugin(fileName);
-            }
-            else
-            {
-                AppendLog($"[Python-API] Deactivated plugin: {fileName}");
-
-                var gui = ModuleLoader.Get("gui") as WFAPI;
-                gui?.ResetPlugin(pluginName);
-
-                _pyPlugins.UnloadPlugin(fileName, AppendLog);
+                _ = _manager.SetEnabledAsync(plugin, isEnabled);
             }
         };
     }
 
-    public void AppendLog(string text)
+    private void UpdateGrid()
     {
         if (InvokeRequired)
         {
-            Invoke(new System.Action(() => AppendLog(text)));
+            BeginInvoke(new Action(UpdateGrid));
             return;
         }
 
-        tbPluginLog.AppendText(Environment.NewLine + text);
-        tbPluginLog.ScrollToCaret();
-    }
+        if (_manager == null)
+            return;
 
-    #region PythonRuntime
-    private void InitPythonRuntime()
-    {
-        _pyRuntime.Initialize(projectDir, AppendLog);
-        ReloadPluginGrid();
-    }
-
-    private void ReloadPluginGrid()
-    {
-        dgvPlugin.Rows.Clear();
-
-        var plugins = _pyPlugins.ScanPlugins(projectDir, AppendLog);
-
-        foreach (var info in plugins)
+        _updatingGrid = true;
+        try
         {
-            bool enabled = false;
-            dgvPlugin.Rows.Add(enabled, info.Name, info.Description, info.Author, info.Version, info.FileName);
+            dgvPlugin.Rows.Clear();
+            foreach (var info in _manager.FoundPlugins)
+            {
+                dgvPlugin.Rows.Add(info.IsEnabled, info.Name, info.Description, info.Author, info.Version, info.FileName);
+            }
+        }
+        finally
+        {
+            _updatingGrid = false;
         }
     }
-
-    private void RunPythonPlugin(string fileName)
-    {
-        string projectDir = Directory.GetParent(Application.StartupPath).FullName;
-        _pyPlugins.RunPlugin(projectDir, fileName, AppendLog);
-    }
-
-    private void ResetPythonPlugins()
-    {
-        _pyPlugins.ResetPlugins();
-    }
-
-    #endregion
-
     private void btnReload_Click(object sender, EventArgs e)
     {
-        var gui = ModuleLoader.Get("gui") as WFAPI;
-        if (gui != null)
+        if (_manager == null)
+            return;
+
+        btnReload.Enabled = false;
+        _ = _manager.ReloadAsync().ContinueWith(_ =>
         {
-            gui.ResetAll();
-        }
-        ResetPythonPlugins();
-        ReloadPluginGrid();
-        string pluginFolder = Path.Combine(
-            Directory.GetParent(Application.StartupPath).Parent.Parent.FullName,
-            "Plugins"
-        );
+            if (InvokeRequired)
+                BeginInvoke(new Action(() => btnReload.Enabled = true));
+            else
+                btnReload.Enabled = true;
+        });
     }
 
-    #region events
-    private void OnTeleportStart()
-    {
-        _pyPlugins.CallPluginEvent("on_teleported", AppendLog, 1);
-    }
-
-    private void OnTeleportComplete()
-    {
-        _pyPlugins.CallPluginEvent("on_teleported", AppendLog, 2);
-    }
-
-    private void OnClientPacketReceive(Packet packet)
-    {
-        byte[] data = packet.GetBytes();
-        string opcode = packet.HexCode;
-        string data_hex = BitConverter.ToString(data).Replace("-", " ");
-        _pyPlugins.CallPluginEvent("on_packet_from_client", AppendLog, opcode, data_hex);
-    }
-
-    private void OnServerPacketReceive(Packet packet)
-    {
-        byte[] data = packet.GetBytes();
-        string opcode = packet.HexCode;
-        string data_hex = BitConverter.ToString(data).Replace("-", " ");
-        _pyPlugins.CallPluginEvent("on_packet_from_server", AppendLog, opcode, data_hex);
-    }
-
-    private void OnEnterGame()
-    {
-        _pyPlugins.CallPluginEvent("on_enter_game", AppendLog);
-    }
-
-    private void OnAgentServerDisconnected()
-    {
-        _pyPlugins.CallPluginEvent("on_disconnect", AppendLog);
-    }
-
-    private void OnMessageReceived(string message, string sender, ChatType type)
-    {
-        _pyPlugins.CallPluginEvent("on_message_received", AppendLog, message, sender, type);
-    }
-
-    private async void timerEventLoop_Tick(object sender, EventArgs e)
+    private void btnOpenFolder_Click(object sender, EventArgs e)
     {
         try
         {
-            await Task.Run(() => _pyPlugins.CallPluginEvent("event_loop", AppendLog));
+            PythonPaths.EnsureDirectories();
+            Process.Start(new ProcessStartInfo
+            {
+                FileName = PythonPaths.PluginsRoot,
+                UseShellExecute = true
+            });
         }
         catch (Exception ex)
         {
-            AppendLog($"[Python-API] event_loop exception: {ex}");
+            AppendLog($"Failed to open plugins folder: {ex.Message}");
         }
-    }
-    #endregion
-    private void btnOpenFolder_Click(object sender, EventArgs e)
-    {
-        Process.Start("explorer.exe", Path.Combine(projectDir, "Data", "Python", "Plugins"));
     }
 }

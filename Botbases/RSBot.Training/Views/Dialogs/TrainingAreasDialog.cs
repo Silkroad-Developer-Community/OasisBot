@@ -37,6 +37,9 @@ public partial class TrainingAreasDialog : UIWindowBase
         var trainingConfig = PlayerConfig.Profile.Training;
         var index = selectedItem.Index;
 
+        foreach (var area in trainingConfig.Areas)
+            area.IsActive = false;
+
         if (index >= 0 && index < trainingConfig.Areas.Count)
         {
             trainingConfig.Index = index;
@@ -48,6 +51,7 @@ public partial class TrainingAreasDialog : UIWindowBase
             targetArea.Y = trainingArea.Position.YOffset;
             targetArea.Z = trainingArea.Position.ZOffset;
             targetArea.Radius = trainingArea.Radius;
+            targetArea.IsActive = true;
         }
         else
         {
@@ -59,6 +63,7 @@ public partial class TrainingAreasDialog : UIWindowBase
                 Y = trainingArea.Position.YOffset,
                 Z = trainingArea.Position.ZOffset,
                 Radius = trainingArea.Radius,
+                IsActive = true,
             };
             trainingConfig.Areas.Add(newArea);
             trainingConfig.Index = index;

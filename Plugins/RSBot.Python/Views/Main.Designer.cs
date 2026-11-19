@@ -29,7 +29,6 @@ partial class Main
     /// </summary>
     private void InitializeComponent()
     {
-        components = new System.ComponentModel.Container();
         DataGridViewCellStyle dataGridViewCellStyle1 = new DataGridViewCellStyle();
         mainPanel = new SDUI.Controls.Panel();
         flowLayoutPanel1 = new SDUI.Controls.FlowLayoutPanel();
@@ -38,14 +37,13 @@ partial class Main
         tcPlugin = new SDUI.Controls.TabControl();
         tpPlugins = new TabPage();
         dgvPlugin = new DataGridView();
-        tbPluginLog = new RichTextBox();
         ColEnabled = new DataGridViewCheckBoxColumn();
         ColName = new DataGridViewTextBoxColumn();
         ColDescription = new DataGridViewTextBoxColumn();
         ColAuthor = new DataGridViewTextBoxColumn();
         ColVersion = new DataGridViewTextBoxColumn();
         FileName = new DataGridViewTextBoxColumn();
-        timerOnCall = new System.Windows.Forms.Timer(components);
+        tbPluginLog = new RichTextBox();
         mainPanel.SuspendLayout();
         flowLayoutPanel1.SuspendLayout();
         tcPlugin.SuspendLayout();
@@ -167,15 +165,6 @@ partial class Main
         dgvPlugin.Size = new Size(586, 330);
         dgvPlugin.TabIndex = 0;
         // 
-        // tbPluginLog
-        // 
-        tbPluginLog.Dock = DockStyle.Bottom;
-        tbPluginLog.Location = new Point(0, 368);
-        tbPluginLog.Name = "tbPluginLog";
-        tbPluginLog.Size = new Size(600, 99);
-        tbPluginLog.TabIndex = 0;
-        tbPluginLog.Text = "";
-        // 
         // ColEnabled
         // 
         ColEnabled.FillWeight = 12F;
@@ -224,11 +213,14 @@ partial class Main
         FileName.ReadOnly = true;
         FileName.Visible = false;
         // 
-        // timerOnCall
+        // tbPluginLog
         // 
-        timerOnCall.Enabled = true;
-        timerOnCall.Interval = 500;
-        timerOnCall.Tick += timerEventLoop_Tick;
+        tbPluginLog.Dock = DockStyle.Bottom;
+        tbPluginLog.Location = new Point(0, 368);
+        tbPluginLog.Name = "tbPluginLog";
+        tbPluginLog.Size = new Size(600, 99);
+        tbPluginLog.TabIndex = 0;
+        tbPluginLog.Text = "";
         // 
         // Main
         // 
@@ -262,5 +254,4 @@ partial class Main
     private DataGridViewTextBoxColumn ColAuthor;
     private DataGridViewTextBoxColumn ColVersion;
     private DataGridViewTextBoxColumn FileName;
-    private System.Windows.Forms.Timer timerOnCall;
 }

@@ -26,16 +26,17 @@
     <ProjectReference Include="..\RSBot.General\RSBot.General.csproj" />
   </ItemGroup>
 
+  <ItemGroup>
+    <Folder Include="API\Interface\" />
+  </ItemGroup>
+
   <Target Name="DownloadPythonRuntime" BeforeTargets="Build">
     <PropertyGroup>
       <!-- Path to the python runtime directory (trimmed to avoid shell escaping issues) -->
       <PythonRuntimeDirFull>$([System.IO.Path]::GetFullPath('$(PythonRuntimeDir)').TrimEnd('\'))</PythonRuntimeDirFull>
     </PropertyGroup>
 
-    <Message
-      Importance="high"
-      Text="[Python-Build] Looking for PythonRuntime at: $(PythonRuntimeDirFull)"
-    />
+    <Message Importance="high" Text="[Python-Build] Looking for PythonRuntime at: $(PythonRuntimeDirFull)" />
 
     <Exec Command="powershell -ExecutionPolicy Bypass -File &quot;$(MSBuildProjectDirectory)\..\..\scripts\download_python.ps1&quot; -PythonVersion &quot;$(PythonVersion)&quot; -DestinationPath &quot;$(PythonRuntimeDirFull)&quot;" />
 
