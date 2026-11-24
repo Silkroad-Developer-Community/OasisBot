@@ -80,6 +80,13 @@ namespace RSBot.Python.Runtime
             {
                 foreach (var page in pages)
                     page.Dispose();
+                if (_tabControl != null && !_tabControl.IsDisposed)
+                {
+                    if (_tabControl.TabPages.Count > 0 && (_tabControl.SelectedIndex < 0 || _tabControl.SelectedTab == null))
+                        _tabControl.SelectedIndex = 0;
+                    _tabControl.Invalidate(true);
+                    _tabControl.Update();
+                }
             }
             if (_tabControl != null && !_tabControl.IsDisposed)
             {
@@ -104,6 +111,13 @@ namespace RSBot.Python.Runtime
             {
                 foreach (var page in pages)
                     page.Dispose();
+                if (_tabControl != null && !_tabControl.IsDisposed)
+                {
+                    if (_tabControl.TabPages.Count > 0 && (_tabControl.SelectedIndex < 0 || _tabControl.SelectedTab == null))
+                        _tabControl.SelectedIndex = 0;
+                    _tabControl.Invalidate(true);
+                    _tabControl.Update();
+                }
             }
             if (_tabControl != null && !_tabControl.IsDisposed)
             {

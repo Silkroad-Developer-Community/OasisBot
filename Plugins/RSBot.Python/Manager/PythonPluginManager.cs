@@ -11,7 +11,7 @@ using System.IO;
 using System.Linq;
 using System.Threading.Tasks;
 
-namespace RSBot.Python.Plugins
+namespace RSBot.Python.Manager
 {
     public class PythonPluginManager
     {

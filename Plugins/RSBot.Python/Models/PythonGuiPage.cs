@@ -32,12 +32,23 @@ namespace RSBot.Python.Models
 
             if (TabPage != null)
             {
-                if (TabPage.Parent is TabControl parent)
+                if (TabPage.Parent is TabControl parent && !parent.IsDisposed)
                 {
-                    if (parent.InvokeRequired)
-                        parent.Invoke(new Action(() => parent.TabPages.Remove(TabPage)));
-                    else
+                    void RemovePage()
+                    {
+                        if (parent.SelectedTab == TabPage || parent.SelectedIndex < 0)
+                        {
+                            if (parent.TabPages.Count > 1)
+                                parent.SelectedIndex = 0;
+                        }
                         parent.TabPages.Remove(TabPage);
+                        parent.Invalidate(true);
+                        parent.Update();
+                    }
+                    if (parent.InvokeRequired)
+                        parent.Invoke(new Action(RemovePage));
+                    else
+                        RemovePage();
                 }
 
                 TabPage.Dispose();

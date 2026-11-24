@@ -14,6 +14,11 @@
     <PythonVersion>3.13.11</PythonVersion>
     <PythonRuntimeDir>$(OutputPath)\..\Python\PyRuntime\</PythonRuntimeDir>
   </PropertyGroup>
+  <ItemGroup>
+    <Compile Remove="API\Interface\**" />
+    <EmbeddedResource Remove="API\Interface\**" />
+    <None Remove="API\Interface\**" />
+  </ItemGroup>
 
   <ItemGroup>
     <PackageReference Include="pythonnet" Version="3.0.5" />
@@ -24,10 +29,6 @@
     <ProjectReference Include="..\..\Library\RSBot.Core\RSBot.Core.csproj" />
     <ProjectReference Include="..\..\SDUI\SDUI\SDUI.csproj" />
     <ProjectReference Include="..\RSBot.General\RSBot.General.csproj" />
-  </ItemGroup>
-
-  <ItemGroup>
-    <Folder Include="API\Interface\" />
   </ItemGroup>
 
   <Target Name="DownloadPythonRuntime" BeforeTargets="Build">
