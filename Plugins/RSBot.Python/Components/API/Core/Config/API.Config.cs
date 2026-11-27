@@ -1,5 +1,4 @@
 using System.IO;
-using System.Windows.Forms;
 using Python.Runtime;
 using RSBot.Core;
 using RSBot.Core.Components;
@@ -11,7 +10,6 @@ namespace RSBot.Python.Components.API.Core.Entity
     public class ConfigAPI : IPythonPlugin
     {
         private Main _main;
-        private string projectDir = Directory.GetParent(Application.StartupPath).FullName;
 
         /// <summary>
         /// Unique module name of the plugin.
@@ -29,30 +27,29 @@ namespace RSBot.Python.Components.API.Core.Entity
 
         private string GetConfigDir()
         {
-            return Path.Combine(projectDir, "User");
+            return Path.Combine(Kernel.BasePath, "User");
         }
 
         private string GetConfigPath()
         {
-            if (Game.Player == null)
-            {
-                return Path.Combine(projectDir, "User", "Default");
-            }
-            return Path.Combine(projectDir, "User", "Default", $"{Game.Player.Name}.rs");
+            var player = Game.Player;
+            return player == null
+                ? ProfileManager.GetProfileDirectory(ProfileManager.SelectedProfile)
+                : PlayerConfig.GetConfigPath(player.Name);
         }
 
         private string GetLogDir()
         {
-            return Path.Combine(projectDir, "User", "Logs");
+            return Path.Combine(GetConfigDir(), "Logs");
         }
 
         private string GetLogPath()
         {
-            if (Game.Player == null)
-            {
-                return Path.Combine(projectDir, "User", "Logs");
-            }
-            return Path.Combine(projectDir, "User", "Logs", $"{ProfileManager.SelectedProfile}-{Game.Player.Name}");
+            var player = Game.Player;
+            var logDirectory = GetLogDir();
+            return player == null
+                ? logDirectory
+                : Path.Combine(logDirectory, $"{ProfileManager.SelectedProfile}-{player.Name}");
         }
 
         public string get_config_dir()

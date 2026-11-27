@@ -21,14 +21,14 @@
 
         public bool UseSkillHp { get; set; } = false;
         public int MinSkillHpPercent { get; set; } = 50;
-        public uint HpSkillId { get; set; } = 0;
+        public uint? HpSkillId { get; set; } = 0;
 
         public bool UseSkillMp { get; set; } = false;
         public int MinSkillMpPercent { get; set; } = 50;
-        public uint MpSkillId { get; set; } = 0;
+        public uint? MpSkillId { get; set; } = 0;
 
         public bool UseBadStatusSkill { get; set; } = false;
-        public uint BadStatusSkillId { get; set; } = 0;
+        public uint? BadStatusSkillId { get; set; } = 0;
 
         public bool AutoIncreaseStr { get; set; } = false;
         public int PointsToStr { get; set; } = 0;

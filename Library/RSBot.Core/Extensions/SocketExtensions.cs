@@ -39,17 +39,15 @@ public struct ProxyConfig
             TimeOut = 5000,
         };
 
-        config.ProxyIp = GlobalConfig.Profile.Bot.Proxy.Ip;
-        config.UserName = GlobalConfig.Profile.Bot.Proxy.Username;
-        config.Password = GlobalConfig.Profile.Bot.Proxy.Password;
-
-        if (!int.TryParse(GlobalConfig.Profile.Bot.Proxy.Port.ToString(), out config.ProxyPort))
+        var proxy = GlobalConfig.Profile.Bot.Proxy;
+        if (proxy?.IsActive != true)
             return false;
 
-        if (!byte.TryParse(GlobalConfig.Profile.Bot.Proxy.Version.ToString(), out config.Version))
-            return false;
-        if (string.IsNullOrWhiteSpace(config.UserName) || string.IsNullOrWhiteSpace(config.Password))
-            return false;
+        config.ProxyIp = proxy.Ip;
+        config.ProxyPort = proxy.Port;
+        config.Version = proxy.Version;
+        config.UserName = string.IsNullOrWhiteSpace(proxy.Username) ? string.Empty : proxy.Username;
+        config.Password = string.IsNullOrWhiteSpace(proxy.Password) ? string.Empty : proxy.Password;
 
         return true;
     }
