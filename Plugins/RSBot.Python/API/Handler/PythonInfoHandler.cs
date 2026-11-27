@@ -1,19 +1,21 @@
-﻿using RSBot.Python.Models;
-using System;
+﻿using System;
 using System.IO;
 using System.Text.RegularExpressions;
+using RSBot.Python.Models;
 
 namespace RSBot.Python.API.Handler
 {
     public static class PluginMetaReader
     {
         private static readonly Regex Assignment = new(
-        "^(?<key>NAME|DESCRIPTION|AUTHOR|VERSION|GUI)\\s*=\\s*(?<value>.+?)\\s*$",
-        RegexOptions.Multiline | RegexOptions.IgnoreCase | RegexOptions.Compiled);
+            "^(?<key>NAME|DESCRIPTION|AUTHOR|VERSION|GUI)\\s*=\\s*(?<value>.+?)\\s*$",
+            RegexOptions.Multiline | RegexOptions.IgnoreCase | RegexOptions.Compiled
+        );
 
         private static readonly Regex Header = new(
             "^\\s*#\\s*(?<key>Name|Description|Author|Version|GUI)\\s*:\\s*(?<value>.+?)\\s*$",
-            RegexOptions.Multiline | RegexOptions.IgnoreCase | RegexOptions.Compiled);
+            RegexOptions.Multiline | RegexOptions.IgnoreCase | RegexOptions.Compiled
+        );
 
         public static PythonPluginInfo ReadPythonPluginInfo(string filePath)
         {
@@ -26,13 +28,31 @@ namespace RSBot.Python.API.Handler
             bool hasGui = false;
 
             foreach (Match match in Assignment.Matches(text))
-                Apply(match.Groups["key"].Value, CleanString(match.Groups["value"].Value), ref name, ref description, ref author, ref version, ref hasGui);
+                Apply(
+                    match.Groups["key"].Value,
+                    CleanString(match.Groups["value"].Value),
+                    ref name,
+                    ref description,
+                    ref author,
+                    ref version,
+                    ref hasGui
+                );
 
             foreach (Match match in Header.Matches(text))
-                Apply(match.Groups["key"].Value, CleanString(match.Groups["value"].Value), ref name, ref description, ref author, ref version, ref hasGui);
+                Apply(
+                    match.Groups["key"].Value,
+                    CleanString(match.Groups["value"].Value),
+                    ref name,
+                    ref description,
+                    ref author,
+                    ref version,
+                    ref hasGui
+                );
 
             if (!hasGui)
-                hasGui = Regex.IsMatch(text, @"\bOasisBot\s*\.\s*GUI\s*\(", RegexOptions.IgnoreCase) || Regex.IsMatch(text, @"\RSBot\s*\.\s*GUI\s*\(", RegexOptions.IgnoreCase);
+                hasGui =
+                    Regex.IsMatch(text, @"\bOasisBot\s*\.\s*GUI\s*\(", RegexOptions.IgnoreCase)
+                    || Regex.IsMatch(text, @"\RSBot\s*\.\s*GUI\s*\(", RegexOptions.IgnoreCase);
 
             return new PythonPluginInfo
             {
@@ -43,12 +63,12 @@ namespace RSBot.Python.API.Handler
                 Description = description,
                 Author = author,
                 Version = version,
-                HasGui = hasGui
+                HasGui = hasGui,
             };
         }
 
         public static string GetNewId(string fileName) =>
-        "plugin_" + Regex.Replace(Path.GetFileNameWithoutExtension(fileName), "[^A-Za-z0-9_]", "_");
+            "plugin_" + Regex.Replace(Path.GetFileNameWithoutExtension(fileName), "[^A-Za-z0-9_]", "_");
 
         private static string CleanString(string value)
         {
@@ -58,15 +78,36 @@ namespace RSBot.Python.API.Handler
             return value.Trim();
         }
 
-        private static void Apply(string key, string value, ref string name, ref string description, ref string author, ref string version, ref bool gui)
+        private static void Apply(
+            string key,
+            string value,
+            ref string name,
+            ref string description,
+            ref string author,
+            ref string version,
+            ref bool gui
+        )
         {
             switch (key.Trim().ToUpperInvariant())
             {
-                case "NAME": name = value; break;
-                case "DESCRIPTION": description = value; break;
-                case "AUTHOR": author = value; break;
-                case "VERSION": version = value; break;
-                case "GUI": gui = value.Equals("true", StringComparison.OrdinalIgnoreCase) || value == "1" || value.Equals("yes", StringComparison.OrdinalIgnoreCase); break;
+                case "NAME":
+                    name = value;
+                    break;
+                case "DESCRIPTION":
+                    description = value;
+                    break;
+                case "AUTHOR":
+                    author = value;
+                    break;
+                case "VERSION":
+                    version = value;
+                    break;
+                case "GUI":
+                    gui =
+                        value.Equals("true", StringComparison.OrdinalIgnoreCase)
+                        || value == "1"
+                        || value.Equals("yes", StringComparison.OrdinalIgnoreCase);
+                    break;
             }
         }
     }

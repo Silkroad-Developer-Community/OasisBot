@@ -1,11 +1,11 @@
-﻿using RSBot.Core;
-using RSBot.Python.Runtime;
-using SDUI.Controls;
-using System;
+﻿using System;
 using System.ComponentModel;
 using System.Diagnostics;
 using System.Linq;
 using System.Windows.Forms;
+using RSBot.Core;
+using RSBot.Python.Runtime;
+using SDUI.Controls;
 
 namespace RSBot.Python.Views;
 
@@ -72,8 +72,9 @@ public partial class Main : DoubleBufferedControl
             string fileName = row.Cells[5].Value?.ToString();
 
             var plugin = _manager.FoundPlugins.FirstOrDefault(p =>
-                string.Equals(p.FileName, fileName, StringComparison.OrdinalIgnoreCase) ||
-                string.Equals(p.Name, row.Cells[1].Value?.ToString(), StringComparison.OrdinalIgnoreCase));
+                string.Equals(p.FileName, fileName, StringComparison.OrdinalIgnoreCase)
+                || string.Equals(p.Name, row.Cells[1].Value?.ToString(), StringComparison.OrdinalIgnoreCase)
+            );
 
             if (plugin != null)
             {
@@ -99,7 +100,14 @@ public partial class Main : DoubleBufferedControl
             dgvPlugin.Rows.Clear();
             foreach (var info in _manager.FoundPlugins)
             {
-                dgvPlugin.Rows.Add(info.IsEnabled, info.Name, info.Description, info.Author, info.Version, info.FileName);
+                dgvPlugin.Rows.Add(
+                    info.IsEnabled,
+                    info.Name,
+                    info.Description,
+                    info.Author,
+                    info.Version,
+                    info.FileName
+                );
             }
         }
         finally
@@ -107,19 +115,22 @@ public partial class Main : DoubleBufferedControl
             _updatingGrid = false;
         }
     }
+
     private void btnReload_Click(object sender, EventArgs e)
     {
         if (_manager == null)
             return;
 
         btnReload.Enabled = false;
-        _ = _manager.ReloadAsync().ContinueWith(_ =>
-        {
-            if (InvokeRequired)
-                BeginInvoke(new Action(() => btnReload.Enabled = true));
-            else
-                btnReload.Enabled = true;
-        });
+        _ = _manager
+            .ReloadAsync()
+            .ContinueWith(_ =>
+            {
+                if (InvokeRequired)
+                    BeginInvoke(new Action(() => btnReload.Enabled = true));
+                else
+                    btnReload.Enabled = true;
+            });
     }
 
     private void btnOpenFolder_Click(object sender, EventArgs e)
@@ -127,11 +138,7 @@ public partial class Main : DoubleBufferedControl
         try
         {
             PythonPaths.EnsureDirectories();
-            Process.Start(new ProcessStartInfo
-            {
-                FileName = PythonPaths.PluginsRoot,
-                UseShellExecute = true
-            });
+            Process.Start(new ProcessStartInfo { FileName = PythonPaths.PluginsRoot, UseShellExecute = true });
         }
         catch (Exception ex)
         {

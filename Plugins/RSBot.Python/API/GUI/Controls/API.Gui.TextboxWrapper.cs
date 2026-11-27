@@ -25,7 +25,15 @@ namespace RSBot.Python.API.GUI.Controls
             int height,
             PyObject callback
         )
-            : base(parent, () => new SDUI.Controls.TextBox { Text = text ?? string.Empty }, executor, x, y, width, height)
+            : base(
+                parent,
+                () => new SDUI.Controls.TextBox { Text = text ?? string.Empty },
+                executor,
+                x,
+                y,
+                width,
+                height
+            )
         {
             _textBox = (SDUI.Controls.TextBox)Control;
             _callback = callback;

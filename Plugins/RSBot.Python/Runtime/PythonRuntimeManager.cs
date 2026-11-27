@@ -1,17 +1,19 @@
-﻿using Python.Runtime;
-using System;
+﻿using System;
 using System.IO;
 using System.Linq;
+using Python.Runtime;
 
 namespace RSBot.Python.Runtime
 {
     public class PythonRuntimeManager
     {
         private readonly Action<string> _log;
+
         public PythonRuntimeManager(Action<string> log)
         {
             _log = log;
         }
+
         public bool IsInitialized { get; private set; }
         public string RuntimeVersion { get; private set; } = "Not initialized";
 

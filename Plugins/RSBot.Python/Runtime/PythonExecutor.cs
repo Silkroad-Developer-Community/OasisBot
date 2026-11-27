@@ -1,7 +1,7 @@
-﻿using Python.Runtime;
-using System;
+﻿using System;
 using System.Threading;
 using System.Threading.Tasks;
+using Python.Runtime;
 
 namespace RSBot.Python.Runtime
 {
@@ -15,16 +15,16 @@ namespace RSBot.Python.Runtime
             try
             {
                 await Task.Run(() =>
-                {
-                    using (Py.GIL())
-                        action();
-                }).ConfigureAwait(false);
+                    {
+                        using (Py.GIL())
+                            action();
+                    })
+                    .ConfigureAwait(false);
             }
             finally
             {
                 _limiter.Release();
             }
         }
-
     }
 }

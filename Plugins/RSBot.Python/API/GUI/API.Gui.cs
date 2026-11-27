@@ -16,6 +16,5 @@ namespace RSBot.Python.API.GUI
         }
 
         public void Init(PythonContext context) => _context = context;
-
     }
 }

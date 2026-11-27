@@ -1,7 +1,7 @@
-﻿using RSBot.Python.Runtime;
-using System;
+﻿using System;
 using System.Drawing;
 using System.Windows.Forms;
+using RSBot.Python.Runtime;
 
 namespace RSBot.Python.API.GUI
 {
@@ -11,7 +11,15 @@ namespace RSBot.Python.API.GUI
         protected TabPage Parent { get; }
         protected PythonExecutor Executor { get; }
 
-        protected GuiControlWrapper(TabPage parent, Func<Control> controlFactory, PythonExecutor executor, int x, int y, int width = -1, int height = -1)
+        protected GuiControlWrapper(
+            TabPage parent,
+            Func<Control> controlFactory,
+            PythonExecutor executor,
+            int x,
+            int y,
+            int width = -1,
+            int height = -1
+        )
         {
             Parent = parent ?? throw new ArgumentNullException(nameof(parent));
             Executor = executor;
@@ -42,6 +50,7 @@ namespace RSBot.Python.API.GUI
             else
                 action();
         }
+
         protected T Invoke<T>(Func<T> func)
         {
             if (Parent == null || Parent.IsDisposed)
@@ -64,17 +73,21 @@ namespace RSBot.Python.API.GUI
 
         #region API Functions
         public void set_visible(bool value) => Invoke(() => Control.Visible = value);
+
         public void set_enabled(bool value) => Invoke(() => Control.Enabled = value);
 
         public void move_position(int x, int y) => Invoke(() => Control.Location = new Point(x, y));
+
         public void move_position(double x, double y) => move_position((int)Math.Round(x), (int)Math.Round(y));
 
         public void set_size(int width, int height) => Invoke(() => Control.Size = new Size(width, height));
+
         public void set_size(double width, double height) => set_size((int)Math.Round(width), (int)Math.Round(height));
 
         public void remove() => Dispose();
 
         public virtual void set_text(string text) => Invoke(() => Control.Text = text ?? string.Empty);
+
         public virtual string get_text() => Invoke(() => Control.Text ?? string.Empty);
 
         #endregion

@@ -1,7 +1,6 @@
 ﻿using RSBot.Core.Plugins;
 using RSBot.Python.Views;
 
-
 namespace RSBot.Python
 {
     public class PythonPlugin : IPlugin

@@ -61,7 +61,13 @@ namespace RSBot.Python.API.Core
                         foreach (var npcId in quest.Npcs)
                         {
                             var npc = Game.ReferenceManager.GetRefObjChar(npcId);
-                            npcs.Append(PythonData.Dict(("npc_name", npc.NameStrID), ("npc_id", npc.ID), ("npc_servername", npc.CodeName)));
+                            npcs.Append(
+                                PythonData.Dict(
+                                    ("npc_name", npc.NameStrID),
+                                    ("npc_id", npc.ID),
+                                    ("npc_servername", npc.CodeName)
+                                )
+                            );
                         }
                     }
                     if (quest.Quest.Reward != null)
@@ -80,7 +86,12 @@ namespace RSBot.Python.API.Core
                     {
                         foreach (var rewardItem in quest.Quest.RewardItems)
                         {
-                            rewardItems.Append(PythonData.Dict(("reward_item", rewardItem.Item?.GetRealName()), ("reward_optional", rewardItem.OptionalItem?.GetRealName())));
+                            rewardItems.Append(
+                                PythonData.Dict(
+                                    ("reward_item", rewardItem.Item?.GetRealName()),
+                                    ("reward_optional", rewardItem.OptionalItem?.GetRealName())
+                                )
+                            );
                         }
                     }
 
@@ -94,19 +105,21 @@ namespace RSBot.Python.API.Core
                                 objectives.Append(PythonData.Dict(("objective", actualTitle)));
                             }
                         }
-                    result.Append(PythonData.Dict(
-                        ("name", Game.ReferenceManager.GetTranslation(quest.Quest.NameString)),
-                        ("id", quest.Id),
-                        ("level", quest.Quest.Level),
-                        ("status", GetStatusText(quest.Status)),
-                        ("notice_npc", Game.ReferenceManager.GetTranslation(quest.Quest.NoticeNPC)),
-                        ("npcs", PythonData.List(npcs)),
-                        ("reward_exp", rewardExp),
-                        ("reward_sp", rewardSp),
-                        ("reward_gold", rewardGold),
-                        ("reward_items", PythonData.List(rewardItems)),
-                        ("objectives", PythonData.List(objectives))
-                    ));
+                    result.Append(
+                        PythonData.Dict(
+                            ("name", Game.ReferenceManager.GetTranslation(quest.Quest.NameString)),
+                            ("id", quest.Id),
+                            ("level", quest.Quest.Level),
+                            ("status", GetStatusText(quest.Status)),
+                            ("notice_npc", Game.ReferenceManager.GetTranslation(quest.Quest.NoticeNPC)),
+                            ("npcs", PythonData.List(npcs)),
+                            ("reward_exp", rewardExp),
+                            ("reward_sp", rewardSp),
+                            ("reward_gold", rewardGold),
+                            ("reward_items", PythonData.List(rewardItems)),
+                            ("objectives", PythonData.List(objectives))
+                        )
+                    );
                 }
 
                 return result;

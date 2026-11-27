@@ -37,7 +37,10 @@
       <PythonRuntimeDirFull>$([System.IO.Path]::GetFullPath('$(PythonRuntimeDir)').TrimEnd('\'))</PythonRuntimeDirFull>
     </PropertyGroup>
 
-    <Message Importance="high" Text="[Python-Build] Looking for PythonRuntime at: $(PythonRuntimeDirFull)" />
+    <Message
+      Importance="high"
+      Text="[Python-Build] Looking for PythonRuntime at: $(PythonRuntimeDirFull)"
+    />
 
     <Exec Command="powershell -ExecutionPolicy Bypass -File &quot;$(MSBuildProjectDirectory)\..\..\scripts\download_python.ps1&quot; -PythonVersion &quot;$(PythonVersion)&quot; -DestinationPath &quot;$(PythonRuntimeDirFull)&quot;" />
 

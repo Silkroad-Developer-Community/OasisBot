@@ -1,10 +1,10 @@
-﻿using Python.Runtime;
+﻿using System;
+using System.Linq;
+using Python.Runtime;
 using RSBot.Core;
 using RSBot.Core.Network;
 using RSBot.Python.Runtime;
 using SkiaSharp;
-using System;
-using System.Linq;
 
 namespace RSBot.Python.API.Core
 {
@@ -18,11 +18,18 @@ namespace RSBot.Python.API.Core
         /// </summary>
         public string ModuleName => "core";
         private PythonContext _context;
+
         public void Init(PythonContext context) => _context = context;
 
         public bool start_bot()
         {
-            if (Kernel.Proxy == null || !Kernel.Proxy.IsConnectedToAgentserver || Kernel.Bot == null || Game.Player == null || Kernel.Bot.Running)
+            if (
+                Kernel.Proxy == null
+                || !Kernel.Proxy.IsConnectedToAgentserver
+                || Kernel.Bot == null
+                || Game.Player == null
+                || Kernel.Bot.Running
+            )
                 return false;
             Kernel.Bot.Start();
             return true;
@@ -66,16 +73,20 @@ namespace RSBot.Python.API.Core
                 return;
             }
 
-            string msg = string.Join(" ", args.Select(a =>
-            {
-                if (a == null) return "None";
-                if (a is PyObject py)
+            string msg = string.Join(
+                " ",
+                args.Select(a =>
                 {
-                    using (Py.GIL())
-                        return py.ToString();
-                }
-                return a.ToString();
-            }));
+                    if (a == null)
+                        return "None";
+                    if (a is PyObject py)
+                    {
+                        using (Py.GIL())
+                            return py.ToString();
+                    }
+                    return a.ToString();
+                })
+            );
 
             _context.Log?.Invoke(msg);
         }

@@ -1,7 +1,7 @@
-﻿using RSBot.Python.API.GUI;
-using System;
+﻿using System;
 using System.Collections.Generic;
 using System.Windows.Forms;
+using RSBot.Python.API.GUI;
 
 namespace RSBot.Python.Models
 {
@@ -18,6 +18,7 @@ namespace RSBot.Python.Models
             lock (_controls)
                 _controls.Add(wrapper);
         }
+
         public void Dispose()
         {
             GuiControlWrapper[] snapshot;
@@ -54,6 +55,5 @@ namespace RSBot.Python.Models
                 TabPage.Dispose();
             }
         }
-
     }
 }

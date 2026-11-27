@@ -1,10 +1,10 @@
-﻿using Python.Runtime;
-using RSBot.Core;
-using RSBot.Python.Runtime;
-using System;
+﻿using System;
 using System.Collections.Generic;
 using System.Linq;
 using System.Reflection;
+using Python.Runtime;
+using RSBot.Core;
+using RSBot.Python.Runtime;
 
 namespace RSBot.Python.API.Module
 {
@@ -20,6 +20,7 @@ namespace RSBot.Python.API.Module
         {
             _log = log;
         }
+
         private readonly List<IPythonPlugin> _plugins = [];
         private readonly List<PyObject> _pythonObjects = [];
 
@@ -33,12 +34,12 @@ namespace RSBot.Python.API.Module
         {
             _plugins.Clear();
             var pluginType = typeof(IPythonPlugin);
-            var pluginInstances = typeof(ModuleLoader).Assembly
-            .GetTypes()
-            .Where(t => pluginType.IsAssignableFrom(t) && !t.IsInterface && !t.IsAbstract)
-            .Select(t => (IPythonPlugin)Activator.CreateInstance(t))
-            .OrderBy(x => x.ModuleName)
-            .ToArray();
+            var pluginInstances = typeof(ModuleLoader)
+                .Assembly.GetTypes()
+                .Where(t => pluginType.IsAssignableFrom(t) && !t.IsInterface && !t.IsAbstract)
+                .Select(t => (IPythonPlugin)Activator.CreateInstance(t))
+                .OrderBy(x => x.ModuleName)
+                .ToArray();
 
             foreach (var plugin in pluginInstances)
             {
@@ -67,7 +68,11 @@ namespace RSBot.Python.API.Module
 
                 foreach (var method in api.GetType().GetMethods(BindingFlags.Instance | BindingFlags.Public))
                 {
-                    if (method.DeclaringType == typeof(object) || method.IsSpecialName || method.Name is nameof(IPythonPlugin.Init))
+                    if (
+                        method.DeclaringType == typeof(object)
+                        || method.IsSpecialName
+                        || method.Name is nameof(IPythonPlugin.Init)
+                    )
                         continue;
 
                     if (!exported.Add(method.Name))

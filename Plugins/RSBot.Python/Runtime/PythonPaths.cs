@@ -1,6 +1,6 @@
-﻿using RSBot.Core;
-using System;
+﻿using System;
 using System.IO;
+using RSBot.Core;
 
 namespace RSBot.Python.Runtime
 {

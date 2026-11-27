@@ -1,4 +1,10 @@
-﻿using Python.Runtime;
+﻿using System;
+using System.Collections.Generic;
+using System.Linq;
+using System.Reflection;
+using System.Threading;
+using System.Threading.Tasks;
+using Python.Runtime;
 using RSBot.Core;
 using RSBot.Core.Event;
 using RSBot.Core.Network;
@@ -7,16 +13,10 @@ using RSBot.Python.API.Module;
 using RSBot.Python.Manager;
 using RSBot.Python.Models;
 using RSBot.Python.Runtime;
-using System;
-using System.Collections.Generic;
-using System.Linq;
-using System.Reflection;
-using System.Threading;
-using System.Threading.Tasks;
 
 namespace RSBot.Python
 {
-    public class PythonManager 
+    public class PythonManager
     {
         private readonly Timer _eventLoopTimer;
         private int _eventLoopRunning;
@@ -104,7 +104,9 @@ namespace RSBot.Python
 
         public async Task RestoreSavedPluginsAsync()
         {
-            var pluginsToEnable = FoundPlugins.Where(x => GlobalConfig.Profile.PythonPlugins.EnabledPlugins.Contains(x.Name)).ToArray();
+            var pluginsToEnable = FoundPlugins
+                .Where(x => GlobalConfig.Profile.PythonPlugins.EnabledPlugins.Contains(x.Name))
+                .ToArray();
 
             foreach (var plugin in pluginsToEnable)
             {
@@ -207,11 +209,26 @@ namespace RSBot.Python
         private void SubscribeEvents()
         {
             EventManager.SubscribeEvent("OnEnterGame", new Action(() => PluginManager.CallEvent("on_enter_game")));
-            EventManager.SubscribeEvent("OnAgentServerDisconnected", new Action(() => PluginManager.CallEvent("on_disconnect")));
-            EventManager.SubscribeEvent("OnTeleportStart", new Action(() => PluginManager.CallEvent("on_teleported", 1)));
-            EventManager.SubscribeEvent("OnTeleportComplete", new Action(() => PluginManager.CallEvent("on_teleported", 2)));
-            EventManager.SubscribeEvent("OnClientPacketReceive", new Action<Packet>(packet => ForwardPacket("on_packet_from_client", packet)));
-            EventManager.SubscribeEvent("OnServerPacketReceive", new Action<Packet>(packet => ForwardPacket("on_packet_from_server", packet)));
+            EventManager.SubscribeEvent(
+                "OnAgentServerDisconnected",
+                new Action(() => PluginManager.CallEvent("on_disconnect"))
+            );
+            EventManager.SubscribeEvent(
+                "OnTeleportStart",
+                new Action(() => PluginManager.CallEvent("on_teleported", 1))
+            );
+            EventManager.SubscribeEvent(
+                "OnTeleportComplete",
+                new Action(() => PluginManager.CallEvent("on_teleported", 2))
+            );
+            EventManager.SubscribeEvent(
+                "OnClientPacketReceive",
+                new Action<Packet>(packet => ForwardPacket("on_packet_from_client", packet))
+            );
+            EventManager.SubscribeEvent(
+                "OnServerPacketReceive",
+                new Action<Packet>(packet => ForwardPacket("on_packet_from_server", packet))
+            );
         }
 
         private void ForwardPacket(string eventName, Packet packet)

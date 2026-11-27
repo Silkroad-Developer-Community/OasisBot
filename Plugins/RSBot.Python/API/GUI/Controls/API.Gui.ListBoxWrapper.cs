@@ -1,9 +1,9 @@
-﻿using Python.Runtime;
+﻿using System;
+using System.Windows.Forms;
+using Python.Runtime;
 using RSBot.Core;
 using RSBot.Python.API.Handler;
 using RSBot.Python.Runtime;
-using System;
-using System.Windows.Forms;
 
 namespace RSBot.Python.API.GUI.Controls
 {
@@ -13,8 +13,16 @@ namespace RSBot.Python.API.GUI.Controls
         private readonly ListBox _list;
         private bool _suppress;
 
-        public PythonListBox(TabPage parent, PythonExecutor executor, int x, int y, int width, int height, PyObject callback)
-        : base(parent, () => new ListBox(), executor, x, y, width, height)
+        public PythonListBox(
+            TabPage parent,
+            PythonExecutor executor,
+            int x,
+            int y,
+            int width,
+            int height,
+            PyObject callback
+        )
+            : base(parent, () => new ListBox(), executor, x, y, width, height)
         {
             _list = (ListBox)Control;
             _callback = callback;
@@ -45,28 +53,32 @@ namespace RSBot.Python.API.GUI.Controls
 
         public void add_item(object value) => Invoke(() => _list.Items.Add(value?.ToString() ?? string.Empty));
 
-        public void remove_item(int index) => Invoke(() =>
-        {
-            if (index >= 0 && index < _list.Items.Count)
-                _list.Items.RemoveAt(index);
-        });
+        public void remove_item(int index) =>
+            Invoke(() =>
+            {
+                if (index >= 0 && index < _list.Items.Count)
+                    _list.Items.RemoveAt(index);
+            });
 
         public void clear() => Invoke(() => _list.Items.Clear());
 
         public int selected_index() => Invoke(() => _list.SelectedIndex);
 
-        public void set_index(int index) => Invoke(() =>
-        {
-            _suppress = true;
-            if (index >= -1 && index < _list.Items.Count)
-                _list.SelectedIndex = index;
-            _suppress = false;
-        });
+        public void set_index(int index) =>
+            Invoke(() =>
+            {
+                _suppress = true;
+                if (index >= -1 && index < _list.Items.Count)
+                    _list.SelectedIndex = index;
+                _suppress = false;
+            });
 
         public int item_count() => Invoke(() => _list.Items.Count);
 
-        public string get_item(int index) => Invoke(() =>
-            index >= 0 && index < _list.Items.Count ? _list.Items[index]?.ToString() ?? string.Empty : string.Empty);
+        public string get_item(int index) =>
+            Invoke(() =>
+                index >= 0 && index < _list.Items.Count ? _list.Items[index]?.ToString() ?? string.Empty : string.Empty
+            );
 
         public string get_selected_item() => Invoke(() => _list.SelectedItem?.ToString() ?? string.Empty);
 
@@ -80,7 +92,11 @@ namespace RSBot.Python.API.GUI.Controls
             {
                 _ = Executor.ExecuteAsync(() =>
                 {
-                    try { callback.Dispose(); } catch { }
+                    try
+                    {
+                        callback.Dispose();
+                    }
+                    catch { }
                 });
             }
 

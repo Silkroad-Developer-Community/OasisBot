@@ -1,9 +1,9 @@
-﻿using Python.Runtime;
+﻿using System;
+using System.Windows.Forms;
+using Python.Runtime;
 using RSBot.Core;
 using RSBot.Python.API.Handler;
 using RSBot.Python.Runtime;
-using System;
-using System.Windows.Forms;
 
 namespace RSBot.Python.API.GUI.Controls
 {
@@ -13,8 +13,25 @@ namespace RSBot.Python.API.GUI.Controls
         private readonly SDUI.Controls.CheckBox _checkBox;
         private bool _suppress;
 
-        public PythonCheckBox(TabPage parent, PythonExecutor executor, string text, int x, int y, int width, int height, PyObject callback)
-        : base(parent, () => new SDUI.Controls.CheckBox { Text = text ?? string.Empty }, executor, x, y, width, height)
+        public PythonCheckBox(
+            TabPage parent,
+            PythonExecutor executor,
+            string text,
+            int x,
+            int y,
+            int width,
+            int height,
+            PyObject callback
+        )
+            : base(
+                parent,
+                () => new SDUI.Controls.CheckBox { Text = text ?? string.Empty },
+                executor,
+                x,
+                y,
+                width,
+                height
+            )
         {
             _checkBox = (SDUI.Controls.CheckBox)Control;
             _callback = callback;
@@ -42,14 +59,16 @@ namespace RSBot.Python.API.GUI.Controls
                 }
             });
         }
+
         public bool get_checked() => Invoke(() => _checkBox.Checked);
 
-        public void set_checked(bool value) => Invoke(() =>
-        {
-            _suppress = true;
-            _checkBox.Checked = value;
-            _suppress = false;
-        });
+        public void set_checked(bool value) =>
+            Invoke(() =>
+            {
+                _suppress = true;
+                _checkBox.Checked = value;
+                _suppress = false;
+            });
 
         public override void Dispose()
         {
@@ -61,7 +80,11 @@ namespace RSBot.Python.API.GUI.Controls
             {
                 _ = Executor.ExecuteAsync(() =>
                 {
-                    try { callback.Dispose(); } catch { }
+                    try
+                    {
+                        callback.Dispose();
+                    }
+                    catch { }
                 });
             }
 
