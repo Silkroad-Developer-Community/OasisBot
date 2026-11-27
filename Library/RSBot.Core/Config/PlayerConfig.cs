@@ -13,25 +13,24 @@ public static class PlayerConfig
     /// </summary>
     private static Config<PlayerConfigProfile> _config;
 
-    /// <summary>
-    ///     The config directory
-    /// </summary>
-    private static string _configDirectory => Path.Combine(Kernel.BasePath, "User", ProfileManager.SelectedProfile);
-
-    /// <summary>
-    ///     The joined servername
-    /// </summary>
-    private static string _server => Game.JoinedServer;
-
     public static PlayerConfigProfile   Profile => _config?.Data ?? new();
+
+    /// <summary>
+    ///     Gets the configuration file path for the character on the joined server.
+    /// </summary>
+    public static string GetConfigPath(string charName)
+    {
+        var directory = ProfileManager.GetProfileDirectory(ProfileManager.SelectedProfile);
+        return Path.Combine(directory, $"{Game.JoinedServer}_{charName}.json");
+    }
 
     /// <summary>
     ///     Load config from file
     /// </summary>
-    /// <param name="file">The config file path</param>
+    /// <param name="charName">The character name.</param>
     public static void Load(string charName)
     {
-        _config = new Config<PlayerConfigProfile>(Path.Combine(_configDirectory, _server + "_" + charName + ".json"));
+        _config = new Config<PlayerConfigProfile>(GetConfigPath(charName));
         _config.Load();
         Log.Notify("[Player] Config have been loaded!");
     }
