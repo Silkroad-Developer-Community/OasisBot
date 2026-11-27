@@ -29,23 +29,21 @@ partial class Main
     /// </summary>
     private void InitializeComponent()
     {
-        components = new System.ComponentModel.Container();
-        DataGridViewCellStyle dataGridViewCellStyle1 = new DataGridViewCellStyle();
+        DataGridViewCellStyle dataGridViewCellStyle2 = new DataGridViewCellStyle();
         mainPanel = new SDUI.Controls.Panel();
         flowLayoutPanel1 = new SDUI.Controls.FlowLayoutPanel();
-        btnReload = new SDUI.SK.Button();
-        btnOpenFolder = new SDUI.SK.Button();
+        btnReload = new SDUI.Controls.Button();
+        btnOpenFolder = new SDUI.Controls.Button();
         tcPlugin = new SDUI.Controls.TabControl();
         tpPlugins = new TabPage();
         dgvPlugin = new DataGridView();
-        tbPluginLog = new RichTextBox();
         ColEnabled = new DataGridViewCheckBoxColumn();
         ColName = new DataGridViewTextBoxColumn();
         ColDescription = new DataGridViewTextBoxColumn();
         ColAuthor = new DataGridViewTextBoxColumn();
         ColVersion = new DataGridViewTextBoxColumn();
         FileName = new DataGridViewTextBoxColumn();
-        timerOnCall = new System.Windows.Forms.Timer(components);
+        tbPluginLog = new RichTextBox();
         mainPanel.SuspendLayout();
         flowLayoutPanel1.SuspendLayout();
         tcPlugin.SuspendLayout();
@@ -86,34 +84,28 @@ partial class Main
         // 
         // btnReload
         // 
-        btnReload.AutoSizeMode = AutoSizeMode.GrowAndShrink;
-        btnReload.BackColor = Color.Transparent;
         btnReload.Color = Color.Transparent;
-        btnReload.DialogResult = DialogResult.None;
-        btnReload.Image = null;
-        btnReload.Location = new Point(3, 3);
+        btnReload.Location = new Point(3, 4);
+        btnReload.Margin = new Padding(3, 4, 3, 4);
         btnReload.Name = "btnReload";
         btnReload.Radius = 6;
         btnReload.ShadowDepth = 4F;
-        btnReload.Size = new Size(94, 29);
-        btnReload.TabIndex = 0;
+        btnReload.Size = new Size(143, 28);
+        btnReload.TabIndex = 18;
         btnReload.Text = "Reload";
         btnReload.UseVisualStyleBackColor = true;
-        btnReload.Click += btnReload_Click;
+        btnReload.Click += this.btnReload_Click;
         // 
         // btnOpenFolder
         // 
-        btnOpenFolder.AutoSizeMode = AutoSizeMode.GrowAndShrink;
-        btnOpenFolder.BackColor = Color.Transparent;
         btnOpenFolder.Color = Color.Transparent;
-        btnOpenFolder.DialogResult = DialogResult.None;
-        btnOpenFolder.Image = null;
-        btnOpenFolder.Location = new Point(103, 3);
+        btnOpenFolder.Location = new Point(152, 4);
+        btnOpenFolder.Margin = new Padding(3, 4, 3, 4);
         btnOpenFolder.Name = "btnOpenFolder";
         btnOpenFolder.Radius = 6;
         btnOpenFolder.ShadowDepth = 4F;
-        btnOpenFolder.Size = new Size(94, 29);
-        btnOpenFolder.TabIndex = 1;
+        btnOpenFolder.Size = new Size(143, 28);
+        btnOpenFolder.TabIndex = 17;
         btnOpenFolder.Text = "Open Folder";
         btnOpenFolder.UseVisualStyleBackColor = true;
         btnOpenFolder.Click += btnOpenFolder_Click;
@@ -146,14 +138,14 @@ partial class Main
         dgvPlugin.AllowUserToAddRows = false;
         dgvPlugin.AllowUserToDeleteRows = false;
         dgvPlugin.AutoSizeColumnsMode = DataGridViewAutoSizeColumnsMode.Fill;
-        dataGridViewCellStyle1.Alignment = DataGridViewContentAlignment.MiddleCenter;
-        dataGridViewCellStyle1.BackColor = SystemColors.Control;
-        dataGridViewCellStyle1.Font = new Font("Segoe UI", 9F);
-        dataGridViewCellStyle1.ForeColor = SystemColors.WindowText;
-        dataGridViewCellStyle1.SelectionBackColor = SystemColors.Highlight;
-        dataGridViewCellStyle1.SelectionForeColor = SystemColors.HighlightText;
-        dataGridViewCellStyle1.WrapMode = DataGridViewTriState.True;
-        dgvPlugin.ColumnHeadersDefaultCellStyle = dataGridViewCellStyle1;
+        dataGridViewCellStyle2.Alignment = DataGridViewContentAlignment.MiddleCenter;
+        dataGridViewCellStyle2.BackColor = SystemColors.Control;
+        dataGridViewCellStyle2.Font = new Font("Segoe UI", 9F);
+        dataGridViewCellStyle2.ForeColor = SystemColors.WindowText;
+        dataGridViewCellStyle2.SelectionBackColor = SystemColors.Highlight;
+        dataGridViewCellStyle2.SelectionForeColor = SystemColors.HighlightText;
+        dataGridViewCellStyle2.WrapMode = DataGridViewTriState.True;
+        dgvPlugin.ColumnHeadersDefaultCellStyle = dataGridViewCellStyle2;
         dgvPlugin.ColumnHeadersHeightSizeMode = DataGridViewColumnHeadersHeightSizeMode.AutoSize;
         dgvPlugin.Columns.AddRange(new DataGridViewColumn[] { ColEnabled, ColName, ColDescription, ColAuthor, ColVersion, FileName });
         dgvPlugin.Dock = DockStyle.Fill;
@@ -166,15 +158,6 @@ partial class Main
         dgvPlugin.SelectionMode = DataGridViewSelectionMode.CellSelect;
         dgvPlugin.Size = new Size(586, 330);
         dgvPlugin.TabIndex = 0;
-        // 
-        // tbPluginLog
-        // 
-        tbPluginLog.Dock = DockStyle.Bottom;
-        tbPluginLog.Location = new Point(0, 368);
-        tbPluginLog.Name = "tbPluginLog";
-        tbPluginLog.Size = new Size(600, 99);
-        tbPluginLog.TabIndex = 0;
-        tbPluginLog.Text = "";
         // 
         // ColEnabled
         // 
@@ -224,11 +207,14 @@ partial class Main
         FileName.ReadOnly = true;
         FileName.Visible = false;
         // 
-        // timerOnCall
+        // tbPluginLog
         // 
-        timerOnCall.Enabled = true;
-        timerOnCall.Interval = 500;
-        timerOnCall.Tick += timerEventLoop_Tick;
+        tbPluginLog.Dock = DockStyle.Bottom;
+        tbPluginLog.Location = new Point(0, 368);
+        tbPluginLog.Name = "tbPluginLog";
+        tbPluginLog.Size = new Size(600, 99);
+        tbPluginLog.TabIndex = 0;
+        tbPluginLog.Text = "";
         // 
         // Main
         // 
@@ -253,8 +239,6 @@ partial class Main
     private SDUI.Controls.FlowLayoutPanel flowLayoutPanel1;
     private TabPage tpPlugins;
     public SDUI.Controls.TabControl tcPlugin;
-    public SDUI.SK.Button btnReload;
-    public SDUI.SK.Button btnOpenFolder;
     public DataGridView dgvPlugin;
     private DataGridViewCheckBoxColumn ColEnabled;
     private DataGridViewTextBoxColumn ColName;
@@ -262,5 +246,7 @@ partial class Main
     private DataGridViewTextBoxColumn ColAuthor;
     private DataGridViewTextBoxColumn ColVersion;
     private DataGridViewTextBoxColumn FileName;
-    private System.Windows.Forms.Timer timerOnCall;
+    private SDUI.Controls.Button btnStartClient;
+    private SDUI.Controls.Button btnOpenFolder;
+    private SDUI.Controls.Button btnReload;
 }

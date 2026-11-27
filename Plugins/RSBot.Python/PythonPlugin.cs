@@ -1,4 +1,5 @@
 ﻿using RSBot.Core.Plugins;
+using RSBot.Python.Views;
 
 namespace RSBot.Python
 {
@@ -12,6 +13,8 @@ namespace RSBot.Python
         {
             Instance = this;
             Manager = new PythonManager();
+            View.Instance.AttachManager(Manager);
+            Manager.Initialize();
         }
 
         public void OnLoadCharacter() { }

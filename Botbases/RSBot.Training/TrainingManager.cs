@@ -53,13 +53,6 @@ namespace RSBot.Training
             EventManager.FireEvent("OnSetTrainingArea");
         }
 
-        public static void SetWalkingScript(string script)
-        {
-            PlayerConfig.Profile.Training.WalkbackFile = script;
-            PlayerConfig.Save();
-            Log.Notify($"[Training area] New walking script set: {script}");
-        }
-
         private void OnPickPetTimerElapsed(object sender, ElapsedEventArgs e)
         {
             if (Kernel.Bot.Running || !Game.Ready)
