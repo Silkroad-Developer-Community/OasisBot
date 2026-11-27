@@ -8,12 +8,12 @@ namespace RSBot.Python.API.Handler
     public static class PluginMetaReader
     {
         private static readonly Regex Assignment = new(
-            "^(?<key>NAME|DESCRIPTION|AUTHOR|VERSION|GUI)\\s*=\\s*(?<value>.+?)\\s*$",
+            "^(?<key>NAME|DESCRIPTION|AUTHOR|VERSION)\\s*=\\s*(?<value>.+?)\\s*$",
             RegexOptions.Multiline | RegexOptions.IgnoreCase | RegexOptions.Compiled
         );
 
         private static readonly Regex Header = new(
-            "^\\s*#\\s*(?<key>Name|Description|Author|Version|GUI)\\s*:\\s*(?<value>.+?)\\s*$",
+            "^\\s*#\\s*(?<key>Name|Description|Author|Version)\\s*:\\s*(?<value>.+?)\\s*$",
             RegexOptions.Multiline | RegexOptions.IgnoreCase | RegexOptions.Compiled
         );
 
@@ -25,7 +25,6 @@ namespace RSBot.Python.API.Handler
             string description = string.Empty;
             string author = "Unknown";
             string version = "—";
-            bool hasGui = false;
 
             foreach (Match match in Assignment.Matches(text))
                 Apply(
@@ -34,8 +33,7 @@ namespace RSBot.Python.API.Handler
                     ref name,
                     ref description,
                     ref author,
-                    ref version,
-                    ref hasGui
+                    ref version
                 );
 
             foreach (Match match in Header.Matches(text))
@@ -45,14 +43,8 @@ namespace RSBot.Python.API.Handler
                     ref name,
                     ref description,
                     ref author,
-                    ref version,
-                    ref hasGui
+                    ref version
                 );
-
-            if (!hasGui)
-                hasGui =
-                    Regex.IsMatch(text, @"\bOasisBot\s*\.\s*GUI\s*\(", RegexOptions.IgnoreCase)
-                    || Regex.IsMatch(text, @"\RSBot\s*\.\s*GUI\s*\(", RegexOptions.IgnoreCase);
 
             return new PythonPluginInfo
             {
@@ -62,8 +54,7 @@ namespace RSBot.Python.API.Handler
                 Name = name,
                 Description = description,
                 Author = author,
-                Version = version,
-                HasGui = hasGui,
+                Version = version
             };
         }
 
@@ -84,8 +75,7 @@ namespace RSBot.Python.API.Handler
             ref string name,
             ref string description,
             ref string author,
-            ref string version,
-            ref bool gui
+            ref string version
         )
         {
             switch (key.Trim().ToUpperInvariant())
@@ -101,12 +91,6 @@ namespace RSBot.Python.API.Handler
                     break;
                 case "VERSION":
                     version = value;
-                    break;
-                case "GUI":
-                    gui =
-                        value.Equals("true", StringComparison.OrdinalIgnoreCase)
-                        || value == "1"
-                        || value.Equals("yes", StringComparison.OrdinalIgnoreCase);
                     break;
             }
         }

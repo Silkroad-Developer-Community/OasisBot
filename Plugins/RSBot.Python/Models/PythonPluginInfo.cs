@@ -9,7 +9,6 @@
         public string Description { get; init; }
         public string Author { get; init; }
         public string Version { get; init; }
-        public bool HasGui { get; init; }
         public bool IsEnabled { get; set; }
     }
 }
