@@ -3,8 +3,8 @@ using System.Collections.Concurrent;
 using System.Collections.Generic;
 using System.IO;
 using System.Linq;
-using System.Text.Json;
-using System.Text.Json.Serialization;
+using Newtonsoft.Json;
+using Newtonsoft.Json.Converters;
 
 namespace RSBot.Core;
 
@@ -23,13 +23,13 @@ public class Config<T> where T : class, new()
     public T Data { get; set; } = new();
 
     /// <summary>
-    ///     The json options for serialization and deserialization
+    ///     The JSON settings for serialization and deserialization
     /// </summary>
-    private static readonly JsonSerializerOptions _jsonOptions = new()
+    private static readonly JsonSerializerSettings _jsonSettings = new()
     {
-        WriteIndented = true,
-        PropertyNameCaseInsensitive = true,
-        Converters = { new JsonStringEnumConverter() }
+        Formatting = Formatting.Indented,
+        ObjectCreationHandling = ObjectCreationHandling.Replace,
+        Converters = { new StringEnumConverter() }
     };
 
     
@@ -58,7 +58,7 @@ public class Config<T> where T : class, new()
         try
         {
             var json = File.ReadAllText(_path);
-            Data = JsonSerializer.Deserialize<T>(json, _jsonOptions) ?? new T();
+            Data = JsonConvert.DeserializeObject<T>(json, _jsonSettings) ?? new T();
         }
         catch (Exception ex)
         {
@@ -78,7 +78,7 @@ public class Config<T> where T : class, new()
             var directory = Path.GetDirectoryName(_path);
             if (!string.IsNullOrEmpty(directory) && !Directory.Exists(directory))
                 Directory.CreateDirectory(directory);
-            var json = JsonSerializer.Serialize(Data, _jsonOptions);
+            var json = JsonConvert.SerializeObject(Data, _jsonSettings);
             File.WriteAllText(_path, json);
         }
         catch (Exception ex)

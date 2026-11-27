@@ -16,5 +16,6 @@
   <ItemGroup>
     <ProjectReference Include="..\RSBot.FileSystem\RSBot.FileSystem.csproj" />
     <ProjectReference Include="..\RSBot.NavMeshApi\RSBot.NavMeshApi.csproj" />
+    <PackageReference Include="Newtonsoft.Json" Version="13.0.4" />
   </ItemGroup>
 </Project>

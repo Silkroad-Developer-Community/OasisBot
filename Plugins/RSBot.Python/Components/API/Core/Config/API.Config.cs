@@ -36,9 +36,9 @@ namespace RSBot.Python.Components.API.Core.Entity
         {
             if (Game.Player == null)
             {
-                return Path.Combine(projectDir, "User", "Default");
+                return Path.Combine(projectDir, "User", ProfileManager.SelectedProfile);
             }
-            return Path.Combine(projectDir, "User", "Default", $"{Game.Player.Name}.rs");
+            return Path.Combine(projectDir, "User", ProfileManager.SelectedProfile, $"{Game.Player.Name}.rs");
         }
 
         private string GetLogDir()
